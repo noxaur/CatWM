@@ -124,6 +124,7 @@ final class SettingsUI: ObservableObject {
     @Published var newID = ""
     @Published var previewFlipped = false
     @Published var linkedPadding = true
+    @Published var dragAnywhere = DragAnywhere.isEnabled
     @Published var status = WindowManager.shared.status()
     /// Row whose shortcut is being recorded. Global keybinds are paused meanwhile so the combo
     /// arrives here instead of moving windows.
@@ -138,6 +139,7 @@ final class SettingsUI: ObservableObject {
     func beginSession() {
         let c = doc.config
         linkedPadding = Set([c.paddingTop, c.paddingBottom, c.paddingLeft, c.paddingRight]).count == 1
+        dragAnywhere = DragAnywhere.isEnabled
         refreshStatus()
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.refreshStatus() }
@@ -447,6 +449,7 @@ private struct OverviewPane: View {
                 Card {
                     SwitchRow(title: "Open at login", isOn: loginBinding)
                     if ui.status.loginNeedsApproval { LoginApprovalRow() }
+                    if !s.inputMonitoring { InputMonitoringRow() }
                     SwitchRow(title: "Tiling", isOn: Binding(get: { ui.status.tilingEnabled }, set: { _ in
                         WindowManager.shared.toggleTiling()
                         ui.refreshStatus()
@@ -557,6 +560,20 @@ private struct OverviewPane: View {
     }
 }
 
+private struct InputMonitoringRow: View {
+    var body: some View {
+        Row {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Instant Caps Lock shortcuts")
+                Text("Allow Input Monitoring so Super + Caps Lock fires right away instead of after a hold.")
+                    .font(Theme.body(11)).foregroundStyle(Theme.secondary)
+            }
+        } control: {
+            Button("Allow…") { Permissions.requestInputMonitoring() }
+        }
+    }
+}
+
 private struct LoginApprovalRow: View {
     var body: some View {
         Row {
@@ -597,6 +614,21 @@ private struct AmoreCredit: View {
 }
 
 enum Permissions {
+    /// Input Monitoring lets Caps Lock shortcuts fire at the real key press (see Hotkeys.startRawCaps).
+    /// Optional: without it they still work, after macOS's own Caps Lock delay.
+    static var inputMonitoringGranted: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted }
+
+    static func requestInputMonitoring() {
+        // The first request shows macOS's prompt (and lists us); once answered it never prompts again.
+        if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeUnknown {
+            IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+            return
+        }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     /// Whether this launch already asked macOS to list us (which also shows its own alert). Asking again
     /// would clear the entry it just added and stack another alert, so later requests only reopen Settings.
     private static var prompted = false
@@ -917,6 +949,12 @@ private struct BehaviorPane: View {
                               isOn: $doc.config.mouseSwapsWindows)
                     SwitchRow(title: "Resize to adjust the main pane", detail: "Dragging the edge between panes changes how much room the main pane gets.",
                               isOn: $doc.config.mouseResizesWindows)
+                    SwitchRow(title: "Drag windows from anywhere",
+                              detail: "Hold ⌃⌘ and drag any part of a window to move it. A macOS setting for all apps; restart running apps for it to take effect.",
+                              isOn: Binding(get: { ui.dragAnywhere }, set: { on in
+                                  DragAnywhere.set(on)
+                                  ui.dragAnywhere = DragAnywhere.isEnabled
+                              }))
                 }
             }
             Block("Windows") {

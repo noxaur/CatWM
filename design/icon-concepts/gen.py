@@ -5,7 +5,7 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.pens.boundsPen import BoundsPen
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-font = TTFont(os.path.join(HERE, "DelaGothicOne-Regular.ttf"))
+font = TTFont(os.path.join(HERE, "../../Resources/Fonts/DelaGothicOne-Regular.ttf"))
 gs, cmap = font.getGlyphSet(), font.getBestCmap()
 hmtx = font["hmtx"]
 

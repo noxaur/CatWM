@@ -797,6 +797,9 @@ private struct BehaviorPane: View {
                              detail: "Instant, per-monitor workspaces like Hyprland, instead of macOS Spaces. Windows on hidden workspaces are parked just off-screen. Works best with a single macOS Space.",
                              isOn: $doc.config.virtualWorkspaces)
                 if doc.config.virtualWorkspaces {
+                    DetailToggle(title: "Stay on this workspace when closing a window",
+                                 detail: "Closing a window won't jump to another workspace just because macOS refocuses a window there.",
+                                 isOn: $doc.config.stayOnWorkspaceAfterClose)
                     LabeledContent {
                         Button("Use This Desktop") { WindowManager.shared.makeCurrentSpaceHome() }
                     } label: {

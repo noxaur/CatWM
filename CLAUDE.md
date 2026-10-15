@@ -1,17 +1,6 @@
 # Ouch: agent guide
 
-Ouch is a macOS tiling window manager (Swift, SwiftPM, one target `ouch`). Old names: Hyprthyst, then mxtiler. Paths with those names are stale. All code is in `Sources/ouch/`.
-
-## Find code
-
-Use the map below first. Each file name is unique, so `find Sources -name <File>.swift` gives its path.
-
-1. Find the file for the feature in the map.
-2. Run `grep -n 'MARK\|func \|class \|struct ' <file>` to get a table of contents.
-3. Read only the line ranges you need (`Read` with offset/limit, or `sed -n A,Bp`).
-4. Do not read or `cat` a whole file over 300 lines.
-5. Scope searches to `Sources/`. Do not run `grep -r` from the repo root (it scans `design/`, `.build/` and `build/`).
-6. Use `| tail -25` or `grep -E 'error|warning:'` on build output.
+Ouch is a macOS tiling window manager (Swift, SwiftPM, one target `ouch`). All code is in `Sources/ouch/`.
 
 ## Feature map
 
@@ -46,12 +35,15 @@ Use the map below first. Each file name is unique, so `find Sources -name <File>
 
 Other folders: `design/` (specs and prototypes), `Tools/` (probe scripts), `report-relay/` (Cloudflare Worker for bug reports), `Resources/` (fonts, icon).
 
-## Build
+## When you finish
 
-- `swift build 2>&1 | tail -25` to check that it compiles.
-- `./build.sh` makes `build/ouch.app`. `open build/ouch.app` runs it.
+1. Run `./build.sh`.
+2. Send the user this command in a `bash` code block:
 
-## Sessions
+```bash
+open build/ouch.app
+```
 
-- Keep one task per session. Long sessions carry all earlier tool output into each turn.
-- Keep this file short. Agents load it on each turn. When you move or add a feature file, update the map.
+## Pull requests
+
+Make all pull requests with the `pr` skill (`.agents/skills/pr`).

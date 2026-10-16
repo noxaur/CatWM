@@ -14,11 +14,11 @@ import MacKeysUI
 //
 // - `binds`: one layer (one mode, one set of modifiers). `KeyHint(_:)` builds them from a
 //   `ConfigDocument.KeyAction` or a running `KeyBinding`.
-// - `style`: `.labels` writes the action on the cap, `.lit` only lights bound keys, `.constellation`
-//   hides unbound keys. Bound keys glow in their group's colour; there is no deck or well.
+// - `style`: `.labels` writes the action on the cap, `.lit` only colours bound keys, `.constellation`
+//   hides unbound keys and the deck.
 // - `pressed`: a key filled with its group colour. `hot`: keys with a ring that never recede; pass
 //   held modifiers here (modifier keys carry their key codes, e.g. 55 for ⌘).
-// - `scale`: 1 draws the keys at the SDK's natural size, a 1u key 58pt. `size(scale:)` is the view's size,
+// - `scale`: 1 draws the keyboard well at the SDK's natural size, a 1u key 58pt. `size(scale:)` is the view's size,
 //   `rect(of:scale:)` a key's frame inside it, for popovers and tooltips placed over a key, and
 //   `keycap(_:hint:scale:)` one key on its own.
 
@@ -205,10 +205,18 @@ struct KeyHintKeyboard: View {
     var body: some View {
         let bound = Dictionary(binds.map { ($0.code, $0) }, uniquingKeysWith: { a, _ in a })
         let size = Self.size(scale: scale)
+        let well = mac.well
         ZStack(alignment: .topLeading) {
+            if style != .constellation {
+                // Only the keyboard well: the SDK's deck is drawn around it, and clipped away here.
+                MacKeyboardDeckView(device: mac.device, scale: scale)
+                    .offset(x: -well.minX * scale, y: -well.minY * scale)
+                    .frame(width: size.width, height: size.height, alignment: .topLeading)
+                    .clipShape(RoundedRectangle(cornerRadius: CGFloat(mac.device.topCase.well.radius) * scale, style: .continuous))
+            }
             ForEach(mac.keys) { k in
                 let r = Self.rect(of: k, scale: scale)
-                HintKeyCap(key: k, device: mac.device, lit: mac.litTheme, scale: scale, style: style,
+                HintKeyCap(key: k, device: mac.device, scale: scale, style: style,
                            hint: k.code.flatMap { bound[$0] }, pressed: k.code != nil && k.code == pressed,
                            hot: k.code.map(hot.contains) ?? false, tap: tap, hover: hover)
                     .frame(width: r.width, height: r.height)
@@ -222,17 +230,17 @@ struct KeyHintKeyboard: View {
 
     /// One key on its own, as it looks on the keyboard: for the head of a popover about that key.
     static func keycap(_ k: Key, hint: KeyHint?, scale: CGFloat) -> some View {
-        HintKeyCap(key: k, device: MacKeyboard.shared.device, lit: MacKeyboard.shared.litTheme, scale: scale, style: .labels, hint: hint,
+        HintKeyCap(key: k, device: MacKeyboard.shared.device, scale: scale, style: .labels, hint: hint,
                    pressed: false, hot: false, tap: nil, hover: nil, fades: false)
             .frame(width: k.frame.width * scale, height: k.frame.height * scale)
     }
 
     // MARK: Geometry
 
-    /// The keys' area in points at `scale`.
+    /// The keyboard well's size in points at `scale`.
     static func size(scale: CGFloat) -> CGSize {
-        let area = MacKeyboard.shared.area
-        return CGSize(width: area.width * scale, height: area.height * scale)
+        let well = MacKeyboard.shared.well
+        return CGSize(width: well.width * scale, height: well.height * scale)
     }
 
     /// A key's cap inside the view. The ISO return key's is the box around its L.
@@ -243,7 +251,7 @@ struct KeyHintKeyboard: View {
     /// The corner radius of a full-size key.
     static func cornerRadius(scale: CGFloat) -> CGFloat { 5 * scale }
 
-    /// One key: its MacKeys cap, and where it sits in points at scale 1 from the keyboard's top-left.
+    /// One key: its MacKeys cap, and where it sits in points at scale 1 from the well's top-left.
     struct Key: Identifiable {
         let cap: KeyCap
         /// The macOS key code, nil for fn and Touch ID.
@@ -323,8 +331,6 @@ private struct KeyOutline: Shape {
 private struct HintKeyCap: View {
     let key: KeyHintKeyboard.Key
     let device: MacDevice
-    /// The theme of a key with a bind: the backlight on.
-    let lit: KeyboardTheme
     let scale: CGFloat
     let style: KeyHintKeyboard.Style
     let hint: KeyHint?
@@ -392,11 +398,11 @@ private struct HintKeyCap: View {
         return "\(name): \(hint.title)"
     }
 
-    /// A thin ring on a held modifier. Bound keys glow instead.
+    /// A thin ring: the group's colour on a bind, the legend colour on a held modifier.
     private var ringColor: Color? {
         if filled { return nil }
         if hot { return light ? legendColor.opacity(0.85) : Theme.rgb(0xF5F5F7, 0.85) }
-        return nil
+        return hint != nil && style != .constellation ? groupColor : nil
     }
 
     @ViewBuilder private func outline(_ color: Color) -> some View {
@@ -414,14 +420,7 @@ private struct HintKeyCap: View {
             KeyOutline(cap: key.cap).fill(groupColor)
         } else {
             ZStack {
-                if hint != nil {
-                    // The bind's glow: its group colour bleeding out from under the lit cap.
-                    KeyOutline(cap: key.cap).fill(groupColor).frame(width: w, height: h)
-                        .blur(radius: 7 * scale).opacity(0.7)
-                    KeyOutline(cap: key.cap).fill(groupColor).frame(width: w, height: h)
-                        .blur(radius: 2 * scale).opacity(0.5)
-                }
-                MacKeyCap(key: key.cap, theme: hint != nil ? lit : device.theme, scale: scale, legends: !labelled)
+                MacKeyCap(key: key.cap, theme: device.theme, scale: scale, legends: !labelled)
                 if hovering.on && interactive {
                     KeyOutline(cap: key.cap).fill(light ? Color.black.opacity(0.05) : Color.white.opacity(0.06))
                         .frame(width: w, height: h)

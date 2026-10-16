@@ -78,7 +78,12 @@ extension WindowManager {
 
     /// Keeps workspace bookkeeping consistent with the displays that exist. In macOS-Spaces mode,
     /// mirrors whatever Space each display is showing.
-    func isVirtual(_ ws: String?) -> Bool { ws.map { !$0.hasPrefix("space:") } ?? false }
+    func isVirtual(_ ws: String?) -> Bool { ws.map { !$0.hasPrefix(Self.spacePrefix) } ?? false }
+
+    /// The workspace a display has on a macOS Space that is not its home Space (or in macOS-Spaces mode).
+    /// Every key for such a workspace (`shown`, `states`, `workspaceOf`) comes from here.
+    static let spacePrefix = "space:"
+    static func spaceWorkspace(display uuid: String, space: UInt64) -> String { "\(spacePrefix)\(uuid):\(space)" }
 
     /// While the Sort panel is open, windows put in Close wait on a workspace of their own per display, which
     /// is never shown (so the usual parking hides them), never listed and never saved.
@@ -116,7 +121,7 @@ extension WindowManager {
                 shown[s.uuid] = virtualShown[s.uuid]
                 onHome.insert(s.uuid)
             } else {
-                shown[s.uuid] = "space:\(s.uuid):\(space)"
+                shown[s.uuid] = Self.spaceWorkspace(display: s.uuid, space: space)
             }
             monitorOf[shown[s.uuid]!] = s.uuid
         }

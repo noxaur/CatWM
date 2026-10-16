@@ -243,7 +243,13 @@ extension WindowManager {
     }
 
     func state(for s: Screen) -> ScreenState {
-        state(workspace: shown[s.uuid] ?? "\(s.uuid):\(Spaces.current(display: s.uuid))")
+        state(workspace: workspaceKey(for: s))
+    }
+
+    /// The workspace a display shows, which keys its layout state. Before `syncWorkspaces` has run
+    /// for the display, that is the workspace of its current macOS Space, as `syncWorkspaces` names it.
+    func workspaceKey(for s: Screen) -> String {
+        shown[s.uuid] ?? Self.spaceWorkspace(display: s.uuid, space: Spaces.current(display: s.uuid))
     }
 
     func state(workspace key: String) -> ScreenState {

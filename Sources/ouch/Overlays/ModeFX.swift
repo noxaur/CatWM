@@ -106,62 +106,17 @@ final class ModeFX {
     }
 
     private func makePanel(_ screen: NSScreen) -> NSPanel {
-        let p = NSPanel(contentRect: screen.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.level = .screenSaver
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.hasShadow = false
-        p.ignoresMouseEvents = true
-        p.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        let p = OuchPanel(role: .fullscreenFX, frame: screen.frame)
         p.contentView = NSHostingView(rootView: view(for: screen))
         return p
     }
 
-    /// A fullscreen app's window is square and, on a notched screen, sits below a black menu bar band.
-    /// There the border goes round the window instead of the screen and the notch.
+    /// Follows the screen's rounded top and notch, or a fullscreen app's window (see ScreenShape).
     private func view(for screen: NSScreen) -> ModeFXView {
-        let uuid = screen.displayID.flatMap { CGDisplayCreateUUIDFromDisplayID($0) }
-            .map { CFUUIDCreateString(nil, $0.takeRetainedValue()) as String }
-        if let uuid, Spaces.isFullscreen(display: uuid) {
-            return ModeFXView(model: model, radius: 0, origin: screen.frame.origin, topInset: screen.safeAreaInsets.top)
-        }
-        return ModeFXView(model: model, radius: Self.topCornerRadius(screen), origin: screen.frame.origin,
-                          notchHalfWidth: Self.notchHalfWidth(screen), notchHeight: Self.notchHeight(screen))
+        let shape = ScreenShape.of(screen)
+        return ModeFXView(model: model, radius: shape.topRadius, origin: screen.frame.origin,
+                          notchHalfWidth: shape.notchHalfWidth, notchHeight: shape.notchHeight, topInset: shape.topInset)
     }
-
-    private typealias CornerRadiiFn = @convention(c) (CGDirectDisplayID, UnsafeMutablePointer<Double>?, UnsafeMutablePointer<Double>?,
-                                                      UnsafeMutablePointer<Double>?, UnsafeMutablePointer<Double>?) -> Int32
-    private static let cornerRadii: CornerRadiiFn? = symbol("SLSDisplayGetCornerRadii",
-                                                            in: "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight")
-
-    /// How round the screen's top corners are, in points, so the border follows them instead of being
-    /// cut off. Built-in MacBook displays round only the top (about 20pt on notched ones); the bottom and
-    /// external displays are square. WindowServer knows the exact value per display; the notch is the
-    /// fallback guess.
-    /// Half the width of the camera notch, or 0 on screens without one. Drawn borders start at its edges.
-    static func notchHalfWidth(_ screen: NSScreen) -> CGFloat {
-        guard screen.safeAreaInsets.top > 0, let l = screen.auxiliaryTopLeftArea, let r = screen.auxiliaryTopRightArea else { return 0 }
-        return max(0, (r.minX - l.maxX) / 2)
-    }
-
-    /// Height of the camera notch, or 0 on screens without one.
-    static func notchHeight(_ screen: NSScreen) -> CGFloat {
-        notchHalfWidth(screen) > 0 ? (screen.auxiliaryTopLeftArea?.height ?? screen.safeAreaInsets.top) : 0
-    }
-
-    static func topCornerRadius(_ screen: NSScreen) -> CGFloat {
-        var radii = [Double](repeating: 0, count: 4) // the bottom two, then the top two
-        if let f = cornerRadii, let id = screen.displayID,
-           radii.withUnsafeMutableBufferPointer({ f(id, $0.baseAddress, $0.baseAddress! + 1, $0.baseAddress! + 2, $0.baseAddress! + 3) }) == 0 {
-            return radii.max() ?? 0
-        }
-        return screen.safeAreaInsets.top > 0 ? 20 : 0
-    }
-
-}
-
-private extension NSScreen {
-    var displayID: CGDirectDisplayID? { deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID }
 }
 
 // MARK: - Views
@@ -225,7 +180,7 @@ struct ModeFXView: View {
         if reduceMotion && model.style != .none {
             // No motion: just the finished border, faded in.
             border(width: 4)
-                .opacity(on ? 1 : 0).animation(.easeOut(duration: 0.15), value: on)
+                .opacity(on ? 1 : 0).animation(Motion.fade, value: on)
         } else {
             animated(size: size)
         }

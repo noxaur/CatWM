@@ -37,7 +37,7 @@ final class Popup: NSObject, NSWindowDelegate {
     static let shared = Popup()
 
     private struct Entry {
-        let panel: MenuPanel
+        let panel: OuchPanel
         let generation: Int
         weak var parent: NSWindow?
         var onClose: (() -> Void)?
@@ -46,7 +46,7 @@ final class Popup: NSObject, NSWindowDelegate {
 
     /// Open pop-ups, the innermost last.
     private var stack: [Entry] = []
-    private var monitors: [Any] = []
+    private let dismiss = DismissMonitor()
     /// Room around the surface for its shadow.
     private static let margin: CGFloat = 26
 
@@ -102,8 +102,10 @@ final class Popup: NSObject, NSWindowDelegate {
         generation += 1
         // A fresh panel each time: the last one may still be fading out.
         let p = makePanel()
+        let g = generation
+        p.onClose = { [weak self] in self?.close(generation: g) } // ⌘W and ⌘Q close it, not Ouch or the window under it
         stack.append(Entry(panel: p, generation: generation, parent: key, onClose: onClose, keys: keys))
-        p.contentView = NSHostingView(rootView: view)
+        p.contentView = OuchHostingView(rootView: view)
         p.setFrame(frame, display: true)
         p.makeKeyAndOrderFront(nil)
         installMonitors()
@@ -137,18 +139,11 @@ final class Popup: NSObject, NSWindowDelegate {
             if let parent = entry.parent, parent.isVisible { parent.makeKey() }
             done?()
         }
-        if stack.isEmpty { removeMonitors() }
+        if stack.isEmpty { dismiss.stop() }
     }
 
-    private func makePanel() -> MenuPanel {
-        let p = MenuPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.level = .popUpMenu
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.hasShadow = false // drawn by the surfaces
-        p.isReleasedWhenClosed = false
-        p.hidesOnDeactivate = false
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .transient]
+    private func makePanel() -> OuchPanel {
+        let p = OuchPanel(role: .menu)
         p.delegate = self
         return p
     }
@@ -166,30 +161,17 @@ final class Popup: NSObject, NSWindowDelegate {
     }
 
     private func installMonitors() {
-        removeMonitors()
-        if let m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in
-            self?.closeAll()
-        }) { monitors.append(m) }
-        if let m = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown], handler: { [weak self] e in
-            guard let self else { return e }
-            if let i = self.stack.firstIndex(where: { $0.panel === e.window }) {
-                // A click in a pop-up closes only those opened from it.
-                if i < self.stack.count - 1 { self.close(from: i + 1) }
-                return e
-            }
-            self.closeAll()
-            return nil // the click only closes, like a native menu
-        }) { monitors.append(m) }
-        if let m = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: { [weak self] e in
-            guard let self, let top = self.stack.last, top.panel.isKeyWindow else { return e }
-            if e.keyCode == 53 { if !top.keys(e) { self.close() }; return nil } // keys(e) once: Esc steps back a level
-            return top.keys(e) ? nil : e
-        }) { monitors.append(m) }
-    }
-
-    private func removeMonitors() {
-        monitors.forEach(NSEvent.removeMonitor)
-        monitors = []
+        // A click outside every pop-up only closes them, like a native menu.
+        dismiss.start(keeps: { [weak self] w in
+            guard let self, let i = stack.firstIndex(where: { $0.panel === w }) else { return false }
+            // A click in a pop-up closes only those opened from it.
+            if i < stack.count - 1 { close(from: i + 1) }
+            return true
+        }, swallowsClick: true, key: { [weak self] e in
+            guard let self, let top = stack.last, top.panel.isKeyWindow else { return false }
+            if e.keyCode == 53 { if !top.keys(e) { close() }; return true } // keys(e) once: Esc steps back a level
+            return top.keys(e)
+        }, close: { [weak self] in self?.closeAll() })
     }
 
     /// ↑↓ move, → opens, ← goes back, ↩ picks, Esc goes back then closes.
@@ -258,21 +240,92 @@ struct OMenuButton<Label: View>: View {
     }
 }
 
-/// A row in a popover list, lit on hover like a menu row; for rows that carry their own colours.
-struct MenuRowStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { MenuRowBody(configuration: configuration) }
+/// A menu row and its look: one `row-height` line, 10pt in from the surface's edge, on a rounded fill
+/// while hovered or highlighted by the keyboard. Every menu-like list uses it: the menu bar menu, pop-up
+/// menus, the pointer menu, the key editor and popover lists.
+struct OMenuRowStyle: ButtonStyle {
+    /// Lit by something other than the pointer, e.g. the keyboard. Without it the row lights on hover.
+    var highlighted: Bool? = nil
+    /// Its submenu is out.
+    var open = false
+    /// A destructive row: its hover fill is `danger-soft`.
+    var danger = false
+    /// Fills the row's own label, without the row's height and padding: for rows that carry their own
+    /// layout and colours, such as configs.
+    var bare = false
+
+    func makeBody(configuration: Configuration) -> some View { OMenuRowBody(configuration: configuration, style: self) }
 }
 
-private struct MenuRowBody: View {
+private struct OMenuRowBody: View {
     let configuration: ButtonStyleConfiguration
+    let style: OMenuRowStyle
     @StateObject private var hover = Flag()
 
     var body: some View {
-        configuration.label
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
-                .fill(configuration.isPressed ? Theme.wellHover : hover.on ? Theme.well : .clear))
-            .contentShape(Rectangle())
-            .onHover { hover.on = $0 }
+        let lit = style.highlighted ?? hover.on
+        let fill: Color = configuration.isPressed ? Theme.wellHover
+            : lit ? (style.danger ? Theme.dangerSoft : Theme.well)
+            : style.open ? Theme.wellHover : .clear
+        Group {
+            if style.bare {
+                configuration.label
+            } else {
+                configuration.label
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, maxHeight: Theme.rowHeight, alignment: .leading)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).fill(fill))
+        .contentShape(Rectangle())
+        .onHover { hover.on = $0 }
+    }
+}
+
+/// One menu row with slots: a 16pt lead (a symbol, a check, a radio dot), the label in `body` type,
+/// and a trailing slot (a value, keys, a chevron) pushed to the right edge.
+struct OMenuRow<Lead: View, Label: View, Trailing: View>: View {
+    var highlighted: Bool? = nil
+    var open = false
+    var danger = false
+    let action: () -> Void
+    @ViewBuilder var lead: Lead
+    @ViewBuilder var label: Label
+    @ViewBuilder var trailing: Trailing
+
+    init(highlighted: Bool? = nil, open: Bool = false, danger: Bool = false, action: @escaping () -> Void,
+         @ViewBuilder lead: () -> Lead, @ViewBuilder label: () -> Label, @ViewBuilder trailing: () -> Trailing) {
+        self.highlighted = highlighted; self.open = open; self.danger = danger; self.action = action
+        self.lead = lead(); self.label = label(); self.trailing = trailing()
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                if Lead.self != EmptyView.self { lead.frame(width: 16) }
+                label
+                Spacer(minLength: 6)
+                trailing
+            }
+            .font(Theme.body(13.5))
+            .foregroundStyle(danger ? Theme.danger : Theme.ink)
+        }
+        .buttonStyle(OMenuRowStyle(highlighted: highlighted, open: open, danger: danger))
+    }
+}
+
+extension OMenuRow where Trailing == EmptyView {
+    init(highlighted: Bool? = nil, open: Bool = false, danger: Bool = false, action: @escaping () -> Void,
+         @ViewBuilder lead: () -> Lead, @ViewBuilder label: () -> Label) {
+        self.init(highlighted: highlighted, open: open, danger: danger, action: action, lead: lead, label: label) { EmptyView() }
+    }
+}
+
+extension OMenuRow where Lead == EmptyView {
+    init(highlighted: Bool? = nil, open: Bool = false, danger: Bool = false, action: @escaping () -> Void,
+         @ViewBuilder label: () -> Label, @ViewBuilder trailing: () -> Trailing) {
+        self.init(highlighted: highlighted, open: open, danger: danger, action: action, lead: { EmptyView() }, label: label,
+                  trailing: trailing)
     }
 }
 
@@ -295,7 +348,7 @@ struct OMenuPicker<T: Hashable>: View {
         }) {
             HStack(spacing: 6) {
                 Text(options.first { $0.value == selection }?.label ?? "").font(Theme.body(13)).oneLine()
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.inkMuted)
+                Image(systemName: "chevron.up.chevron.down").font(Theme.symbol(Theme.Icon.xs, .semibold)).foregroundStyle(Theme.inkMuted)
             }
             .foregroundStyle(Theme.ink)
             .padding(.horizontal, 12).frame(height: Theme.controlHeight)
@@ -304,7 +357,7 @@ struct OMenuPicker<T: Hashable>: View {
         }
         .fixedSize()
         .onHover { hover.on = $0 }
-        .animation(.easeOut(duration: Theme.fast), value: lit)
+        .animation(Motion.fade, value: lit)
         .accessibilityLabel(title)
         .accessibilityValue(options.first { $0.value == selection }?.label ?? "")
     }
@@ -393,7 +446,7 @@ final class Tooltip {
         guard let window = view.window, window.isVisible else { return }
         let r = window.convertToScreen(view.convert(view.bounds, to: nil))
         let screen = window.screen ?? NSScreen.main ?? NSScreen.screens[0]
-        let v = screen.frame, m = Self.margin
+        let v = screen.visibleFrame, m = Self.margin
 
         let measure = NSHostingView(rootView: OTooltip(text: text, chords: chords, caret: .none))
         let tip = measure.fittingSize
@@ -410,7 +463,8 @@ final class Tooltip {
         panel = p
         // The frame is set here alone: a hosting view left to size its window would resize it on layout
         // and slide the pill down over the view.
-        let frame = NSRect(x: x - m, y: y - m, width: tip.width + 2 * m, height: tip.height + 2 * m)
+        let frame = OuchPanel.frame(size: CGSize(width: tip.width + 2 * m, height: tip.height + 2 * m), on: screen,
+                                    anchor: .origin(NSPoint(x: x - m, y: y - m)), inset: EdgeInsets(all: m))
         let host = NSHostingView(rootView: OTooltip(text: text, chords: chords, caret: caret).padding(m))
         host.sizingOptions = []
         host.frame = NSRect(origin: .zero, size: frame.size)
@@ -432,18 +486,7 @@ final class Tooltip {
         }
     }
 
-    private func makePanel() -> NSPanel {
-        let p = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue + 1) // over the menus too
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.hasShadow = false
-        p.ignoresMouseEvents = true
-        p.isReleasedWhenClosed = false
-        p.hidesOnDeactivate = false
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .transient]
-        return p
-    }
+    private func makePanel() -> NSPanel { OuchPanel(role: .tooltip) }
 }
 
 /// Watches the pointer over the view it sits behind; never takes a click.

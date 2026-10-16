@@ -12,12 +12,7 @@ final class PermissionGuide {
     private var follow: Timer?
     private let model = GuideModel()
     /// Which permission the guide is walking through.
-    enum Kind {
-        case accessibility, inputMonitoring
-        var isGranted: Bool { self == .accessibility ? AXIsProcessTrusted() : Permissions.inputMonitoringGranted }
-        var title: String { self == .accessibility ? "Accessibility" : "Input Monitoring" }
-    }
-    private(set) var kind = Kind.accessibility
+    private(set) var kind = Permission.accessibility
     private let gap: CGFloat = 12
 
     var isShowing: Bool { (panel?.isVisible ?? false) && (panel?.alphaValue ?? 0) > 0 }
@@ -38,7 +33,7 @@ final class PermissionGuide {
     private var userMoved = false  // dragged by the user: stop following, only resize
     private var movedAt = Date.distantPast // our last move; the frame is in flux right after it
 
-    func show(_ kind: Kind = .accessibility) {
+    func show(_ kind: Permission = .accessibility) {
         self.kind = kind
         model.kind = kind
         finishing = false
@@ -77,7 +72,7 @@ final class PermissionGuide {
 
     /// Called when the permission turns on (by the watchdog and by our own timer, so it runs once):
     /// flip to a checkmark, then clear away the guide, macOS's alert and the Settings window.
-    func granted(_ granted: Kind = .accessibility) {
+    func granted(_ granted: Permission = .accessibility) {
         guard pending, !finishing, granted == kind else { return }
         finishing = true
         follow?.invalidate()
@@ -95,9 +90,9 @@ final class PermissionGuide {
                 return
             }
             stop()
-            Permissions.dismissSystemAlert()
+            Permission.dismissSystemAlert()
             // The alert's button brings Settings forward; close it after that lands.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { Permissions.closeSettingsWindows() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { Permission.closeSettingsWindows() }
             onGranted?()
         }
     }
@@ -181,7 +176,7 @@ final class PermissionGuide {
             if animated && panel.isVisible {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.28
-                    ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.2, 1)
+                    ctx.timingFunction = Motion.Curve.settle
                     panel.animator().setFrame(frame, display: true)
                 }
             } else {
@@ -201,7 +196,7 @@ final class PermissionGuide {
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.22
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.timingFunction = Motion.Curve.fade
             panel.animator().alphaValue = 1
             panel.animator().setFrame(frame, display: true)
         }
@@ -222,16 +217,13 @@ final class PermissionGuide {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 10),
                         styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel, .utilityWindow],
                         backing: .buffered, defer: false)
-        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-            p.standardWindowButton(button)?.isHidden = true
-        }
-        p.titleVisibility = .hidden
-        p.titlebarAppearsTransparent = true
+        p.clearTitlebar(hiding: [.closeButton, .miniaturizeButton, .zoomButton])
         p.isMovableByWindowBackground = true
         p.isReleasedWhenClosed = false
         p.hidesOnDeactivate = false
         p.level = .floating
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // Not in the window cycle, like the other panels.
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         let host = NSHostingView(rootView: GuideView(model: model, dismiss: { [weak self] in self?.hide() }))
         host.sizingOptions = [.intrinsicContentSize] // measured by fittingSize; layout() applies it in one move
         // The hidden title bar's safe area would otherwise count toward fittingSize, leaving a blank strip
@@ -286,7 +278,7 @@ final class PermissionGuide {
 
 private final class GuideModel: ObservableObject {
     @Published var granted = false
-    @Published var kind = PermissionGuide.Kind.accessibility
+    @Published var kind = Permission.accessibility
     /// macOS's own alert is up; its button is what adds Ouch to the list.
     @Published var alertUp = false
 }
@@ -300,17 +292,17 @@ private struct GuideView: View {
         VStack(alignment: .leading, spacing: 14) {
             if model.granted {
                 HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill").font(.system(size: 22)).foregroundStyle(Theme.success)
+                    Image(systemName: "checkmark.circle.fill").font(Theme.symbol(Theme.Icon.xl, .regular)).foregroundStyle(Theme.success)
                         .transition(.symbolEffect(.appear))
-                    Text("All set").font(Theme.body(22)).oneLine()
+                    Text("All set").textStyle(.title).oneLine()
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Image(systemName: "lock.open").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.accentInk)
+                        Image(systemName: "lock.open").font(Theme.symbol()).foregroundStyle(Theme.accentInk)
                         Text(model.kind.title).kicker()
                     }
-                    Text("Allow Ouch").font(Theme.body(22)).tracking(-0.2).oneLine().padding(.top, 6)
+                    Text("Allow Ouch").textStyle(.title).oneLine().padding(.top, 6)
                     Text(model.alertUp ? "macOS asks first, then System Settings opens." : "Follow these steps in System Settings.")
                         .font(Theme.body(13)).foregroundStyle(Theme.inkMuted).lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -329,10 +321,10 @@ private struct GuideView: View {
 
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 14, height: 14)
-                    Text("Waiting…").font(Theme.body(12)).foregroundStyle(Theme.inkMuted).oneLine()
+                    Text("Waiting…").textStyle(.caption).foregroundStyle(Theme.inkMuted).oneLine()
                     Spacer(minLength: 4)
                     OButton("Reset", variant: .ghost, size: .sm) {
-                        model.kind == .accessibility ? Permissions.reset() : Permissions.resetInputMonitoring()
+                        model.kind.reset()
                     }
                     .tooltip("Clears a stale entry left by a rebuilt or moved copy of the app")
                     OButton("Hide", size: .sm, action: dismiss)

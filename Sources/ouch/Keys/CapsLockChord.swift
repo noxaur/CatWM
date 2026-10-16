@@ -21,7 +21,7 @@ final class CapsLockChord {
     }
 
     private func tick() {
-        if AXIsProcessTrusted(), !rawActive { startRaw() }
+        if Permission.accessibility.isGranted, !rawActive { startRaw() }
         // Keyboards plugged in later start with macOS's Caps Lock delay again.
         ticks += 1
         if ticks % 20 == 0 { refreshDelay() }
@@ -52,14 +52,8 @@ final class CapsLockChord {
 
     private static func setDelay(_ ms: Int, wait: Bool = false) {
         let run = {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/hidutil")
-            p.arguments = ["property", "--matching", "{\"PrimaryUsagePage\":1,\"PrimaryUsage\":6}",
-                           "--set", "{\"CapsLockDelayOverride\":\(ms)}"]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
-            try? p.run()
-            p.waitUntilExit()
+            Process.runTool("/usr/bin/hidutil", ["property", "--matching", "{\"PrimaryUsagePage\":1,\"PrimaryUsage\":6}",
+                                                 "--set", "{\"CapsLockDelayOverride\":\(ms)}"])
         }
         if wait { run() } else { DispatchQueue.global(qos: .utility).async(execute: run) }
     }
@@ -90,7 +84,7 @@ final class CapsLockChord {
     var rawActive: Bool { hidManager != nil }
 
     /// Whether Input Monitoring was already on when the app started (decides if a relaunch could help).
-    private let grantedAtLaunch = Permissions.inputMonitoringGranted
+    private let grantedAtLaunch = PermissionWatcher.shared.atLaunch.contains(.inputMonitoring)
     private var rawMisses = 0
 
     /// Starts the raw listener and the delay override, once the event tap is up.
@@ -101,7 +95,7 @@ final class CapsLockChord {
 
     /// Safe to call repeatedly: the timer retries it until Input Monitoring has been granted.
     private func startRaw() {
-        guard hidManager == nil, Permissions.inputMonitoringGranted else { return }
+        guard hidManager == nil, Permission.inputMonitoring.isGranted else { return }
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         IOHIDManagerSetDeviceMatching(m, [kIOHIDDeviceUsagePageKey: kHIDPage_GenericDesktop,
                                           kIOHIDDeviceUsageKey: kHIDUsage_GD_Keyboard] as CFDictionary)
@@ -139,11 +133,7 @@ final class CapsLockChord {
             startRaw()
         } else if rawMisses == 2, !grantedAtLaunch {
             Log.info("Input Monitoring granted but no events: relaunching")
-            let path = Bundle.main.bundlePath
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/bin/sh")
-            p.arguments = ["-c", "sleep 0.7; /usr/bin/open -n \"$0\"", path]
-            try? p.run()
+            Process.runTool("/bin/sh", ["-c", "sleep 0.7; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath], wait: false)
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
     }

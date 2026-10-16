@@ -14,6 +14,12 @@ let package = Package(
             path: "Sources/ouch",
             // build.sh puts Sparkle.framework in Contents/Frameworks.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
-        )
+        ),
+        // `swift test`: pure parts of the tiling and Sort code (layouts, focus navigation, plans).
+        .testTarget(
+            name: "ouchTests",
+            dependencies: ["ouch"],
+            path: "Tests/ouchTests"
+        ),
     ]
 )

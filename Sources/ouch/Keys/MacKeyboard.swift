@@ -25,10 +25,14 @@ final class MacKeyboard: ObservableObject {
     var keyboard: KeyboardGeometry { device.keyboard }
     var theme: KeyboardTheme { device.theme }
     var deckLayout: MacDeckLayout { MacDeckLayout(device) }
-    /// The keyboard well in the SDK's deck view, in px at scale 1: the part of the deck Ouch draws.
-    var well: CGRect {
-        let deck = deckLayout.deck, w = device.topCase.well
-        return CGRect(x: deck.minX + w.x, y: deck.minY + w.y, width: w.w, height: w.h)
+    /// The keys' own area in the SDK's deck view, in px at scale 1: the only part of the device Ouch draws.
+    var area: CGRect {
+        let deck = deckLayout.deck, o = device.topCase.keyboard
+        return CGRect(x: deck.minX + o.x, y: deck.minY + o.y, width: device.keyboard.width, height: device.keyboard.height)
+    }
+    /// The theme of a lit key: backlight on at full level in a dark room, where the model has a backlight.
+    var litTheme: KeyboardTheme {
+        keyboardTheme(finish: finish.rawValue, backlight: BacklightOptions(on: true, level: 16, room: .dark, bleed: 1))
     }
 
     /// `auto`, a finish (`macbook-air-midnight`) or a family (`macbook-pro`). Set from the config.
@@ -65,7 +69,7 @@ final class MacKeyboard: ObservableObject {
         layout = l
         device = macDevice(finish: f, layout: l)
         let layout = MacDeckLayout(device)
-        keys = device.keyboard.keys.map { KeyHintKeyboard.Key($0, layout: layout, origin: well.origin) }
+        keys = device.keyboard.keys.map { KeyHintKeyboard.Key($0, layout: layout, origin: area.origin) }
     }
 
     // MARK: Model and finish

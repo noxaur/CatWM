@@ -313,42 +313,17 @@ extension WindowManager {
         (!w.isFloating && tilingEnabled ? targets[w.id] : nil) ?? w.frame
     }
 
-    /// How `o` lies from `f` going `dir`: distance between centres along the way (negative when
-    /// behind), offset across it, whether the two share a row/column, and the gap between near edges.
-    func relation(_ f: CGRect, _ of: CGRect, _ dir: Direction) -> (along: CGFloat, across: CGFloat, overlaps: Bool, edge: CGFloat) {
-        let dx = of.midX - f.midX, dy = of.midY - f.midY
-        let rows = of.minY < f.maxY && of.maxY > f.minY, cols = of.minX < f.maxX && of.maxX > f.minX
-        switch dir {
-        case .left: return (-dx, dy, rows, f.minX - of.maxX)
-        case .right: return (dx, dy, rows, of.minX - f.maxX)
-        case .up: return (-dy, dx, cols, f.minY - of.maxY)
-        case .down: return (dy, dx, cols, of.minY - f.maxY)
-        }
+    /// `w` as focus navigation sees it (see `FocusNavigation`).
+    func navItem(_ w: Window, in screens: [Screen]) -> FocusNavigation.Item {
+        .init(id: w.id, frame: navFrame(w), screen: screen(of: w, in: screens)?.uuid)
     }
 
-    /// The window to go to from `w` in direction `dir`. On its own screen only windows sharing its
-    /// row (left/right) or column (up/down) count, so up/down never drifts sideways. Like Hyprland,
-    /// when several windows share the nearest edge that way (the stack beside a main window), the
-    /// one you used last wins, so going left and back right returns to the window you started from.
+    /// The window to go to from `w` in direction `dir` (see `FocusNavigation.neighbor`).
     func neighbor(of w: Window, _ dir: Direction, among candidates: [Window]) -> Window? {
-        let f = navFrame(w)
         let screens = Screen.all()
-        let home = screen(of: w, in: screens)?.uuid
-        var scored: [(w: Window, score: CGFloat, edge: CGFloat)] = []
-        for o in candidates where o.id != w.id {
-            let (along, across, overlaps, edge) = relation(f, navFrame(o), dir)
-            guard along > 1 else { continue }
-            // Off the row/column is only allowed when crossing to another display.
-            guard overlaps || screen(of: o, in: screens)?.uuid != home else { continue }
-            scored.append((o, along + abs(across) * 2 + (overlaps ? 0 : 100_000), overlaps ? max(0, edge) : .infinity))
-        }
-        guard let best = scored.min(by: { $0.score < $1.score }) else { return nil }
-        // Overlapping windows whose near edge is as close as the nearest one's are all adjacent.
-        guard let nearest = scored.map(\.edge).min(), nearest.isFinite else { return best.w }
-        let adjacent = scored.filter { $0.edge <= nearest + 2 }
-        let recent = adjacent.max { (focusStamps[$0.w.id] ?? 0) < (focusStamps[$1.w.id] ?? 0) }
-        if let recent, focusStamps[recent.w.id] != nil { return recent.w }
-        return adjacent.min(by: { $0.score < $1.score })?.w ?? best.w
+        let id = FocusNavigation.neighbor(of: navItem(w, in: screens), dir,
+                                          among: candidates.map { navItem($0, in: screens) }, stamps: focusStamps)
+        return id.flatMap { windows[$0] }
     }
 
     func screen(from s: Screen, spec: String, in screens: [Screen]) -> Screen? {

@@ -171,25 +171,9 @@ extension WindowManager {
         let home = screen(of: w, in: screens)
         // A zoomed window covers everything else: there's no geometry to navigate, so cycle.
         if let home, state(for: home).zoomed == w.id { cycleFocus(d == .left || d == .up ? -1 : 1); return }
-        if let n = neighbor(of: w, d, among: candidates) { focus(n); return }
-        let f = navFrame(w)
-        let here = candidates.filter { $0.id != w.id && screen(of: $0, in: screens)?.uuid == home?.uuid }
-        // At the end of a row or column: wrap round to the far end of it.
-        let behind = here.compactMap { o -> (Window, CGFloat)? in
-            let r = relation(f, navFrame(o), d)
-            return r.overlaps && r.along < -1 ? (o, -r.along) : nil
-        }
-        if let far = behind.map(\.1).max() {
-            let ends = behind.filter { $0.1 >= far - 2 }.map(\.0)
-            if let pick = ends.max(by: { (focusStamps[$0.id] ?? 0) < (focusStamps[$1.id] ?? 0) }) { focus(pick) }
-            return
-        }
-        // Windows stacked in the same slot (fullscreen layout, a two-pane stack): cycle through them.
-        let hereIDs = Set(here.map(\.id))
-        let stack = candidates.filter { $0.id == w.id || (hereIDs.contains($0.id) && navFrame($0).approxEqual(f, tolerance: 2)) }
-        guard stack.count > 1, let i = stack.firstIndex(where: { $0.id == w.id }) else { return }
-        let delta = d == .left || d == .up ? -1 : 1
-        focus(stack[((i + delta) % stack.count + stack.count) % stack.count])
+        let to = FocusNavigation.target(from: navItem(w, in: screens), d,
+                                        among: candidates.map { navItem($0, in: screens) }, stamps: focusStamps)
+        if let n = to.flatMap({ windows[$0] }) { focus(n) }
     }
 
     private func moveWindow(_ d: Direction) {

@@ -1,5 +1,12 @@
 // swift-tools-version:5.9
+import Foundation
 import PackageDescription
+
+// With only the Command Line Tools, the build system sometimes compiles the tests without the Swift
+// Testing macro plugin ("plugin for module 'TestingMacros' not found"). Naming its folder fixes that.
+let testingPlugins = "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
+let testSettings: [SwiftSetting] = FileManager.default.fileExists(atPath: testingPlugins)
+    ? [.unsafeFlags(["-plugin-path", testingPlugins])] : []
 
 let package = Package(
     name: "ouch",
@@ -19,7 +26,8 @@ let package = Package(
         .testTarget(
             name: "ouchTests",
             dependencies: ["ouch"],
-            path: "Tests/ouchTests"
+            path: "Tests/ouchTests",
+            swiftSettings: testSettings
         ),
     ]
 )

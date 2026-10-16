@@ -284,7 +284,7 @@ extension WindowManager {
         guard let c = context(), let w = c.w, c.ids.contains(w.id) else { return }
         c.st.zoomed = c.st.zoomed == w.id ? nil : w.id
         refresh()
-        w.focus()
+        focus(w, warp: false) // the same window keeps focus: the pointer stays
     }
 
     /// macOS's own Full Screen, as the green button does it: the window gets a Space of its own and leaves the

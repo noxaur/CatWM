@@ -4,11 +4,13 @@ import AppKit
 extension WindowManager {
     // MARK: - Focus & mouse
 
-    func focus(_ w: Window) {
+    /// Every focus change Ouch makes goes through here, so the focus history is always up to date.
+    /// `warp: false` keeps the pointer where it is (focus follows mouse, a grab in progress).
+    func focus(_ w: Window, warp: Bool = true) {
         w.focus()
         noteFocus(w.id) // now, not when macOS gets round to telling us: quick key presses read it next
         pendingFocus = (w.id, Date().addingTimeInterval(0.5))
-        if config.mouseFollowsFocus {
+        if warp, config.mouseFollowsFocus {
             ignoreMouseUntil = Date().addingTimeInterval(0.3)
             CGWarpMouseCursorPosition(navFrame(w).center)
         }
@@ -30,9 +32,15 @@ extension WindowManager {
         config.focusFollowsMouse && (!config.focusFollowsMouseInModeOnly || !Hotkeys.shared.submap.isEmpty)
     }
 
+    /// Records `id` as the most recently focused window.
     func noteFocus(_ id: CGWindowID) {
-        focusClock += 1
-        focusStamps[id] = focusClock
+        if focusStamps[id] != focusClock {
+            focusClock += 1
+            focusStamps[id] = focusClock
+        }
+        focusOrder.removeAll { $0 == id }
+        focusOrder.insert(id, at: 0)
+        if focusOrder.count > 80 { focusOrder.removeLast(focusOrder.count - 80) }
     }
 
     private func focusUnderMouse() {
@@ -41,7 +49,7 @@ extension WindowManager {
         guard let hit = CGWindowInfo.normalWindow(at: p), let w = windows[hit.id], visible.contains(w.id),
               focusedWindow()?.id != w.id else { return }
         Log.debug("ffm: focusing \(w.id) \(w.bundleID ?? "")")
-        w.focus()
+        focus(w, warp: false)
     }
 
     func mouseUp() {

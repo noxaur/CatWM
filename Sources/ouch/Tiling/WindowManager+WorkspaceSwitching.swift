@@ -355,10 +355,7 @@ extension WindowManager {
             guard p.id == w.id else { return }
             pendingFocus = nil
         }
-        if focusStamps[w.id] != focusClock { noteFocus(w.id) }
-        focusOrder.removeAll { $0 == w.id }
-        focusOrder.insert(w.id, at: 0)
-        if focusOrder.count > 80 { focusOrder.removeLast(focusOrder.count - 80) }
+        noteFocus(w.id)
         guard !sortSession else { return }
         guard config.virtualWorkspaces, let ws = workspaceOf[w.id], isVirtual(ws) else { return }
         if isShown(ws) { lastFocused[ws] = w.id; return }

@@ -86,7 +86,12 @@ extension WindowManager {
         snapNextPlacement.remove(id)
         order.removeAll { $0 == id }
         workspaceOf[id] = nil; floatFrames[id] = nil; targets[id] = nil; minSizes[id] = nil; corrections[id] = nil; drags[id] = nil
-        focusStamps[id] = nil; displayOf[id] = nil
+        displayOf[id] = nil
+        // macOS reuses window IDs: a new window must not inherit this one's focus history or Sort state.
+        focusStamps[id] = nil
+        focusOrder.removeAll { $0 == id }
+        lastFocused = lastFocused.filter { $0.value != id }
+        closingNow.remove(id)
         visible.remove(id)
     }
 

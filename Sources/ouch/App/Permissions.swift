@@ -5,7 +5,7 @@ import SwiftUI
 // MARK: - Permissions
 
 enum Permissions {
-    /// Input Monitoring lets Caps Lock shortcuts fire at the real key press (see Hotkeys.startRawCaps).
+    /// Input Monitoring lets Caps Lock shortcuts fire at the real key press (see CapsLockChord).
     /// Optional: without it they still work, after macOS's own Caps Lock delay.
     static var inputMonitoringGranted: Bool { IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted }
 

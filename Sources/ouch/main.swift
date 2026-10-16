@@ -6,7 +6,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var watchdog: Timer?
     private var wasTrusted = true
     private var hadInputMonitoring = Permissions.inputMonitoringGranted
-    private var watchdogTicks = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         closePreviousInstances()
@@ -86,16 +85,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func checkPermission() {
         let trusted = AXIsProcessTrusted()
-        if trusted, !Hotkeys.shared.rawCapsActive { Hotkeys.shared.startRawCaps() }
         let monitoring = Permissions.inputMonitoringGranted
         if monitoring != hadInputMonitoring {
             hadInputMonitoring = monitoring
             Log.info("Input Monitoring \(monitoring ? "granted" : "revoked")")
             if monitoring { PermissionGuide.shared.granted(.inputMonitoring) }
         }
-        // Keyboards plugged in later start with macOS's Caps Lock delay again.
-        watchdogTicks += 1
-        if watchdogTicks % 20 == 0 { Hotkeys.shared.refreshCapsLockDelay() }
         if trusted && !WindowManager.shared.isStarted {
             Log.info("Accessibility granted")
             WindowManager.shared.start()
@@ -119,7 +114,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         WindowManager.shared.restoreHiddenWindows()
-        Hotkeys.shared.restoreCapsLockDelay()
         CrashWatch.cleanExit()
     }
 

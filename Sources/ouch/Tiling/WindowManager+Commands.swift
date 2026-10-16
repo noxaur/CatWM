@@ -91,7 +91,7 @@ extension WindowManager {
     func swapOrder(_ a: CGWindowID, _ b: CGWindowID) {
         guard let i = order.firstIndex(of: a), let j = order.firstIndex(of: b) else { return }
         order.swapAt(i, j)
-        (workspaceOf[a], workspaceOf[b]) = (workspaceOf[b], workspaceOf[a])
+        model.swapWorkspaces(a, b)
     }
 
     func dispatch(_ dispatcher: String, _ rawArg: String) {
@@ -185,12 +185,12 @@ extension WindowManager {
         let candidates = order.filter(visible.contains).compactMap { windows[$0] }.filter { !$0.isFloating }
         if let n = neighbor(of: w, d, among: candidates) {
             if let a = screen(of: w), let b = screen(of: n), a.uuid != b.uuid {
-                workspaceOf[w.id] = shown[b.uuid] // across monitors Hyprland moves without swapping
+                model.assign(w.id, to: shown[b.uuid]) // across monitors Hyprland moves without swapping
             } else {
                 swapOrder(w.id, n.id)
             }
         } else if let src = screen(of: w), let dst = screen(from: src, spec: arg(d), in: Screen.all()) {
-            workspaceOf[w.id] = shown[dst.uuid] // nothing that way on this screen: hop to the next monitor
+            model.assign(w.id, to: shown[dst.uuid]) // nothing that way on this screen: hop to the next monitor
         } else { return }
         refresh()
         focus(w)
@@ -263,7 +263,7 @@ extension WindowManager {
         if w.isFloating {
             targets[w.id] = nil
         } else {
-            if let s = screen(containing: w.frame) { workspaceOf[w.id] = shown[s.uuid] }
+            if let s = screen(containing: w.frame) { model.assign(w.id, to: shown[s.uuid]) }
             corrections[w.id] = nil
         }
         refresh()
@@ -343,10 +343,10 @@ extension WindowManager {
             animator.animate([.init(window: w, to: CGRect(origin: o, size: f.size), bounds: dst.visible)],
                              duration: config.animate ? config.animationDuration : 0,
                              curve: config.animationCurve, bounce: config.animationBounce)
-            workspaceOf[w.id] = shown[dst.uuid]
+            model.assign(w.id, to: shown[dst.uuid])
             scheduleRefresh()
         } else {
-            workspaceOf[w.id] = shown[dst.uuid]
+            model.assign(w.id, to: shown[dst.uuid])
             refresh()
         }
         focus(w)

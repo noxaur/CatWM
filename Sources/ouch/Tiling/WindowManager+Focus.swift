@@ -33,15 +33,7 @@ extension WindowManager {
     }
 
     /// Records `id` as the most recently focused window.
-    func noteFocus(_ id: CGWindowID) {
-        if focusStamps[id] != focusClock {
-            focusClock += 1
-            focusStamps[id] = focusClock
-        }
-        focusOrder.removeAll { $0 == id }
-        focusOrder.insert(id, at: 0)
-        if focusOrder.count > 80 { focusOrder.removeLast(focusOrder.count - 80) }
-    }
+    func noteFocus(_ id: CGWindowID) { model.noteFocus(id) }
 
     private func focusUnderMouse() {
         guard focusFollowsMouseNow, !sortSession, Date() > ignoreMouseUntil, NSEvent.pressedMouseButtons == 0, !movingToSpace else { return }
@@ -62,7 +54,7 @@ extension WindowManager {
             guard let w = windows[id], let src = screen(of: w, in: screens) else { continue }
             if floatsFreely(id) {
                 // Otherwise the next workspace switch parks it back on the display it came from.
-                if let dst = screen(containing: w.frame, in: screens), dst.uuid != src.uuid, let ws = shown[dst.uuid] { workspaceOf[id] = ws }
+                if let dst = screen(containing: w.frame, in: screens), dst.uuid != src.uuid, let ws = shown[dst.uuid] { model.assign(id, to: ws) }
                 continue
             }
             if resized {
@@ -74,7 +66,7 @@ extension WindowManager {
                let hit = tiled(on: dst).first(where: { $0 != id && targets[$0]?.contains(p) == true }) {
                 swapOrder(id, hit)
             } else if dst.uuid != src.uuid {
-                workspaceOf[id] = shown[dst.uuid]
+                model.assign(id, to: shown[dst.uuid])
             }
         }
         corrections = [:]

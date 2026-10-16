@@ -94,11 +94,11 @@ extension WindowManager {
         let arrivals = fresh.sorted(by: { (z[$0.id] ?? 0) < (z[$1.id] ?? 0) })
         for w in arrivals where config.virtualWorkspaces {
             if savedOwnerOf[w.id] == owner(w) {
-                if let saved = savedWorkspaceOf[w.id] { workspaceOf[w.id] = saved }
+                if let saved = savedWorkspaceOf[w.id] { model.assign(w.id, to: saved) }
                 if let float = savedFloating[w.id] { w.userFloating = float }
             }
             if let p = practice, w.pid == p.pid, let ws = titles[w.id].flatMap({ $0 }).flatMap({ p.workspaces[$0] }) {
-                workspaceOf[w.id] = ws
+                model.assign(w.id, to: ws)
                 if monitorOf[ws] == nil, let here = currentScreen() { monitorOf[ws] = here.uuid }
             }
         }
@@ -191,8 +191,7 @@ extension WindowManager {
            let id = axApp(app.processIdentifier).element(kAXFocusedWindowAttribute)?.windowID,
            windows[id] == nil { return }
         let here = visible.filter { workspaceOf[$0] == ws }
-        guard let id = here.max(by: { (focusStamps[$0] ?? 0) < (focusStamps[$1] ?? 0) }), focusStamps[id] != nil,
-              reportedFocusedWindow()?.id != id, let w = windows[id] else { return }
+        guard let id = model.mostRecent(of: here), reportedFocusedWindow()?.id != id, let w = windows[id] else { return }
         Log.debug("focus: window closed; back to \(id)")
         focus(w)
     }

@@ -89,7 +89,7 @@ extension WindowManager {
         }
         let previous = shown[monitor.uuid]
         let changed = previous != ws
-        shown[monitor.uuid] = ws
+        model.show(ws, on: monitor.uuid)
         Log.debug("workspaces: showing \(ws) on \(monitor.ns.localizedName)")
         // Quiet shows (a sort, restoring a layout) snap; a switch the user asked for slides.
         if changed, takesFocus, let previous { beginSlide(from: previous, to: ws, on: monitor) }
@@ -170,7 +170,7 @@ extension WindowManager {
         // arrives in its tile, instead of at its old frame on top of the other tiles. The other
         // tiles keep their frames for now, and make room with the usual animation once it is here.
         if !known { windows[w.id] = w; order.append(w.id) }
-        workspaceOf[w.id] = ws
+        model.assign(w.id, to: ws)
         monitorOf[ws] = monitor.uuid
         snapNextPlacement.insert(w.id)
         refresh(instant: true, placing: [w.id])
@@ -190,7 +190,7 @@ extension WindowManager {
                 guard moved, w.isValid, config.virtualWorkspaces, homeSpace[monitor.uuid] == home else {
                     Log.info("workspaces: direct move of \(w.id) to \(home) failed")
                     HUD.shared.show("macOS couldn't move this window", on: monitor.ns)
-                    if known { workspaceOf[w.id] = from } else { forget(w.id) }
+                    if known { model.assign(w.id, to: from) } else { forget(w.id) }
                     if w.isValid, !frame.isNull { w.setFrame(frame) }
                     refresh()
                     release()
@@ -211,7 +211,7 @@ extension WindowManager {
             watch(w)
         }
         monitorOf[ws] = display
-        workspaceOf[w.id] = ws
+        model.assign(w.id, to: ws)
         lastFocused[ws] = w.id
         if let from, lastFocused[from] == w.id { lastFocused[from] = nil }
         corrections[w.id] = nil

@@ -8,14 +8,13 @@ import MacKeysUI
 // layout of the input source in use), with one layer of binds written on its keys, coloured by group.
 // The Shortcut Map and the keyboard help overlay both use it.
 //
-//     KeyHintKeyboard(binds: [KeyHint], style: .labels, pressed: UInt16?, hot: Set<UInt16>, scale: 1)
+//     KeyHintKeyboard(binds: [KeyHint], pressed: UInt16?, hot: Set<UInt16>, scale: 1)
 //         .onKeyTap { key in … }                  optional; keys become buttons
 //         .onKeyHover { key, inside in … }        optional
 //
 // - `binds`: one layer (one mode, one set of modifiers). `KeyHint(_:)` builds them from a
 //   `ConfigDocument.KeyAction` or a running `KeyBinding`.
-// - `style`: `.labels` writes the action on the cap, `.lit` only colours bound keys, `.constellation`
-//   hides unbound keys and the deck.
+// - Each bound key shows its action on the cap, in the colour of its group.
 // - `pressed`: a key filled with its group colour. `hot`: keys with a ring that never recede; pass
 //   held modifiers here (modifier keys carry their key codes, e.g. 55 for ⌘).
 // - `scale`: 1 draws the deck at the SDK's natural size, a 1u key 58pt. `size(scale:)` is the view's size,
@@ -177,10 +176,7 @@ enum KeyGroup: CaseIterable, Identifiable {
 // MARK: - Keyboard
 
 struct KeyHintKeyboard: View {
-    enum Style { case labels, lit, constellation }
-
     let binds: [KeyHint]
-    var style: Style
     var pressed: UInt16?
     var hot: Set<UInt16>
     var scale: CGFloat
@@ -189,9 +185,8 @@ struct KeyHintKeyboard: View {
     @ObservedObject private var mac = MacKeyboard.shared
     @Environment(\.keyTile) private var tile
 
-    init(binds: [KeyHint], style: Style = .labels, pressed: UInt16? = nil, hot: Set<UInt16> = [], scale: CGFloat = 1) {
+    init(binds: [KeyHint], pressed: UInt16? = nil, hot: Set<UInt16> = [], scale: CGFloat = 1) {
         self.binds = binds
-        self.style = style
         self.pressed = pressed
         self.hot = hot
         self.scale = scale
@@ -207,14 +202,12 @@ struct KeyHintKeyboard: View {
         let size = Self.size(scale: scale)
         let deck = mac.deckLayout.deck
         ZStack(alignment: .topLeading) {
-            if style != .constellation {
-                // The SDK draws the deck with room around it for shadows; the view's size is the deck's.
-                MacKeyboardDeckView(device: mac.device, scale: scale)
-                    .offset(x: -deck.minX * scale, y: -deck.minY * scale)
-            }
+            // The SDK draws the deck with room around it for shadows; the view's size is the deck's.
+            MacKeyboardDeckView(device: mac.device, scale: scale)
+                .offset(x: -deck.minX * scale, y: -deck.minY * scale)
             ForEach(mac.keys) { k in
                 let r = Self.rect(of: k, scale: scale)
-                HintKeyCap(key: k, device: mac.device, scale: scale, style: style,
+                HintKeyCap(key: k, device: mac.device, scale: scale,
                            hint: k.code.flatMap { bound[$0] }, pressed: k.code != nil && k.code == pressed,
                            hot: k.code.map(hot.contains) ?? false, tap: tap, hover: hover)
                     .frame(width: r.width, height: r.height)
@@ -228,7 +221,7 @@ struct KeyHintKeyboard: View {
 
     /// One key on its own, as it looks on the keyboard: for the head of a popover about that key.
     static func keycap(_ k: Key, hint: KeyHint?, scale: CGFloat) -> some View {
-        HintKeyCap(key: k, device: MacKeyboard.shared.device, scale: scale, style: .labels, hint: hint,
+        HintKeyCap(key: k, device: MacKeyboard.shared.device, scale: scale, hint: hint,
                    pressed: false, hot: false, tap: nil, hover: nil, fades: false)
             .frame(width: k.frame.width * scale, height: k.frame.height * scale)
     }
@@ -330,7 +323,6 @@ private struct HintKeyCap: View {
     let key: KeyHintKeyboard.Key
     let device: MacDevice
     let scale: CGFloat
-    let style: KeyHintKeyboard.Style
     let hint: KeyHint?
     let pressed: Bool
     let hot: Bool
@@ -353,7 +345,7 @@ private struct HintKeyCap: View {
     private var pressedInk: Color { light ? .white : Theme.rgb(0x0B0B0D) }
     private var filled: Bool { pressed && hint != nil }
     /// A bound key shows its action instead of its own legends.
-    private var labelled: Bool { hint != nil && style == .labels }
+    private var labelled: Bool { hint != nil }
 
     var body: some View {
         let lit = hint != nil || hot || pressed
@@ -365,7 +357,7 @@ private struct HintKeyCap: View {
             if let ring = ringColor { outline(ring) }
         }
         .frame(width: w, height: h)
-        .opacity(lit || !fades ? 1 : style == .constellation ? 0 : 0.45)
+        .opacity(lit || !fades ? 1 : 0.45)
         .offset(y: filled ? scale : 0)
         .scaleEffect(hot && !key.modifier.isEmpty && !reduceMotion ? 0.96 : 1)
         .contentShape(KeyOutline(cap: key.cap))
@@ -400,7 +392,7 @@ private struct HintKeyCap: View {
     private var ringColor: Color? {
         if filled { return nil }
         if hot { return light ? legendColor.opacity(0.85) : Theme.rgb(0xF5F5F7, 0.85) }
-        return hint != nil && style != .constellation ? groupColor : nil
+        return hint != nil ? groupColor : nil
     }
 
     @ViewBuilder private func outline(_ color: Color) -> some View {

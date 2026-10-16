@@ -195,30 +195,19 @@ final class KeyHelpModel: ObservableObject {
     @Published var pressed: UInt16?
     /// The modifiers every layer of this set shares: none in a mode, usually ⌥ for global binds.
     private(set) var base: NSEvent.ModifierFlags = []
-    private(set) var chord: NSEvent.ModifierFlags = []
     private(set) var binds: [KeyBinding] = []
-    private(set) var gestures: [GestureBind] = []
     /// Small enough to stay out of the way; a standard key is still about 38pt.
     static let keyboardMax: CGFloat = 580
     private(set) var keyboardWidth: CGFloat = keyboardMax
-    /// The trackpad beside the keyboard, or under it when the screen is too narrow.
-    private(set) var padBeside = true
 
     func load(mode: String, binds all: [KeyBinding], chord: NSEvent.ModifierFlags, reason: Reason, room: CGFloat) {
         self.mode = mode
         self.reason = reason
-        self.chord = chord
         binds = all.filter { $0.submap == mode && $0.keyCode < 0x1000 }
-        // Gestures are usually global, so show them in a mode too.
-        let gestureBinds = all.filter { ($0.submap == mode || $0.submap.isEmpty) && $0.keyCode >= 0x1000 }
-        let current = Int(WindowManager.shared.menuBarState()?.workspace ?? "") ?? 1
-        gestures = gestureBinds.compactMap { GestureBind($0, current: current) }
         let counts = Dictionary(grouping: binds, by: { KeyHelp.mods($0.mods).subtracting(.shift).rawValue }).mapValues(\.count)
         base = counts.max { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }
             .map { NSEvent.ModifierFlags(rawValue: $0.key) } ?? []
-        let pad = gestures.isEmpty ? 0 : GesturePad.width + 20
-        padBeside = room >= Self.keyboardMax + pad
-        keyboardWidth = min(Self.keyboardMax, max(440, padBeside ? room - pad : room))
+        keyboardWidth = min(Self.keyboardMax, max(440, room))
     }
 
     var shiftLayer: Bool { held.contains(.shift) }
@@ -255,7 +244,7 @@ struct KeyHelpView: View {
 
     private var keyboard: some View {
         let scale = model.keyboardWidth / KeyHintKeyboard.size(scale: 1).width
-        return KeyHintKeyboard(binds: model.hints, style: .labels, pressed: model.pressed, hot: model.hot, scale: scale)
+        return KeyHintKeyboard(binds: model.hints, pressed: model.pressed, hot: model.hot, scale: scale)
             .environment(\.keyTile, model.motion == .tile ? model.shown : nil)
     }
 }

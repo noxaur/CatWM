@@ -22,8 +22,6 @@ final class MacKeyboard: ObservableObject {
     @Published private(set) var device: MacDevice
     @Published private(set) var keys: [KeyHintKeyboard.Key] = []
 
-    var keyboard: KeyboardGeometry { device.keyboard }
-    var theme: KeyboardTheme { device.theme }
     var deckLayout: MacDeckLayout { MacDeckLayout(device) }
 
     /// `auto`, a finish (`macbook-air-midnight`) or a family (`macbook-pro`). Set from the config.

@@ -244,83 +244,18 @@ struct KeyHelpView: View {
     let margin: CGFloat
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            if model.padBeside {
-                HStack(alignment: .center, spacing: 20) { keyboard; pad }
-            } else {
-                VStack(spacing: 14) { keyboard; pad }
-            }
-        }
-        .padding(.vertical, 10).padding(.horizontal, 12)
-        .foregroundStyle(Theme.ink)
-        .floatingGlass(shape)
-        .panelEntrance(model.shown, style: model.motion, radius: 20)
-        .padding(margin)
-        .allowsHitTesting(false)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Keyboard help")
+        // Nothing of Ouch's own around it: the SDK keyboard, with its deck, is the whole panel.
+        keyboard
+            .panelEntrance(model.shown, style: model.motion, radius: 20)
+            .padding(margin)
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Keyboard help")
     }
 
     private var keyboard: some View {
         let scale = model.keyboardWidth / KeyHintKeyboard.size(scale: 1).width
         return KeyHintKeyboard(binds: model.hints, style: .labels, pressed: model.pressed, hot: model.hot, scale: scale)
             .environment(\.keyTile, model.motion == .tile ? model.shown : nil)
-    }
-
-    @ViewBuilder private var pad: some View {
-        if !model.gestures.isEmpty { GesturePad(gestures: model.gestures) }
-    }
-
-    /// "Window mode", how it's being shown, and which layer the keys show.
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text(model.mode.isEmpty ? "Global" : "\(model.mode.capitalized) mode").font(Theme.heading(13.5)).oneLine()
-            hint.font(Theme.body(12)).foregroundStyle(Theme.inkMuted)
-            Spacer(minLength: 16)
-            layers
-        }
-        .frame(height: 24)
-    }
-
-    @ViewBuilder private var hint: some View {
-        switch model.reason {
-        case .hold:
-            HStack(spacing: 5) {
-                Text("shown while you hold").oneLine()
-                Kbd(keys: ConfigDocument.modifierCaps(model.chord))
-            }
-        case .toggle:
-            HStack(spacing: 5) {
-                Text("press").oneLine()
-                Kbd(keys: [WindowManager.shared.config.keyboardHelpKey])
-                Text("to hide").oneLine()
-            }
-        case .menu:
-            Text("click or press any key to close").oneLine()
-        }
-    }
-
-    /// Keys | ⇧ Keys, following the real ⇧. Not a control: the one accent fill marks the layer showing.
-    private var layers: some View {
-        let base = ConfigDocument.modifierCaps(model.base).joined()
-        let shifted = ConfigDocument.modifierCaps(model.base.union(.shift)).joined()
-        return HStack(spacing: 2) {
-            segment((base.isEmpty ? "" : base + " ") + "Keys", on: !model.shiftLayer)
-            segment(shifted + " Keys", on: model.shiftLayer)
-        }
-        .padding(3)
-        .background(Capsule().fill(Theme.well))
-        .fixedSize()
-        .animation(Motion.spring, value: model.shiftLayer)
-    }
-
-    private func segment(_ label: String, on: Bool) -> some View {
-        Text(label)
-            .font(Theme.body(12.5, on ? .medium : .regular)).oneLine()
-            .foregroundStyle(on ? Theme.onAccent : Theme.inkMuted)
-            .padding(.horizontal, 12).frame(height: 22)
-            .background { if on { Capsule().fill(Theme.accent) } }
     }
 }

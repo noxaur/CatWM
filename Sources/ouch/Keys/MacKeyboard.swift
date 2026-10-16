@@ -25,6 +25,11 @@ final class MacKeyboard: ObservableObject {
     var keyboard: KeyboardGeometry { device.keyboard }
     var theme: KeyboardTheme { device.theme }
     var deckLayout: MacDeckLayout { MacDeckLayout(device) }
+    /// The keyboard well in the SDK's deck view, in px at scale 1: the part of the deck Ouch draws.
+    var well: CGRect {
+        let deck = deckLayout.deck, w = device.topCase.well
+        return CGRect(x: deck.minX + w.x, y: deck.minY + w.y, width: w.w, height: w.h)
+    }
 
     /// `auto`, a finish (`macbook-air-midnight`) or a family (`macbook-pro`). Set from the config.
     var setting = "auto" {
@@ -59,8 +64,8 @@ final class MacKeyboard: ObservableObject {
         finish = f
         layout = l
         device = macDevice(finish: f, layout: l)
-        let deck = MacDeckLayout(device)
-        keys = device.keyboard.keys.map { KeyHintKeyboard.Key($0, layout: deck) }
+        let layout = MacDeckLayout(device)
+        keys = device.keyboard.keys.map { KeyHintKeyboard.Key($0, layout: layout, origin: well.origin) }
     }
 
     // MARK: Model and finish

@@ -264,7 +264,7 @@ final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-let easeOutBack = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.2, 1)
+let easeOutBack = Motion.Curve.settle
 
 func animate(_ duration: Double, curve: CAMediaTimingFunction = easeOutBack, label: String = #fileID,
              changes: () -> Void, completion: (() -> Void)? = nil) {
@@ -307,6 +307,7 @@ private final class Intro {
     private var pending: [DispatchWorkItem] = []
     private var done = false
 
+    // The intro's curves are timed to its music, so they stay its own.
     private let curve = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.15, 1)
 
     init(screen: NSScreen, landing: NSRect, music: IntroScore.Arrangement = .standard, onDone: @escaping () -> Void) {
@@ -418,7 +419,7 @@ private final class Intro {
         fx.contentView = ImpactView(frame: NSRect(origin: .zero, size: f.size))
     }
 
-    static let graphite = NSColor(srgbRed: 0x1B / 255, green: 0x1B / 255, blue: 0x1E / 255, alpha: 1)
+    static let graphite = Theme.nsFixed(\.bg, dark: true)
 
     // MARK: Motion
 
@@ -519,7 +520,7 @@ private final class Intro {
         let span = IntroScore.Beat.impact - 0.25 - IntroScore.Beat.gather
         let c = NSPoint(x: landing.midX, y: landing.midY)
         let w = landing.width * 0.42, h = landing.height * 0.42
-        let pull = CAMediaTimingFunction(controlPoints: 0.6, 0, 0.2, 1)
+        let pull = CAMediaTimingFunction(controlPoints: 0.6, 0, 0.2, 1) // the intro's own, timed to the music
         for i in tiles.indices.reversed() {
             let o = CGFloat(i) * 7
             let r = NSRect(x: c.x - w / 2 + o, y: c.y - h / 2 - o, width: w, height: h)
@@ -537,7 +538,7 @@ private final class Intro {
         pending.forEach { $0.cancel() }
         pending = []
         (fx.contentView as? ImpactView)?.fire(at: NSPoint(x: landing.midX - screen.frame.minX, y: landing.midY - screen.frame.minY))
-        let burst = CAMediaTimingFunction(controlPoints: 0.1, 0.8, 0.2, 1)
+        let burst = CAMediaTimingFunction(controlPoints: 0.1, 0.8, 0.2, 1) // the intro's own, timed to the music
         for i in tiles.indices {
             let spread = CGFloat(i) * 10
             move(i, to: landing.insetBy(dx: -spread, dy: -spread), alpha: 0, duration: 0.6, curve: burst)
@@ -579,7 +580,7 @@ private final class ImpactView: NSView {
         flash.add(blink, forKey: "blink")
 
         let reach = hypot(max(c.x, bounds.width - c.x), max(c.y, bounds.height - c.y)) * 1.1
-        for (i, (color, width)) in [(NSColor.white, 3.0), (NSColor(srgbRed: 0x0A / 255, green: 0x74 / 255, blue: 1, alpha: 1), 10.0)].enumerated() {
+        for (i, (color, width)) in [(NSColor.white, 3.0), (Theme.iconBlue, 10.0)].enumerated() {
             let ring = CAShapeLayer()
             ring.path = CGPath(ellipseIn: CGRect(x: -reach, y: -reach, width: reach * 2, height: reach * 2), transform: nil)
             ring.position = c
@@ -597,7 +598,7 @@ private final class ImpactView: NSView {
             grow.toValue = 1
             grow.duration = 1.2
             grow.beginTime = CACurrentMediaTime() + delay
-            grow.timingFunction = CAMediaTimingFunction(controlPoints: 0.1, 0.7, 0.3, 1)
+            grow.timingFunction = CAMediaTimingFunction(controlPoints: 0.1, 0.7, 0.3, 1) // the intro's own
             grow.fillMode = .both
             let fade = CAKeyframeAnimation(keyPath: "opacity")
             fade.values = [0, 0.95, 0]
@@ -620,7 +621,7 @@ private final class TileView: NSView {
     private var dots: [CALayer] = []
     private let main: Bool
 
-    private static let blue = NSColor(srgbRed: 0x0A / 255, green: 0x74 / 255, blue: 1, alpha: 1)
+    private static let blue = Theme.iconBlue
 
     init(frame: NSRect, main: Bool) {
         self.main = main

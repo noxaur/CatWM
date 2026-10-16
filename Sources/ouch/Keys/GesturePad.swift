@@ -126,7 +126,7 @@ struct GesturePad: View {
 
     private func surface(_ g: GestureBind, _ f: Double) -> some View {
         let w = Self.width, h = Self.height
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.pane, style: .continuous)
         let p = pose(f)
         let d = g.direction
         let travel = d.dx != 0 ? w * 0.42 : h * 0.4

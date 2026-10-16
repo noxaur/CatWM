@@ -244,7 +244,7 @@ struct KeyHelpView: View {
     let margin: CGFloat
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.hud, style: .continuous)
         VStack(alignment: .leading, spacing: 8) {
             header
             if model.padBeside {
@@ -256,7 +256,7 @@ struct KeyHelpView: View {
         .padding(.vertical, 10).padding(.horizontal, 12)
         .foregroundStyle(Theme.ink)
         .floatingGlass(shape)
-        .panelEntrance(model.shown, style: model.motion, radius: 20)
+        .panelEntrance(model.shown, style: model.motion, radius: Theme.Radius.hud)
         .padding(margin)
         .allowsHitTesting(false)
         .accessibilityElement(children: .contain)

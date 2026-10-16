@@ -31,6 +31,10 @@ extension WindowManager {
 
     func setLayout(_ l: Layout, screen uuid: String) {
         guard let s = Screen.all().first(where: { $0.uuid == uuid }) else { return }
+        setLayout(l, on: s)
+    }
+
+    func setLayout(_ l: Layout, on s: Screen) {
         let st = state(for: s)
         st.layout = l
         st.zoomed = nil
@@ -119,7 +123,7 @@ extension WindowManager {
                 if let ws = resolveWorkspace(arg) { moveFocusedWindow(to: ws, follow: dispatcher == "movetoworkspace") }
             } else if let n = Int(arg) { moveToSpace(n) }
         case "cyclelayout": cycleLayout(arg.lowercased().hasPrefix("prev") ? -1 : 1)
-        case "layout", "setlayout": if let l = Layout(rawValue: arg.lowercased()) { setLayout(l) }
+        case "layout", "setlayout": if let l = Layout(rawValue: arg.lowercased()), let s = currentScreen() { setLayout(l, on: s) }
         case "toggletiling": toggleTiling()
         case "toggledim": FocusDim.shared.toggleDim()
         case "toggleblur": FocusDim.shared.toggleBlur()
@@ -224,6 +228,7 @@ extension WindowManager {
     private func changeMainCount(_ delta: Int) {
         guard let c = context() else { return }
         c.st.mainCount = max(1, min(10, c.st.mainCount + delta))
+        corrections = [:] // new slots: a window that refused its old one gets new tries, as with setLayout
         refresh()
     }
 
@@ -246,6 +251,7 @@ extension WindowManager {
             return
         }
         c.st.ratio = ratio
+        corrections = [:]
         // Otherwise a window may only turn out to have a minimum once it's been asked to shrink.
         ratioChange = (c.s.uuid, Date() + (config.animate ? config.animationDuration : 0) + 0.6)
         refresh()
@@ -298,16 +304,7 @@ extension WindowManager {
     private func cycleLayout(_ delta: Int) {
         guard let c = context(), !config.layouts.isEmpty else { return }
         let i = config.layouts.firstIndex(of: c.st.layout) ?? (delta > 0 ? -1 : 0)
-        setLayout(config.layouts[((i + delta) % config.layouts.count + config.layouts.count) % config.layouts.count])
-    }
-
-    private func setLayout(_ l: Layout) {
-        guard let c = context() else { return }
-        c.st.layout = l
-        c.st.zoomed = nil
-        corrections = [:]
-        refresh()
-        if config.enablesLayoutHUD { HUD.shared.show(l.title, layout: l, on: c.s.ns) }
+        setLayout(config.layouts[((i + delta) % config.layouts.count + config.layouts.count) % config.layouts.count], on: c.s)
     }
 
     private func exec(_ cmd: String) {

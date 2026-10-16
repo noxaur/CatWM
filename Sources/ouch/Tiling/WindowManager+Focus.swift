@@ -94,7 +94,7 @@ extension WindowManager {
         if st.layout == .widescreenTall, isMain, mains > 1, idx != mains - 1 { return }
         if st.layout == .widescreenTallRight, isMain, mains > 1, idx != 0 { return }
         if !isMain, [.threeColumnLeft, .threeColumnRight].contains(st.layout) { return }
-        let gap = config.windowMargins ? config.windowMarginSize : 0
+        let gap = windowGap(count: ids.count)
         let total = axis.horizontal ? r.width : r.height
         // Distance of the main/secondary edge from the main pane's outer side, as `f` puts it.
         func boundary(_ f: CGRect) -> CGFloat {
@@ -108,8 +108,7 @@ extension WindowManager {
             }
         }
         // Only a window whose slot sits on the split can move it (not e.g. a deeper BSP tile).
-        if let (slots, _) = rawSlots(ids, on: s, st, ratio: st.ratio), slots.indices.contains(idx),
-           abs(boundary(slots[idx]) - st.ratio * (total + gap)) > 3 { return }
+        if let slot = layoutTargets(ids, st, on: s)?[w.id], abs(boundary(slot) - st.ratio * (total + gap)) > 3 { return }
         st.ratio = min(0.9, max(0.1, boundary(f) / (total + gap)))
     }
 }

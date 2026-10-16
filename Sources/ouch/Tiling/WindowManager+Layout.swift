@@ -136,14 +136,12 @@ extension WindowManager {
             let ids = tiled(on: s)
             // Not while it's only out of sight for a moment (app hidden, minimised, mid Space switch).
             if let z = st.zoomed, windows[z]?.isFloating != false || workspaceOf[z] != shown[s.uuid] { st.zoomed = nil }
-            let rect = usableRect(s)
-            guard let (raw, gap) = rawSlots(ids, on: s, st, ratio: st.ratio) else {
+            guard let slots = layoutTargets(ids, st, on: s) else {
                 ids.forEach { targets[$0] = nil } // floating layout: navigate by where windows really are
                 continue
             }
-            let slots = fitMinimums(raw, mins: ids.map { minSizes[$0] }, gap: gap)
-            for (id, slot) in zip(ids, slots) {
-                let target = id == st.zoomed ? rect.pixelAligned : slot
+            for id in ids {
+                guard let target = slots[id] else { continue }
                 targets[id] = target
                 if let only, !only.contains(id) { continue }
                 guard let w = windows[id] else { continue }
@@ -199,9 +197,24 @@ extension WindowManager {
         focus(w)
     }
 
+    /// The frame each of `ids` (tiled windows in tiling order) gets on `s` with the workspace state `st`:
+    /// its layout slot fitted around known minimum sizes, or the whole tiling area when zoomed.
+    /// Nil for the floating layout. Every tiling of windows (refresh, staging, mouse resize) uses this.
+    func layoutTargets(_ ids: [CGWindowID], _ st: ScreenState, on s: Screen) -> [CGWindowID: CGRect]? {
+        guard let (raw, gap) = rawSlots(ids, on: s, st, ratio: st.ratio) else { return nil }
+        let slots = fitMinimums(raw, mins: ids.map { minSizes[$0] }, gap: gap)
+        let zoomed = usableRect(s).pixelAligned
+        return Dictionary(zip(ids, slots).map { id, slot in (id, id == st.zoomed ? zoomed : slot) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// The gap between `count` tiled windows: none for a lone window with smart margins.
+    func windowGap(count: Int) -> CGFloat {
+        config.windowMargins && !(config.smartWindowMargins && count == 1) ? config.windowMarginSize : 0
+    }
+
     /// Each window's slot before fitting around minimum sizes, and the gap between windows.
     func rawSlots(_ ids: [CGWindowID], on s: Screen, _ st: ScreenState, ratio: CGFloat) -> ([CGRect], CGFloat)? {
-        let gap = config.windowMargins && !(config.smartWindowMargins && ids.count == 1) ? config.windowMarginSize : 0
+        let gap = windowGap(count: ids.count)
         // Lay out in a rect grown by half a gap, then shrink every slot by half a gap: windows get
         // a full gap between them and sit exactly on the padding at the screen edges.
         guard let raw = st.layout.frames(count: ids.count, in: usableRect(s).insetBy(dx: -gap / 2, dy: -gap / 2),

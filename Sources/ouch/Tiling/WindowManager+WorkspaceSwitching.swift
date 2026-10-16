@@ -132,12 +132,10 @@ extension WindowManager {
         for id in arriving where floatsFreely(id) { unpark(floating: id, screens: screens) }
         let ids = arriving.filter { windows[$0]?.isFloating == false }
         let st = state(workspace: ws)
-        guard tilingEnabled, !ids.isEmpty, let (raw, gap) = rawSlots(ids, on: s, st, ratio: st.ratio) else { return }
-        let slots = fitMinimums(raw, mins: ids.map { minSizes[$0] }, gap: gap)
+        guard tilingEnabled, !ids.isEmpty, let slots = layoutTargets(ids, st, on: s) else { return }
         var moves: [Animator.Move] = []
-        for (id, slot) in zip(ids, slots) {
-            guard let w = windows[id] else { continue }
-            let target = id == st.zoomed ? usableRect(s).pixelAligned : slot
+        for id in ids {
+            guard let w = windows[id], let target = slots[id] else { continue }
             targets[id] = target
             if !w.frame.approxEqual(target) { moves.append(.init(window: w, to: target, bounds: s.visible)) }
         }

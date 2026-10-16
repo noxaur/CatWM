@@ -17,7 +17,7 @@ final class Onboarding {
         didSet { MenuBarTip.shared.statusButton = statusButton }
     }
     private var intro: Intro?
-    private var welcome: OverlayPanel?
+    private var welcome: OuchPanel?
     private let welcomeModel = WelcomeModel()
     private var poll: Timer?
     private var coach: Coach?
@@ -36,7 +36,7 @@ final class Onboarding {
     func start() {
         guard !isRunning else { return }
         firstRun = true
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main ?? NSScreen.screens[0]
+        let screen = OuchPanel.pointerScreen()
         let card = makeWelcome(on: screen)
         // Reduce Motion: no light show, just the card.
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return showWelcome() }
@@ -52,7 +52,7 @@ final class Onboarding {
     /// `ouch intro [arrangement id]`: just the opening and its music, for working on them. Lands mid-screen.
     func playIntro(_ arrangement: IntroScore.Arrangement = .standard) {
         guard !isRunning else { return }
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main ?? NSScreen.screens[0]
+        let screen = OuchPanel.pointerScreen()
         let v = screen.visibleFrame
         let landing = NSRect(x: v.midX - 230, y: v.midY - 200, width: 460, height: 400)
         let intro = Intro(screen: screen, landing: landing, music: arrangement) { [weak self] in self?.intro = nil }
@@ -62,11 +62,11 @@ final class Onboarding {
 
     // MARK: Welcome card
 
-    private func makeWelcome(on screen: NSScreen) -> OverlayPanel {
+    private func makeWelcome(on screen: NSScreen) -> OuchPanel {
         welcomeModel.page = .permissions
         welcomeModel.style = KeyStyle.current
-        welcomeModel.allowAccessibility = { Permissions.request() }
-        welcomeModel.allowInputMonitoring = { Permissions.requestInputMonitoring() }
+        welcomeModel.allowAccessibility = { Permission.accessibility.request() }
+        welcomeModel.allowInputMonitoring = { Permission.inputMonitoring.request() }
         welcomeModel.allowLogin = { [weak self] in
             LoginItem.set(true)
             if !LoginItem.isEnabled { // needs approval in System Settings
@@ -78,12 +78,12 @@ final class Onboarding {
         PermissionGuide.shared.onGranted = { [weak self] in self?.welcome?.makeKeyAndOrderFront(nil) }
         welcomeModel.skip = { [weak self] in self?.hideWelcome { self?.finish() } }
         welcomeModel.next = { [weak self] in
-            guard AXIsProcessTrusted() else { Permissions.request(); return }
+            guard Permission.accessibility.isGranted else { Permission.accessibility.request(); return }
             self?.welcomeModel.page = .keys
         }
         welcomeModel.start = { [weak self] in
             guard let self else { return }
-            guard AXIsProcessTrusted() else { welcomeModel.page = .permissions; return }
+            guard Permission.accessibility.isGranted else { welcomeModel.page = .permissions; return }
             // The tour reads the keys from the config, so they're switched before it starts.
             if let style = welcomeModel.style, style != KeyStyle.current,
                let config = SettingsWindow.shared.library.config(id: style.configID) {
@@ -92,13 +92,13 @@ final class Onboarding {
             hideWelcome { self.startTour() }
         }
         refreshWelcome()
-        let host = FirstClickHostingView(rootView: WelcomeView(model: welcomeModel))
-        let size = host.fittingSize
-        let v = screen.visibleFrame
+        let host = OuchHostingView(rootView: WelcomeView(model: welcomeModel))
         // Normal level: System Settings and the permission guide open on top of it.
-        let p = OverlayPanel(frame: NSRect(x: v.midX - size.width / 2, y: v.midY - size.height / 2 - 12,
-                                           width: size.width, height: size.height),
-                             level: .normal, clickThrough: false, keyable: true)
+        let p = OuchPanel(role: .card(.normal),
+                          frame: OuchPanel.frame(size: host.fittingSize, on: screen, anchor: .center(dy: -12),
+                                                 inset: EdgeInsets(all: WelcomeView.margin)))
+        // Esc, ⌘W and ⌘Q skip the welcome like its Skip button, and never quit Ouch.
+        p.onClose = { [weak self] in self?.welcomeModel.skip() }
         p.contentView = host
         p.isMovableByWindowBackground = true
         welcome = p
@@ -106,15 +106,15 @@ final class Onboarding {
     }
 
     private func refreshWelcome() {
-        let ax = AXIsProcessTrusted(), login = LoginItem.isEnabled
+        let ax = Permission.accessibility.isGranted, login = LoginItem.isEnabled
         if welcomeModel.accessibility != ax { welcomeModel.accessibility = ax }
-        let im = Permissions.inputMonitoringGranted
+        let im = Permission.inputMonitoring.isGranted
         if welcomeModel.inputMonitoring != im { welcomeModel.inputMonitoring = im }
         if welcomeModel.login != login { welcomeModel.login = login }
         // Approved in the Login Items list we opened: close it again, like the Accessibility flow does.
         if login, openedLoginItems {
             openedLoginItems = false
-            if ax { Permissions.closeSettingsWindows() }
+            if ax { Permission.closeSettingsWindows() }
             welcome?.makeKeyAndOrderFront(nil)
         }
     }
@@ -194,7 +194,7 @@ final class Onboarding {
                 HUD.shared.show("Ouch needs Accessibility first", on: nil)
                 MenuBarTip.shared.hide()
                 // Trusted, so the next launch won't offer the tour again: count it as done, or Tips never show.
-                if firstRun, AXIsProcessTrusted() { UserDefaults.standard.set(true, forKey: Self.doneKey) }
+                if firstRun, Permission.accessibility.isGranted { UserDefaults.standard.set(true, forKey: Self.doneKey) }
                 firstRun = false
             }
             return
@@ -229,40 +229,14 @@ final class Onboarding {
         MenuBarTip.shared.hide()
         firstRun = false
         UserDefaults.standard.set(true, forKey: Self.doneKey)
-        guard AXIsProcessTrusted() else { return }
+        guard Permission.accessibility.isGranted else { return }
         HUD.shared.show("Tiling on", on: nil)
     }
 }
 
 // MARK: - Overlay plumbing
 
-/// Borderless, transparent panel for the onboarding overlays. Most never become key, so keyboard
-/// focus stays with the practice windows; `keyable` ones (cards that ask for an answer) take it so
-/// Return reaches their default button, without activating the app. `clickThrough` lets the mouse
-/// reach what's beneath.
-final class OverlayPanel: NSPanel {
-    private let keyable: Bool
-
-    init(frame: NSRect, level: NSWindow.Level, clickThrough: Bool, keyable: Bool = false) {
-        self.keyable = keyable
-        super.init(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        self.level = level
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = false
-        ignoresMouseEvents = clickThrough
-        isReleasedWhenClosed = false
-        hidesOnDeactivate = false
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-    }
-    override var canBecomeKey: Bool { keyable }
-    override var canBecomeMain: Bool { false }
-}
-
-/// Our app is never active during onboarding, so controls must take the very first click.
-final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
+// The overlays are OuchPanels: most never become key, so keyboard focus stays with the practice windows.
 
 let easeOutBack = Motion.Curve.settle
 
@@ -297,11 +271,11 @@ private final class Intro {
     private let landing: NSRect
     private let onDone: () -> Void
     private let score: IntroScore
-    private var dim: OverlayPanel!
+    private var dim: OuchPanel!
     private var skipLabel: NSTextField!
-    private var tiles: [OverlayPanel] = []
-    private var word: OverlayPanel!
-    private var fx: OverlayPanel!
+    private var tiles: [OuchPanel] = []
+    private var word: OuchPanel!
+    private var fx: OuchPanel!
     private let wordModel = WordmarkModel()
     private var wordFrame = NSRect.zero
     private var pending: [DispatchWorkItem] = []
@@ -367,7 +341,7 @@ private final class Intro {
 
     private func build() {
         let f = screen.frame
-        dim = OverlayPanel(frame: f, level: .above(.statusBar, 1), clickThrough: false)
+        dim = OuchPanel(role: .overlay(.above(.statusBar, 1), clickThrough: false), frame: f)
         let root = ClickView(frame: NSRect(origin: .zero, size: f.size))
         root.onClick = { [weak self] in self?.skip() }
         let blur = NSVisualEffectView(frame: root.bounds)
@@ -402,7 +376,7 @@ private final class Intro {
 
         let center = NSRect(x: f.midX, y: f.midY, width: 0, height: 0)
         for i in 0..<Self.count {
-            let p = OverlayPanel(frame: padded(center), level: .above(.statusBar, 2), clickThrough: true)
+            let p = OuchPanel(role: .overlay(.above(.statusBar, 2), clickThrough: true), frame: padded(center))
             p.contentView = TileView(frame: NSRect(origin: .zero, size: p.frame.size), main: i == 0)
             p.alphaValue = 0
             tiles.append(p)
@@ -410,12 +384,12 @@ private final class Intro {
 
         let size = max(64, min(140, f.width * 0.11))
         wordFrame = NSRect(x: f.minX, y: f.midY - 150, width: f.width, height: 300)
-        word = OverlayPanel(frame: wordFrame.offsetBy(dx: 0, dy: -24), level: .above(.statusBar, 3), clickThrough: true)
+        word = OuchPanel(role: .overlay(.above(.statusBar, 3), clickThrough: true), frame: wordFrame.offsetBy(dx: 0, dy: -24))
         word.contentView = NSHostingView(rootView: WordmarkView(model: wordModel, size: size))
         word.alphaValue = 0
 
         // The hit's ring and flash, on top of everything and outliving the backdrop's fade.
-        fx = OverlayPanel(frame: f, level: .above(.statusBar, 4), clickThrough: true)
+        fx = OuchPanel(role: .overlay(.above(.statusBar, 4), clickThrough: true), frame: f)
         fx.contentView = ImpactView(frame: NSRect(origin: .zero, size: f.size))
     }
 

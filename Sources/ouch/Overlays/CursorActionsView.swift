@@ -115,7 +115,7 @@ private struct ActionRow: View {
             if action.isOn {
                 Image(systemName: "checkmark").font(Theme.symbol(Theme.Icon.sm, .bold)).foregroundStyle(Theme.accentInk)
             }
-            if !action.key.isEmpty { Kbd(keys: [action.key]).fixedSize() }
+            if !action.keys.isEmpty { Kbd(keys: action.keys).fixedSize() }
         }
         .animation(Motion.fade, value: hovered)
         // Rows arrive one after another once the surface is mostly open; they leave together, quicker.
@@ -126,7 +126,7 @@ private struct ActionRow: View {
         .onHover(perform: hover)
         .accessibilityLabel(action.title)
         .accessibilityValue(action.isOn ? "On" : "")
-        .accessibilityHint(action.key.isEmpty ? "" : "Key \(action.key)")
+        .accessibilityHint(action.keys.isEmpty ? "" : "Shortcut \(action.keys.joined(separator: " "))")
         .accessibilityAddTraits(action.isOn ? .isSelected : [])
     }
 }

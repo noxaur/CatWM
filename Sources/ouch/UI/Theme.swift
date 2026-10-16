@@ -185,9 +185,6 @@ enum Theme {
             : weight == .regular ? "Chillax-Regular" : "Chillax-Medium"
         return NSFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
     }
-    static func nsMono(_ size: CGFloat, weight: NSFont.Weight = .medium) -> NSFont {
-        .monospacedSystemFont(ofSize: size, weight: weight)
-    }
 
     /// SF Symbol sizes. Symbols sit beside Chillax text, so they follow their own small scale:
     /// `xs` chevrons and badges, `sm` checks and inline status, `md` row and button icons,

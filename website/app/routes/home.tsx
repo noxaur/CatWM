@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useFetcher } from "react-router";
 
 import { Cat } from "../catwm/Cat";
-import { Story } from "../catwm/Story";
+import { Stage } from "../catwm/Stage";
 import { addSignup } from "../signup.server";
 import type { Route } from "./+types/home";
 
@@ -60,28 +60,13 @@ function InstallCommand() {
   );
 }
 
-function Hero() {
-  return (
-    <>
-      <h1 className="lockup">
-        <Cat className="lockup__cat" feelings />
-        <span className="lockup__name">CatWM</span>
-      </h1>
-      <div className="hero__pill">
-        <p className="hero__tagline">{TAGLINE}</p>
-        <InstallCommand />
-      </div>
-    </>
-  );
-}
-
 function Signup() {
   const fetcher = useFetcher<typeof action>();
   const busy = fetcher.state !== "idle";
   const done = fetcher.data?.ok === true;
   const error = fetcher.data?.ok === false ? fetcher.data.error : null;
 
-  if (done) return <p className="foot__lead">Thanks. We will email you at release.</p>;
+  if (done) return <p className="signup__done">Thanks. We will email you at release.</p>;
   return (
     <fetcher.Form method="post" className="signup">
       <div className="signup__field">
@@ -103,29 +88,22 @@ function Signup() {
   );
 }
 
-export default function Home() {
+function Hero() {
   return (
     <>
-      <Story hero={<Hero />} />
-      <footer className="foot">
-        <h2 className="foot__title">Install the beta</h2>
+      <h1 className="lockup">
+        <Cat className="lockup__cat" feelings />
+        <span className="lockup__name">CatWM</span>
+      </h1>
+      <div className="hero__pill">
+        <p className="hero__tagline">{TAGLINE}</p>
         <InstallCommand />
-        <p className="foot__lead">
-          The public release is coming. Leave your email and we will tell you once.
-        </p>
         <Signup />
-        <div className="foot__links">
-          <a href="https://github.com/noxaur/ouch" className="pill pill--link">
-            GitHub
-          </a>
-          <a
-            href="https://github.com/noxaur/ouch/blob/main/CONTRIBUTING.md"
-            className="pill pill--link"
-          >
-            Contributing
-          </a>
-        </div>
-      </footer>
+      </div>
     </>
   );
+}
+
+export default function Home() {
+  return <Stage hero={<Hero />} />;
 }

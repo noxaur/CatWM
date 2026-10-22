@@ -1,12 +1,13 @@
 # CatWM website
 
-Landing page for CatWM: the brand lockup on one flat accent field, a scroll story that plays the real
-window manager behaviour (windows opening into their slots, window mode, workspaces, layouts, saved
-workspaces, overview, CLI), the install command and an email signup.
+Landing page for CatWM, one screen: four windows left in a pile, the brand lockup on them, the
+install command and an email signup. The keys below (N, Shift H J K L, F, Shift T) run the real
+window manager behaviour on the pile: tile it, cycle the layouts, move a window, fill the screen.
+Until the visitor presses a key, the page presses them itself.
 
 `app/catwm/layout.ts` is a port of the Swift layout and neighbour code. `app/catwm/script.ts` holds the
-state, the dispatcher reducers and the scripted steps. `app/catwm/Story.tsx` builds one GSAP timeline per
-step from them, at the animator's real timing (0.18 s, cubic ease-out). Change the Swift code and the
+state, the dispatcher reducers behind each key and the attract sequence. `app/catwm/Stage.tsx` moves the
+windows with GSAP at the animator's real timing (0.18 s, cubic ease-out). Change the Swift code and the
 port together.
 
 - React Router 8 (framework mode, SSR)

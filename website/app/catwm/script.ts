@@ -1,5 +1,5 @@
-// The state the stage animates and the scripted steps. Every reducer follows
-// the matching dispatcher in Sources/ouch/Tiling/Manager.
+// The state the stage animates and the reducers behind each key. Every reducer
+// follows the matching dispatcher in Sources/ouch/Tiling/Manager.
 
 import {
   LAYOUT_TITLE,
@@ -21,326 +21,117 @@ export const WINDOWS: Record<Hue, { app: string; color: string }> = {
   lime: { app: "Notes", color: "#9DFF1F" },
 };
 
-export type Desktop = { order: Hue[]; layout: LayoutName; ratio: number; zoomed: Hue | null };
-export type State = { desktops: Desktop[]; current: number; focused: Hue };
-
 // The layout runs on a 16:10 screen, like a Mac display. Only the aspect matters:
 // frames come back as fractions of this rect.
 export const SCREEN: Rect = { x: 0, y: 0, w: 1600, h: 1000 };
 
-// The story opens on an empty Desktop. The first step opens the four windows.
-export const START: State = {
-  desktops: [{ order: [], layout: "tall", ratio: 0.6, zoomed: null }],
-  current: 0,
-  focused: "sky",
+export type State = {
+  order: Hue[];
+  layout: LayoutName;
+  ratio: number;
+  zoomed: Hue | null;
+  focused: Hue;
+  // toggletiling off: the windows lie where the apps left them.
+  tiling: boolean;
 };
 
-export type Slot = { rect: Rect; desktop: number; z: number };
+// Before CatWM: four windows left where they were opened.
+export const PILE: Record<Hue, Rect & { tilt: number }> = {
+  sky: { x: 110, y: 120, w: 820, h: 600, tilt: -2.5 },
+  lemon: { x: 760, y: 70, w: 700, h: 470, tilt: 2 },
+  magenta: { x: 560, y: 450, w: 640, h: 480, tilt: -1.5 },
+  lime: { x: 1020, y: 400, w: 500, h: 520, tilt: 3 },
+};
+
+export const START: State = {
+  order: HUES,
+  layout: "tall",
+  ratio: 0.6,
+  zoomed: null,
+  focused: "sky",
+  tiling: false,
+};
+
+export type Slot = { rect: Rect; tilt: number; z: number };
 
 // WindowManager.layoutTargets: each window gets its slot. A zoomed window
-// takes the whole usable rect and stays on top.
+// takes the whole screen and stays on top. With tiling off, the pile.
 export function place(state: State): Map<Hue, Slot> {
   const out = new Map<Hue, Slot>();
-  state.desktops.forEach((d, di) => {
-    const fr = frames(d.layout, d.order.length, SCREEN, d.ratio);
-    d.order.forEach((hue, i) => {
-      const zoomed = d.zoomed === hue;
-      const z = hue === state.focused ? 20 : d.order.length - i;
-      out.set(hue, { rect: zoomed ? SCREEN : fr[i], desktop: di, z: zoomed ? 30 : z });
+  if (!state.tiling) {
+    HUES.forEach((hue, i) => {
+      const { tilt, ...rect } = PILE[hue];
+      out.set(hue, { rect, tilt, z: i + 1 });
     });
+    return out;
+  }
+  const fr = frames(state.layout, state.order.length, SCREEN, state.ratio);
+  state.order.forEach((hue, i) => {
+    const zoomed = state.zoomed === hue;
+    const z = hue === state.focused ? 20 : state.order.length - i;
+    out.set(hue, { rect: zoomed ? SCREEN : fr[i], tilt: 0, z: zoomed ? 30 : z });
   });
   return out;
 }
 
-function clone(s: State): State {
-  return {
-    ...s,
-    desktops: s.desktops.map((d) => ({ ...d, order: [...d.order] })),
-  };
-}
-
-function desktopOf(s: State, hue: Hue): number {
-  return s.desktops.findIndex((d) => d.order.includes(hue));
-}
-
-// A new window joins the current Desktop at the end of the order and takes focus.
-export function open(s: State, hue: Hue): State {
-  const n = clone(s);
-  n.desktops[n.current].order.push(hue);
-  n.focused = hue;
-  return n;
-}
-
 // movewindow l|d|u|r: swap places with the directional neighbour, then retile.
 export function movewindow(s: State, dir: Direction): State {
-  const n = clone(s);
-  const di = desktopOf(n, n.focused);
-  const d = n.desktops[di];
-  const fr = frames(d.layout, d.order.length, SCREEN, d.ratio);
-  const items = d.order.map((id, i) => ({ id, frame: fr[i] }));
-  const from = items[d.order.indexOf(n.focused)];
+  if (!s.tiling || s.zoomed) return s;
+  const fr = frames(s.layout, s.order.length, SCREEN, s.ratio);
+  const items = s.order.map((id, i) => ({ id, frame: fr[i] }));
+  const from = items[s.order.indexOf(s.focused)];
   const target = neighbor(from, items, dir);
   if (target === null) return s;
-  const a = d.order.indexOf(n.focused);
-  const b = d.order.indexOf(target);
-  [d.order[a], d.order[b]] = [d.order[b], d.order[a]];
-  return n;
+  const order = [...s.order];
+  const a = order.indexOf(s.focused);
+  const b = order.indexOf(target);
+  [order[a], order[b]] = [order[b], order[a]];
+  return { ...s, order };
 }
 
 // fullscreen: toggleZoom on the focused window.
 export function fullscreen(s: State): State {
-  const n = clone(s);
-  const d = n.desktops[desktopOf(n, n.focused)];
-  d.zoomed = d.zoomed === n.focused ? null : n.focused;
-  return n;
+  if (!s.tiling) return s;
+  return { ...s, zoomed: s.zoomed === s.focused ? null : s.focused };
 }
 
-// workspace N: show that Desktop. A missing Desktop is created on demand.
-export function workspace(s: State, index: number): State {
-  const n = clone(s);
-  while (n.desktops.length <= index) {
-    n.desktops.push({ order: [], layout: "tall", ratio: 0.5, zoomed: null });
-  }
-  n.current = index;
-  const d = n.desktops[index];
-  if (!d.order.includes(n.focused) && d.order.length > 0) n.focused = d.order[0];
-  return n;
+// cyclelayout next: the first press tiles the pile, later ones cycle the list.
+// setLayout clears zoom.
+export function cyclelayout(s: State): State {
+  if (!s.tiling) return { ...s, tiling: true, layout: "tall", zoomed: null };
+  return { ...s, layout: cycleLayout(s.layout, 1), zoomed: null };
 }
 
-// movetoworkspace N: move the focused window there and follow it.
-export function movetoworkspace(s: State, index: number): State {
-  const n = workspace(clone(s), index);
-  const from = n.desktops[desktopOf(n, s.focused)];
-  from.order = from.order.filter((h) => h !== s.focused);
-  if (from.zoomed === s.focused) from.zoomed = null;
-  n.desktops[index].order.push(s.focused);
-  n.focused = s.focused;
-  return n;
+// toggletiling: back to the pile, or tile again.
+export function toggletiling(s: State): State {
+  return { ...s, tiling: !s.tiling, zoomed: null };
 }
 
-// cyclelayout next|prev and layout <name>: setLayout clears zoom.
-export function cyclelayout(s: State, delta: 1 | -1): State {
-  const n = clone(s);
-  const d = n.desktops[n.current];
-  d.layout = cycleLayout(d.layout, delta);
-  d.zoomed = null;
-  return n;
-}
+export type KeyId = "n" | "f" | "t" | "h" | "j" | "k" | "l";
 
-export function setLayout(s: State, layout: LayoutName): State {
-  const n = clone(s);
-  const d = n.desktops[n.current];
-  d.layout = layout;
-  d.zoomed = null;
-  return n;
-}
-
-// layoutmsg swapwithmaster: swap with index 0, or with index 1 when already main.
-export function swapwithmaster(s: State): State {
-  const n = clone(s);
-  const d = n.desktops[desktopOf(n, n.focused)];
-  const i = d.order.indexOf(n.focused);
-  const j = i === 0 ? 1 : 0;
-  if (d.order.length < 2) return s;
-  [d.order[i], d.order[j]] = [d.order[j], d.order[i]];
-  return n;
-}
-
-// Opening a template: every saved window comes to the current Desktop, first
-// in order, the display gets the saved layout and ratio, and zoom is cleared.
-export function openTemplate(
-  s: State,
-  template: { order: Hue[]; layout: LayoutName; ratio: number },
-): State {
-  const n = clone(s);
-  for (const d of n.desktops) {
-    d.order = d.order.filter((h) => !template.order.includes(h));
-    if (d.zoomed && template.order.includes(d.zoomed)) d.zoomed = null;
-  }
-  const d = n.desktops[n.current];
-  d.order = [...template.order, ...d.order];
-  d.layout = template.layout;
-  d.ratio = Math.min(0.9, Math.max(0.1, template.ratio));
-  d.zoomed = null;
-  n.focused = template.order[0];
-  return n;
-}
-
-// Overview, movewindow up|down: reorder the window inside its lane by one.
-export function reorder(s: State, delta: 1 | -1): State {
-  const n = clone(s);
-  const d = n.desktops[desktopOf(n, n.focused)];
-  const i = d.order.indexOf(n.focused);
-  const j = i + delta;
-  if (j < 0 || j >= d.order.length) return s;
-  [d.order[i], d.order[j]] = [d.order[j], d.order[i]];
-  return n;
-}
-
-export const TEMPLATE = { name: "Writing", order: HUES, layout: "tall" as LayoutName, ratio: 0.6 };
-
-export type Key = { id: string; caps: string[] };
-
-export type Fx =
-  | { kind: "mode"; on: boolean }
-  | { kind: "hud"; text: string; thumb: boolean }
-  | { kind: "menu"; open: boolean }
-  | { kind: "overview"; open: boolean }
-  | { kind: "overview-plan" }
-  | { kind: "type"; text: string };
-
-export type Action = {
-  key?: string;
-  hold?: number;
-  fx?: Fx[];
-  apply?: (s: State) => State;
-  plan?: boolean;
-};
-
-export type Step = {
-  id: string;
-  title: string;
-  body: string;
-  keys: Key[];
-  actions: Action[];
-};
-
-const hudLayout = (s: State) => LAYOUT_TITLE[s.desktops[s.current].layout];
-
-export const STEPS: Step[] = [
-  {
-    id: "open",
-    title: "It just tiles",
-    body: "Open apps the way you always do. Every new window gets a slot, and the others make room. There is nothing to set up.",
-    keys: [{ id: "cmdn", caps: ["⌘", "N"] }],
-    actions: HUES.map((hue) => ({ key: "cmdn", apply: (s: State) => open(s, hue) })),
-  },
-  {
-    id: "mode",
-    title: "Window mode",
-    body: "Press ⌘ Caps Lock once, then single keys do the work, like Vim. Shift with H J K L moves the window. F fills the screen. Esc leaves.",
-    keys: [
-      { id: "cmdcaps", caps: ["⌘", "⇪"] },
-      { id: "shiftl", caps: ["⇧", "L"] },
-      { id: "shifth", caps: ["⇧", "H"] },
-      { id: "f", caps: ["F"] },
-    ],
-    actions: [
-      { key: "cmdcaps", fx: [{ kind: "mode", on: true }], hold: 1.1 },
-      { key: "shiftl", apply: (s) => movewindow(s, "r") },
-      { key: "shifth", apply: (s) => movewindow(s, "l") },
-      { key: "f", apply: fullscreen },
-      { key: "f", apply: fullscreen },
-    ],
-  },
-  {
-    id: "workspaces",
-    title: "Workspaces are Desktops",
-    body: "Each workspace is a real macOS Desktop. 1 to 0 goes there. Shift and a number takes the window with you.",
-    keys: [
-      { id: "shift2", caps: ["⇧", "2"] },
-      { id: "one", caps: ["1"] },
-    ],
-    actions: [
-      {
-        key: "shift2",
-        apply: (s) => movetoworkspace(s, 1),
-        fx: [{ kind: "hud", text: "2", thumb: true }],
-        hold: 1.4,
-      },
-      { key: "one", apply: (s) => workspace(s, 0), fx: [{ kind: "hud", text: "1", thumb: true }] },
-    ],
-  },
-  {
-    id: "layouts",
-    title: "Layouts",
-    body: "Every workspace has its own layout. N and P cycle through tall, wide, fullscreen, binary space partitioning and column. Comma and period resize the main window.",
-    keys: [{ id: "n", caps: ["N"] }],
-    actions: [1, 2, 3, 4, 5].map(() => ({
-      key: "n",
-      apply: (s: State) => cyclelayout(s, 1),
-      fx: [{ kind: "hud", text: "", thumb: true }],
-      hold: 1.2,
-    })),
-  },
-  {
-    id: "templates",
-    title: "Save workspaces",
-    body: "Tap ⌘ in window mode for your saved workspaces. S saves the current one with its apps. 1 to 9 opens one, and every window comes back.",
-    keys: [
-      { id: "cmd", caps: ["⌘"] },
-      { id: "t1", caps: ["1"] },
-      { id: "esc", caps: ["esc"] },
-    ],
-    actions: [
-      { key: "cmd", fx: [{ kind: "menu", open: true }], hold: 1.3 },
-      {
-        key: "t1",
-        fx: [
-          { kind: "menu", open: false },
-          { kind: "hud", text: `Opened ${TEMPLATE.name}.`, thumb: false },
-        ],
-        apply: (s) => openTemplate(s, TEMPLATE),
-        hold: 1.4,
-      },
-      { key: "esc", fx: [{ kind: "mode", on: false }] },
-    ],
-  },
-  {
-    id: "overview",
-    title: "Overview",
-    body: "⌥ O shows every workspace as a lane. Move windows between lanes with the same keys. Press Return and CatWM lays it all out at once.",
-    keys: [
-      { id: "alto", caps: ["⌥", "O"] },
-      { id: "shiftj", caps: ["⇧", "J"] },
-      { id: "ret", caps: ["↩"] },
-    ],
-    actions: [
-      { key: "alto", fx: [{ kind: "overview", open: true }], hold: 1.3 },
-      {
-        key: "shiftj",
-        apply: (s) => reorder(s, 1),
-        plan: true,
-        fx: [{ kind: "overview-plan" }],
-        hold: 1.2,
-      },
-      // Done applies the plan: the windows move only now.
-      { key: "ret", apply: (s) => reorder(s, 1), fx: [{ kind: "overview", open: false }] },
-    ],
-  },
-  {
-    id: "cli",
-    title: "A CLI for scripts and agents",
-    body: "Every bind is a dispatcher, and the CLI runs the same ones.",
-    keys: [],
-    actions: [
-      {
-        fx: [{ kind: "type", text: "ouch dispatch layoutmsg swapwithmaster" }],
-        apply: swapwithmaster,
-        hold: 1.4,
-      },
-      {
-        fx: [
-          { kind: "type", text: "ouch dispatch cyclelayout next" },
-          { kind: "hud", text: "", thumb: true },
-        ],
-        apply: (s) => cyclelayout(s, 1),
-        hold: 1.4,
-      },
-      {
-        fx: [
-          { kind: "type", text: "ouch dispatch layout tall" },
-          { kind: "hud", text: "", thumb: true },
-        ],
-        apply: (s) => setLayout(s, "tall"),
-        hold: 1.4,
-      },
-    ],
-  },
+export const KEYS: { id: KeyId; caps: string[]; label: string; apply: (s: State) => State }[] = [
+  { id: "n", caps: ["N"], label: "Layout", apply: cyclelayout },
+  { id: "h", caps: ["⇧", "H"], label: "Move", apply: (s) => movewindow(s, "l") },
+  { id: "j", caps: ["⇧", "J"], label: "", apply: (s) => movewindow(s, "d") },
+  { id: "k", caps: ["⇧", "K"], label: "", apply: (s) => movewindow(s, "u") },
+  { id: "l", caps: ["⇧", "L"], label: "", apply: (s) => movewindow(s, "r") },
+  { id: "f", caps: ["F"], label: "Fill", apply: fullscreen },
+  { id: "t", caps: ["⇧", "T"], label: "Tiling", apply: toggletiling },
 ];
 
-// A HUD with empty text shows the layout title after the action.
-export function hudText(fx: Fx, after: State): string {
-  if (fx.kind !== "hud") return "";
-  return fx.text === "" ? hudLayout(after) : fx.text;
+// What the page does on its own until the visitor presses a key.
+export const ATTRACT: { key: KeyId; after: number }[] = [
+  { key: "n", after: 2.6 },
+  { key: "l", after: 2.4 },
+  { key: "f", after: 2.4 },
+  { key: "f", after: 2.2 },
+  { key: "n", after: 2.6 },
+  { key: "n", after: 2.6 },
+  { key: "n", after: 2.6 },
+  { key: "n", after: 2.6 },
+  { key: "t", after: 3.4 },
+];
+
+export function hudTitle(s: State): string {
+  return s.tiling ? LAYOUT_TITLE[s.layout] : "Floating";
 }

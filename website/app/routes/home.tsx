@@ -1,6 +1,7 @@
 import { useFetcher } from "react-router";
 
 import { addSignup } from "../signup.server";
+import { TilingField } from "../tiling-field";
 import type { Route } from "./+types/home";
 
 const SITE = "https://ouch.perwko.com";
@@ -55,26 +56,26 @@ export default function Home() {
         </a>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 pb-16">
-        <video
-          className="w-full rounded-xl shadow-2xl shadow-black/40"
-          src="/demo.mp4"
-          poster="/demo-poster.jpg"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-        />
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center gap-10 pb-16 sm:gap-12">
+        <div className="hero-frame">
+          <TilingField />
+        </div>
 
-        <div className="flex flex-col items-center gap-6 text-center">
-          <h1 className="text-3xl font-normal tracking-tight sm:text-4xl">Public release soon.</h1>
+        <div className="flex w-full flex-col items-center gap-7 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <h1 className="text-4xl tracking-tight text-balance sm:text-5xl">
+              Public release soon.
+            </h1>
+            <p className="max-w-[34ch] text-lg text-balance text-muted">
+              A keyboard-driven tiling window manager for macOS.
+            </p>
+          </div>
 
           {done ? (
             <p className="text-muted">Thanks. We will email you at release.</p>
           ) : (
             <fetcher.Form method="post" className="flex w-full max-w-sm flex-col gap-2">
-              <div className="flex rounded-full bg-field p-1 ring-1 ring-line focus-within:ring-accent">
+              <div className="flex rounded-full bg-field p-1 ring-1 ring-line transition-shadow focus-within:ring-2 focus-within:ring-accent">
                 <input
                   type="email"
                   name="email"
@@ -87,7 +88,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="rounded-full bg-accent px-5 py-2 font-medium whitespace-nowrap text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  className="rounded-full bg-accent px-5 py-2 font-medium whitespace-nowrap text-white transition-opacity outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-field disabled:opacity-60"
                 >
                   {busy ? "Sending…" : "Notify me"}
                 </button>

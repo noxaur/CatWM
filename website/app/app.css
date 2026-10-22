@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-
 @theme {
   --font-sans: var(--body-font);
   --font-display: var(--display-font);
@@ -10,6 +9,10 @@
   --color-muted: #6e6e76;
   --color-field: #ffffff;
   --color-line: #dcdce2;
+  --color-screen: #101117;
+  --color-tile: #23252d;
+  --color-tile-focus: #2d3039;
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
@@ -60,10 +63,111 @@ html,
 body {
   @apply bg-bg font-sans text-ink antialiased;
   font-weight: var(--body-weight);
+  accent-color: var(--color-accent);
+  caret-color: var(--color-accent);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 24%, transparent);
 }
 
 h1,
 .font-display {
   font-family: var(--display-font);
   font-weight: var(--display-weight);
+}
+
+/* Keep the headline and the form in the first viewport on common laptop heights. */
+.hero-frame {
+  width: min(100%, max(36rem, calc((100svh - 26rem) * 1.6)));
+}
+
+/* The abstract session: tiles are SVG rects, so moves and resizes stay geometry, not layout. */
+.field {
+  aspect-ratio: 16 / 10;
+  box-shadow:
+    0 24px 60px -24px rgb(16 17 23 / 0.45),
+    0 1px 0 0 rgb(255 255 255 / 0.06) inset;
+}
+
+.tile {
+  fill: var(--color-tile);
+  stroke: var(--color-accent);
+  stroke-width: 2px;
+  stroke-opacity: 0;
+  vector-effect: non-scaling-stroke;
+  transition:
+    x 0.52s var(--ease-settle),
+    y 0.52s var(--ease-settle),
+    width 0.52s var(--ease-settle),
+    height 0.52s var(--ease-settle),
+    opacity 0.36s ease-out,
+    fill 0.3s ease-out,
+    stroke-opacity 0.3s ease-out;
+}
+
+.tile[data-focused] {
+  fill: var(--color-tile-focus);
+  stroke-opacity: 1;
+}
+
+/* Ouch draws a line around the screen while window mode is on. */
+.mode-line {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 0.45;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    stroke-dashoffset 0.9s var(--ease-settle),
+    opacity 0.2s ease-out 0.7s;
+}
+
+.field[data-mode] .mode-line {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 0.9s var(--ease-settle),
+    opacity 0.1s ease-out;
+}
+
+.keycap {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 6%;
+  margin-inline: auto;
+  width: fit-content;
+  min-width: 2.5em;
+  padding: 0.3em 0.7em;
+  border-radius: 0.6em;
+  font-family: var(--display-font);
+  font-weight: var(--display-weight);
+  font-size: clamp(0.8rem, 2.4vw, 1.1rem);
+  line-height: 1.4;
+  text-align: center;
+  color: #f4f4f6;
+  background: rgb(244 244 246 / 0.1);
+  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.08) inset;
+  opacity: 0;
+  transform: translateY(0.3em);
+  transition:
+    opacity 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+
+.keycap[data-shown] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.12s ease-out,
+    transform 0.3s var(--ease-settle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .mode-line,
+  .keycap {
+    transition: none;
+  }
 }

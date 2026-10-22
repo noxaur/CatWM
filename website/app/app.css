@@ -134,7 +134,11 @@ a {
 /* The deck: the stage sticks at the top, and each card slides over the one before. */
 .deck {
   position: relative;
+  /* Each card stops a little lower than the one before, so the stack stays in view. */
+  --stack: 12px;
+  background: var(--black);
 }
+
 .stage {
   position: sticky;
   top: 0;
@@ -315,13 +319,15 @@ a {
 }
 
 /* Cards: one hue each, title and one line beside a small display. */
+/* Card i stops --stack lower than card i-1 and ends at the viewport bottom, so
+   the earlier cards stay in view as a thin stack, to the end of the page. */
 .card {
   position: sticky;
-  top: 0;
+  top: calc(var(--i) * var(--stack));
   z-index: var(--i);
-  height: 100vh;
-  height: 100svh;
-  min-height: 640px;
+  height: calc(100vh - var(--i) * var(--stack));
+  height: calc(100svh - var(--i) * var(--stack));
+  min-height: calc(640px - var(--i) * var(--stack));
   background: var(--card, var(--black));
   color: var(--black);
   border-radius: clamp(24px, 3vw, 44px) clamp(24px, 3vw, 44px) 0 0;
@@ -441,6 +447,9 @@ a {
 }
 
 @media (max-width: 640px) {
+  .deck {
+    --stack: 8px;
+  }
   .hero {
     padding-bottom: 120px;
   }

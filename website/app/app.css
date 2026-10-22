@@ -276,9 +276,6 @@ a {
   border-radius: 999px;
   background: var(--white);
 }
-.install__button:hover .install__labels {
-  background: var(--sky);
-}
 .install__label {
   grid-area: 1 / 1;
   visibility: hidden;

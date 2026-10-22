@@ -60,7 +60,7 @@ function Install({ cta = false }: { cta?: boolean }) {
             Install the beta
           </span>
           <span className="install__label" data-shown={copied || undefined}>
-            Installing…
+            Copied
           </span>
         </span>
       </button>

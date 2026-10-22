@@ -158,6 +158,7 @@ function idleMotion(t: number) {
 }
 
 const REST = resolvePose("content");
+const LAYERS = 18;
 
 type Props = {
   className?: string;
@@ -284,49 +285,54 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       scriptT = window.setTimeout(next, step[1]);
     };
 
-    // The pointer: a hop and an alert look on hover. The cat turns in 3D around
-    // its vertical axis: a click gives one full turn, a drag turns it by hand,
-    // and a release carries the fling and settles facing front. The wrapper
-    // takes these moves, since the frame loop owns the svg's transform.
+    // The pointer. The cat is a solid: the front face carries the eyes, and the
+    // layers behind it give it depth. A drag turns it on both axes like a
+    // trackball, a release keeps it spinning with friction, and a click throws
+    // it into a turn. The wrapper takes these moves, since the frame loop owns
+    // the svg's transform.
     const box = wrap.current;
-    const TURN_PER_PX = 0.8;
-    const FLING_MS = 160;
-    const angle = () => Number(gsap.getProperty(box, "rotationY"));
-    const shade = () => {
-      if (!box) return;
-      const edge = Math.abs(Math.sin((angle() * Math.PI) / 180));
-      box.style.filter = `brightness(${(1 - 0.4 * edge).toFixed(3)})`;
-    };
-    const settle = (target: number, fling: number) => {
-      gsap.to(box, {
-        rotationY: target,
-        duration: 0.6 + Math.min(1, Math.abs(fling) / 720) * 0.7,
-        ease: "power3.out",
-        overwrite: "auto",
-        onUpdate: shade,
-      });
-    };
-    const spin = () => {
-      to("shut");
-      gsap
-        .timeline({ onComplete: () => to("alert"), onUpdate: shade })
-        .to(box, { scaleX: 0.86, scaleY: 1.14, duration: 0.1, ease: "power2.in" }, 0)
-        .to(
-          box,
-          { rotationY: "+=360", duration: 0.8, ease: "back.out(1.1)", overwrite: "auto" },
-          0.06,
-        )
-        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.3);
-    };
-    gsap.set(box, { transformPerspective: 700 });
-
+    const TURN_PER_PX = 0.6;
+    const FRICTION = 0.0025;
+    const REST = 0.02;
     let dragging = false;
     let moved = false;
-    let startX = 0;
-    let startAngle = 0;
     let lastX = 0;
+    let lastY = 0;
     let lastT = 0;
-    let speed = 0;
+    let vx = 0;
+    let vy = 0;
+    let spinRaf = 0;
+    let spinT = 0;
+    const turn = (dx: number, dy: number) => {
+      if (!box) return;
+      gsap.set(box, {
+        rotationY: `+=${dx * TURN_PER_PX}`,
+        rotationX: `+=${-dy * TURN_PER_PX}`,
+      });
+    };
+    const coast = (now: number) => {
+      const dt = Math.min(50, now - spinT);
+      spinT = now;
+      turn(vx * dt, vy * dt);
+      const decay = Math.exp(-FRICTION * dt);
+      vx *= decay;
+      vy *= decay;
+      if (Math.hypot(vx, vy) * TURN_PER_PX > REST / 16) spinRaf = requestAnimationFrame(coast);
+    };
+    const throwCat = (x: number, y: number) => {
+      cancelAnimationFrame(spinRaf);
+      vx = x;
+      vy = y;
+      spinT = performance.now();
+      spinRaf = requestAnimationFrame(coast);
+    };
+    const size = () => {
+      if (box) box.style.setProperty("--depth", `${(box.clientWidth * 0.16).toFixed(1)}px`);
+    };
+    size();
+    window.addEventListener("resize", size);
+    gsap.set(box, { transformPerspective: 900 });
+
     const onEnter = () => {
       to("alert");
       gsap.to(box, { yPercent: -6, duration: 0.3, ease: "back.out(2.5)", overwrite: "auto" });
@@ -340,34 +346,43 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       if (!box) return;
       dragging = true;
       moved = false;
-      startX = e.clientX;
-      startAngle = angle();
       lastX = e.clientX;
+      lastY = e.clientY;
       lastT = e.timeStamp;
-      speed = 0;
-      gsap.killTweensOf(box, "rotationY");
+      vx = 0;
+      vy = 0;
+      cancelAnimationFrame(spinRaf);
       box.setPointerCapture(e.pointerId);
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging) return;
-      const dx = e.clientX - startX;
-      if (Math.abs(dx) > 4) moved = true;
-      speed = (e.clientX - lastX) / Math.max(1, e.timeStamp - lastT);
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      const dt = Math.max(1, e.timeStamp - lastT);
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      vx = dx / dt;
+      vy = dy / dt;
       lastX = e.clientX;
+      lastY = e.clientY;
       lastT = e.timeStamp;
-      gsap.set(box, { rotationY: startAngle + dx * TURN_PER_PX });
-      shade();
+      turn(dx, dy);
     };
     const onUp = (e: PointerEvent) => {
       if (!dragging || !box) return;
       dragging = false;
       box.releasePointerCapture(e.pointerId);
-      if (!moved) {
-        spin();
+      if (moved) {
+        if (e.timeStamp - lastT > 80) return;
+        throwCat(vx, vy);
         return;
       }
-      const fling = speed * TURN_PER_PX * FLING_MS;
-      settle(Math.round((angle() + fling) / 360) * 360, fling);
+      to("shut");
+      window.setTimeout(() => to("alert"), 700);
+      gsap
+        .timeline()
+        .to(box, { scaleX: 0.86, scaleY: 1.14, duration: 0.1, ease: "power2.in" }, 0)
+        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.12);
+      throwCat(2.4, 0);
     };
     if (box) {
       box.addEventListener("pointerenter", onEnter);
@@ -386,6 +401,8 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       cancelAnimationFrame(raf);
       clearTimeout(idleT);
       clearTimeout(scriptT);
+      cancelAnimationFrame(spinRaf);
+      window.removeEventListener("resize", size);
       if (box) {
         box.removeEventListener("pointerenter", onEnter);
         box.removeEventListener("pointerleave", onLeave);
@@ -401,13 +418,25 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
   const rest = { stretch: 1, lean: 0, lookX: 0, lookY: 0 };
   const maskId = `cat-eyes-${id.replace(/:/g, "")}`;
   return (
-    <span ref={wrap} className={className} style={{ display: "inline-block" }}>
+    <span ref={wrap} className={`cat ${className ?? ""}`}>
+      {Array.from({ length: LAYERS }, (_, i) => (
+        <svg
+          key={i}
+          className={`cat__layer${i === LAYERS - 1 ? " cat__layer--back" : ""}`}
+          viewBox="0 0 512 512"
+          aria-hidden="true"
+          style={{ transform: `translateZ(calc(var(--depth, 0px) * ${-(i + 1) / LAYERS}))` }}
+        >
+          <path d={CAT_PATH} fill="currentColor" />
+        </svg>
+      ))}
       <svg
         ref={svg}
         viewBox="0 0 512 512"
         role="img"
         aria-label={label}
-        style={{ display: "block", width: "100%", height: "100%", transformOrigin: "50% 99.2%" }}
+        className="cat__face"
+        style={{ transformOrigin: "50% 99.2%" }}
       >
         <defs>
           <mask id={maskId}>

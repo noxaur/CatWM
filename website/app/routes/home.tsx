@@ -60,7 +60,7 @@ function Install({ cta = false }: { cta?: boolean }) {
             Install the beta
           </span>
           <span className="install__label" data-shown={copied || undefined}>
-            Copied
+            Paste in Terminal
           </span>
         </span>
       </button>

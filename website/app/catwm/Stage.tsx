@@ -193,10 +193,51 @@ export function Stage({ hero }: Props) {
     };
     if (!stillRef.current) attract.current.timer = window.setTimeout(tick, ATTRACT[0].after * 1000);
 
+    // The pulse: a circle grows out of the install button until it covers the
+    // screen, dark on the slow cycle and light on a click, then fades back.
+    // The button sits above it, so it is the one thing the pulse leaves alone.
+    const veil = el.querySelector<HTMLElement>("[data-pulse]");
+    const cta = el.querySelector<HTMLElement>("[data-cta]");
+    let pulseTimer = 0;
+    let onScreen = true;
+    const pulse = (light: boolean) => {
+      if (!veil || !cta) return;
+      const stage = el.getBoundingClientRect();
+      const b = cta.getBoundingClientRect();
+      const x = b.left + b.width / 2 - stage.left;
+      const y = b.top + b.height / 2 - stage.top;
+      const reach = Math.hypot(Math.max(x, stage.width - x), Math.max(y, stage.height - y));
+      veil.style.background = light ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.58)";
+      gsap.killTweensOf(veil);
+      gsap
+        .timeline()
+        .fromTo(
+          veil,
+          { clipPath: `circle(${b.width * 0.5}px at ${x}px ${y}px)`, opacity: 1 },
+          { clipPath: `circle(${reach}px at ${x}px ${y}px)`, duration: 1.3, ease: "power2.out" },
+        )
+        .to(veil, { opacity: 0, duration: 0.8, ease: "power1.inOut" }, "+=0.1");
+    };
+    const cycle = () => {
+      if (onScreen && !document.hidden) pulse(false);
+      pulseTimer = window.setTimeout(cycle, 6500);
+    };
+    const onCta = () => pulse(true);
+    const io = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+    });
+    io.observe(el);
+    cta?.addEventListener("click", onCta);
+    if (!stillRef.current) pulseTimer = window.setTimeout(cycle, 1800);
+
     return () => {
       window.removeEventListener("resize", scale);
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(attract.current.timer);
+      window.clearTimeout(pulseTimer);
+      io.disconnect();
+      cta?.removeEventListener("click", onCta);
+      if (veil) gsap.killTweensOf(veil);
     };
   }, [press, stopAttract]);
 
@@ -245,6 +286,7 @@ export function Stage({ hero }: Props) {
         <span className="hud__text" data-hud-text />
       </div>
 
+      <div className="pulse" data-pulse aria-hidden="true" />
       <div className="hero">{hero}</div>
 
       <div className="keys" aria-label="Try the keys">

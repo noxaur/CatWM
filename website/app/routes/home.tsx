@@ -33,7 +33,7 @@ export function meta() {
 }
 
 // One button. It copies the install command, and shows it only once copied.
-function Install() {
+function Install({ cta = false }: { cta?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -45,7 +45,13 @@ function Install() {
   };
   return (
     <div className="install">
-      <button type="button" className="install__button" onClick={copy} aria-live="polite">
+      <button
+        type="button"
+        className="install__button"
+        data-cta={cta || undefined}
+        onClick={copy}
+        aria-live="polite"
+      >
         {copied ? "Copied. Paste it in Terminal." : "Install the beta"}
       </button>
       {copied && <code className="install__command">{INSTALL}</code>}
@@ -60,7 +66,7 @@ function Hero() {
         <Cat className="lockup__cat" feelings />
         <span className="lockup__name">CatWM</span>
       </h1>
-      <Install />
+      <Install cta />
     </>
   );
 }

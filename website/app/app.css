@@ -66,6 +66,8 @@ a {
 
 /* Lockup: the cat first, then the rounded name, on a black pill. */
 .lockup {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: clamp(8px, 1.1vw, 16px);
@@ -220,7 +222,6 @@ a {
 .hero {
   position: absolute;
   inset: 0;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -233,8 +234,20 @@ a {
   pointer-events: auto;
 }
 
-/* Install: one button. The command shows only once it is copied. */
+/* The pulse: a veil over the whole stage that a circle from the button reveals. */
+.pulse {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  will-change: clip-path, opacity;
+}
+
+/* Install: one button. The command shows only once it is copied. It sits above the pulse. */
 .install {
+  position: relative;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;

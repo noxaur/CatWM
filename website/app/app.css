@@ -182,7 +182,8 @@ a {
   overflow: hidden;
 }
 
-/* The screen. --s scales every in-screen component from points to pixels. */
+/* The screen: a 16:10 display that the intro places and shows. --s scales every
+   in-screen component from points to pixels. */
 .screen {
   position: absolute;
   left: 0;
@@ -192,8 +193,11 @@ a {
   overflow: hidden;
   isolation: isolate;
   z-index: 0;
-  --gap: clamp(10px, 1.1vw, 16px);
-  --r: clamp(18px, 2.5vw, 36px);
+  background: var(--surface);
+  opacity: 0;
+  visibility: hidden;
+  --gap: 6px;
+  --r: 14px;
   --s: 0.56;
   font-family: var(--sys);
 }
@@ -579,7 +583,16 @@ a {
   color: var(--black);
 }
 
-/* Hero overlay: the lockup and the install pill in the middle of the slabs. */
+/* Hero: one flat field in the accent hue, the black lockup and the install pill on it. */
+.hero-field {
+  position: absolute;
+  inset: 0;
+  background: var(--sky);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Hero overlay: the lockup and the install pill in the middle of the field. */
 .hero {
   position: absolute;
   inset: 0;

@@ -28,10 +28,9 @@ export type State = { desktops: Desktop[]; current: number; focused: Hue };
 // frames come back as fractions of this rect.
 export const SCREEN: Rect = { x: 0, y: 0, w: 1600, h: 1000 };
 
+// The story opens on an empty Desktop. The first step opens the four windows.
 export const START: State = {
-  desktops: [
-    { order: ["sky", "lemon", "magenta", "lime"], layout: "tall", ratio: 0.6, zoomed: null },
-  ],
+  desktops: [{ order: [], layout: "tall", ratio: 0.6, zoomed: null }],
   current: 0,
   focused: "sky",
 };
@@ -62,6 +61,14 @@ function clone(s: State): State {
 
 function desktopOf(s: State, hue: Hue): number {
   return s.desktops.findIndex((d) => d.order.includes(hue));
+}
+
+// A new window joins the current Desktop at the end of the order and takes focus.
+export function open(s: State, hue: Hue): State {
+  const n = clone(s);
+  n.desktops[n.current].order.push(hue);
+  n.focused = hue;
+  return n;
 }
 
 // movewindow l|d|u|r: swap places with the directional neighbour, then retile.
@@ -201,6 +208,13 @@ export type Step = {
 const hudLayout = (s: State) => LAYOUT_TITLE[s.desktops[s.current].layout];
 
 export const STEPS: Step[] = [
+  {
+    id: "open",
+    title: "It just tiles",
+    body: "Open apps the way you always do. Every new window gets a slot, and the others make room. There is nothing to set up.",
+    keys: [{ id: "cmdn", caps: ["⌘", "N"] }],
+    actions: HUES.map((hue) => ({ key: "cmdn", apply: (s: State) => open(s, hue) })),
+  },
   {
     id: "mode",
     title: "Window mode",

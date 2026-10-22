@@ -140,6 +140,7 @@ export function Story({ hero }: Props) {
       const screen = one("[data-screen]");
       const desktops = one("[data-desktops]");
       const heroEl = one("[data-hero]");
+      const heroField = one("[data-hero-field]");
       const nav = one("[data-nav]");
       const hud = one("[data-hud]");
       const hudLabel = one("[data-hud-text]");
@@ -199,7 +200,8 @@ export function Story({ hero }: Props) {
             p.style.filter = `blur(${8 * s}px)`;
           });
 
-          // Hero to story: the screen shrinks into place while the lockup leaves.
+          // Hero to story: the lockup leaves and the empty display settles in.
+          gsap.set(screen, box);
           const intro = gsap.timeline({
             scrollTrigger: {
               trigger: el,
@@ -209,8 +211,14 @@ export function Story({ hero }: Props) {
             },
           });
           intro
-            .to(screen, { ...box, "--gap": "6px", "--r": "14px", ease: "none", duration: 1 }, 0)
             .to(heroEl, { autoAlpha: 0, y: -48, ease: "none", duration: 0.45 }, 0)
+            .to(heroField, { autoAlpha: 0, ease: "none", duration: 0.5 }, 0)
+            .fromTo(
+              screen,
+              { autoAlpha: 0, scale: 0.94, y: 32 },
+              { autoAlpha: 1, scale: 1, y: 0, ease: "none", duration: 0.55 },
+              0.3,
+            )
             .fromTo(nav, { autoAlpha: 0 }, { autoAlpha: 1, ease: "none", duration: 0.3 }, 0.6)
             .fromTo(cursor, { autoAlpha: 0 }, { autoAlpha: 1, ease: "none", duration: 0.3 }, 0.6);
 
@@ -274,11 +282,20 @@ export function Story({ hero }: Props) {
             for (const hue of HUES) {
               const was = a.get(hue);
               const now = b.get(hue);
-              if (!was || !now) continue;
+              if (!now) continue;
               const style = slotStyle(now.rect, now.desktop, now.z);
               tl.set(slab(hue), { zIndex: style.zIndex }, at);
               const { zIndex: _z, ...geometry } = style;
-              if (was.desktop !== now.desktop) {
+              if (!was) {
+                // A new window: the app shows it, and the animator takes it to its slot.
+                tl.set(slab(hue), geometry, at);
+                tl.fromTo(
+                  slab(hue),
+                  { autoAlpha: 0, scale: 0.94 },
+                  { autoAlpha: 1, scale: 1, ...MOVE },
+                  at,
+                );
+              } else if (was.desktop !== now.desktop) {
                 // Spaces.move puts the window on the other Desktop at once.
                 tl.set(slab(hue), geometry, at);
               } else {
@@ -463,17 +480,16 @@ export function Story({ hero }: Props) {
       </header>
 
       <div className="stage">
+        <div className="hero-field" data-hero-field aria-hidden="true" />
         <div className="screen" data-screen>
           <div className="desktops" data-desktops>
             {HUES.map((hue) => {
-              const slot = startSlots.get(hue)!;
+              const slot = startSlots.get(hue);
+              const style = slot
+                ? slotStyle(slot.rect, slot.desktop, slot.z)
+                : { ...slotStyle(SCREEN, 0, 0), opacity: 0, visibility: "hidden" as const };
               return (
-                <div
-                  key={hue}
-                  className="slab"
-                  data-slab={hue}
-                  style={slotStyle(slot.rect, slot.desktop, slot.z)}
-                >
+                <div key={hue} className="slab" data-slab={hue} style={style}>
                   <div className="slab__face" style={{ background: WINDOWS[hue].color }} />
                 </div>
               );

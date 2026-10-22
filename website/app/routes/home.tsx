@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { useFetcher } from "react-router";
 
+import { Cards } from "../catwm/Cards";
 import { Cat } from "../catwm/Cat";
 import { Stage } from "../catwm/Stage";
-import { addSignup } from "../signup.server";
-import type { Route } from "./+types/home";
 
 const SITE = "https://catwm.perwko.com";
 const INSTALL = "curl -fsSL https://catwm.perwko.com/install.sh | sh -s -- --beta";
@@ -34,57 +32,24 @@ export function meta() {
   ];
 }
 
-export async function action({ request }: Route.ActionArgs) {
-  const form = await request.formData();
-  return addSignup(form.get("email"));
-}
-
-function InstallCommand() {
+// One button. It copies the install command, and shows it only once copied.
+function Install() {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(INSTALL);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
     } catch {
       setCopied(false);
     }
   };
   return (
-    <div className="command">
-      <code className="command__text">{INSTALL}</code>
-      <button type="button" className="command__copy" onClick={copy} aria-live="polite">
-        {copied ? "Copied" : "Copy"}
+    <div className="install">
+      <button type="button" className="install__button" onClick={copy} aria-live="polite">
+        {copied ? "Copied. Paste it in Terminal." : "Install the beta"}
       </button>
+      {copied && <code className="install__command">{INSTALL}</code>}
     </div>
-  );
-}
-
-function Signup() {
-  const fetcher = useFetcher<typeof action>();
-  const busy = fetcher.state !== "idle";
-  const done = fetcher.data?.ok === true;
-  const error = fetcher.data?.ok === false ? fetcher.data.error : null;
-
-  if (done) return <p className="signup__done">Thanks. We will email you at release.</p>;
-  return (
-    <fetcher.Form method="post" className="signup">
-      <div className="signup__field">
-        <input
-          type="email"
-          name="email"
-          required
-          autoComplete="email"
-          placeholder="you@example.com"
-          aria-label="Email"
-          className="signup__input"
-        />
-        <button type="submit" disabled={busy} className="signup__submit">
-          {busy ? "Sending…" : "Email me at release"}
-        </button>
-      </div>
-      {error && <p className="signup__error">{error}</p>}
-    </fetcher.Form>
   );
 }
 
@@ -95,15 +60,28 @@ function Hero() {
         <Cat className="lockup__cat" feelings />
         <span className="lockup__name">CatWM</span>
       </h1>
-      <div className="hero__pill">
-        <p className="hero__tagline">{TAGLINE}</p>
-        <InstallCommand />
-        <Signup />
-      </div>
+      <Install />
+    </>
+  );
+}
+
+function Last() {
+  return (
+    <>
+      <h2 className="card__title">Public release soon.</h2>
+      <Install />
+      <a href="https://github.com/noxaur/ouch" className="pill pill--link">
+        GitHub
+      </a>
     </>
   );
 }
 
 export default function Home() {
-  return <Stage hero={<Hero />} />;
+  return (
+    <div className="deck">
+      <Stage hero={<Hero />} />
+      <Cards last={<Last />} />
+    </div>
+  );
 }

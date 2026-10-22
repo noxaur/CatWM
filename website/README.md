@@ -1,18 +1,19 @@
 # CatWM website
 
-Landing page for CatWM, one screen: four windows left in a pile, the brand lockup on them, the
-install command and an email signup. The keys below (N, Shift H J K L, F, Shift T) run the real
-window manager behaviour on the pile: tile it, cycle the layouts, move a window, fill the screen.
-Until the visitor presses a key, the page presses them itself.
+Landing page for CatWM. The first screen is four windows in a pile with the brand lockup and one
+install button on them; the keys below (N, Shift H J K L, F, Shift T) run the real window manager
+behaviour on the pile, and the page presses them itself until the visitor does. Below it, four
+cards in the four hues slide over the stage, one feature each, with a small display that loops a
+few moves. The last card repeats the install button.
 
 `app/catwm/layout.ts` is a port of the Swift layout and neighbour code. `app/catwm/script.ts` holds the
-state, the dispatcher reducers behind each key and the attract sequence. `app/catwm/Stage.tsx` moves the
-windows with GSAP at the animator's real timing (0.18 s, cubic ease-out). Change the Swift code and the
-port together.
+stage state, the dispatcher reducers behind each key and the attract sequence, and `app/catwm/cards.ts`
+the cards and their scenes. `app/catwm/Stage.tsx` moves the windows with GSAP at the animator's real
+timing (0.18 s, cubic ease-out). Change the Swift code and the port together.
 
 - React Router 8 (framework mode, SSR)
 - Vite+ (`vp`) for dev, build, format, lint, and type checks
-- Void for deployment to Cloudflare Workers. Signups go to Void KV under the `signups:` prefix.
+- Void for deployment to Cloudflare Workers.
 
 ## Develop
 

@@ -61,7 +61,7 @@ export function place(state: State): Map<Hue, Slot> {
   if (!state.tiling) {
     HUES.forEach((hue, i) => {
       const { tilt, ...rect } = PILE[hue];
-      out.set(hue, { rect, tilt, z: i + 1 });
+      out.set(hue, { rect, tilt, z: hue === state.focused ? 10 : i + 1 });
     });
     return out;
   }
@@ -72,6 +72,11 @@ export function place(state: State): Map<Hue, Slot> {
     out.set(hue, { rect: zoomed ? SCREEN : fr[i], tilt: 0, z: zoomed ? 30 : z });
   });
   return out;
+}
+
+// focus-follows-mouse: the window under the pointer takes focus.
+export function focus(s: State, hue: Hue): State {
+  return s.focused === hue ? s : { ...s, focused: hue };
 }
 
 // movewindow l|d|u|r: swap places with the directional neighbour, then retile.

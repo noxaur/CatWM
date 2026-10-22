@@ -5,12 +5,14 @@ import { type Rect } from "./layout";
 import {
   ATTRACT,
   HUES,
+  type Hue,
   KEYS,
   type KeyId,
   SCREEN,
   START,
   type State,
   WINDOWS,
+  focus,
   hudTitle,
   place,
 } from "./script";
@@ -63,6 +65,7 @@ export function Stage({ hero }: Props) {
   const [state, setState] = useState<State>(START);
   const stateRef = useRef(state);
   const first = useRef(true);
+  const shown = useRef(START);
   const attract = useRef<{ stopped: boolean; timer: number }>({ stopped: false, timer: 0 });
   const stillRef = useRef(false);
 
@@ -94,6 +97,12 @@ export function Stage({ hero }: Props) {
     setState(next);
   }, []);
 
+  const focusWindow = useCallback((hue: Hue) => {
+    const next = focus(stateRef.current, hue);
+    stateRef.current = next;
+    setState(next);
+  }, []);
+
   const stopAttract = useCallback(() => {
     attract.current.stopped = true;
     window.clearTimeout(attract.current.timer);
@@ -114,7 +123,10 @@ export function Stage({ hero }: Props) {
       else gsap.to(slab, { ...geometry, ...MOVE, overwrite: "auto" });
     }
 
-    if (!first.current) {
+    const layoutChanged =
+      shown.current.tiling !== state.tiling || shown.current.layout !== state.layout;
+    shown.current = state;
+    if (!first.current && layoutChanged) {
       // HUDView: the layout thumbnail over the title, popping from 0.9 with a
       // spring, gone after 1 s (0.8 s without a thumbnail) with a 0.25 s fade.
       const hud = el.querySelector<HTMLElement>("[data-hud]")!;
@@ -201,7 +213,13 @@ export function Stage({ hero }: Props) {
               key={hue}
               className="slab"
               data-slab={hue}
+              data-focused={state.focused === hue || undefined}
               style={{ ...style, transform: `rotate(${rotation}deg)` }}
+              onPointerEnter={(e) => e.pointerType === "mouse" && focusWindow(hue)}
+              onClick={() => {
+                stopAttract();
+                focusWindow(hue);
+              }}
             >
               <div className="slab__face" style={{ background: WINDOWS[hue].color }} />
             </div>

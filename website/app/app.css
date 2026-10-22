@@ -82,18 +82,13 @@ a {
   flex: none;
 }
 
-/* The cat: drag it to turn it, click it to spin it. */
+/* The cat: click it to spin it. */
 .cat {
   position: relative;
   display: inline-block;
-  transform-origin: 50% 60%;
-  cursor: grab;
-  touch-action: none;
+  cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-}
-.cat:active {
-  cursor: grabbing;
 }
 .cat__face {
   position: relative;
@@ -253,7 +248,6 @@ a {
   padding: 14px 28px;
   font: 700 clamp(16px, 1.4vw, 19px) / 1 var(--display);
   cursor: pointer;
-  box-shadow: 0 0 0 6px var(--black);
 }
 .install__button:hover {
   background: var(--sky);

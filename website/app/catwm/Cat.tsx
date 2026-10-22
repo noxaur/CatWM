@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import { useEffect, useId, useRef } from "react";
 
 // The CatWM cat. The eye geometry and the feelings are the ones in
@@ -167,6 +168,7 @@ type Props = {
 
 export function Cat({ className, feelings = false, label = "The CatWM cat" }: Props) {
   const id = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const left = useRef<SVGPathElement>(null);
   const right = useRef<SVGPathElement>(null);
@@ -282,6 +284,31 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       scriptT = window.setTimeout(next, step[1]);
     };
 
+    // The pointer: a hop and an alert look on hover, a spin with a squash on click.
+    // The wrapper takes these moves, since the frame loop owns the svg's transform.
+    const box = wrap.current;
+    const onEnter = () => {
+      to("alert");
+      gsap.to(box, { yPercent: -6, duration: 0.3, ease: "back.out(2.5)", overwrite: "auto" });
+    };
+    const onLeave = () => {
+      to("content");
+      gsap.to(box, { yPercent: 0, duration: 0.4, ease: "power2.out", overwrite: "auto" });
+    };
+    const onClick = () => {
+      to("shut");
+      gsap
+        .timeline({ onComplete: () => to("alert") })
+        .to(box, { scaleX: 0.82, scaleY: 1.18, duration: 0.1, ease: "power2.in" }, 0)
+        .to(box, { rotation: "+=360", duration: 0.75, ease: "back.out(1.1)" }, 0.08)
+        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.3);
+    };
+    if (box) {
+      box.addEventListener("pointerenter", onEnter);
+      box.addEventListener("pointerleave", onLeave);
+      box.addEventListener("click", onClick);
+    }
+
     scheduleIdle();
     if (feelings) next();
     raf = requestAnimationFrame(frame);
@@ -290,40 +317,47 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       cancelAnimationFrame(raf);
       clearTimeout(idleT);
       clearTimeout(scriptT);
+      if (box) {
+        box.removeEventListener("pointerenter", onEnter);
+        box.removeEventListener("pointerleave", onLeave);
+        box.removeEventListener("click", onClick);
+        gsap.killTweensOf(box);
+      }
     };
   }, [feelings]);
 
   const rest = { stretch: 1, lean: 0, lookX: 0, lookY: 0 };
   const maskId = `cat-eyes-${id.replace(/:/g, "")}`;
   return (
-    <svg
-      ref={svg}
-      viewBox="0 0 512 512"
-      role="img"
-      aria-label={label}
-      className={className}
-      style={{ transformOrigin: "50% 99.2%" }}
-    >
-      <defs>
-        <mask id={maskId}>
-          <rect width="512" height="512" fill="#fff" />
-          <g fill="none" stroke="#000" strokeLinecap="round">
-            <path
-              ref={left}
-              d={arcD(REST.l)}
-              strokeWidth={REST.l.width}
-              transform={eyeMatrix(REST.l, rest.lookX, rest.lookY)}
-            />
-            <path
-              ref={right}
-              d={arcD(REST.r)}
-              strokeWidth={REST.r.width}
-              transform={eyeMatrix(REST.r, rest.lookX, rest.lookY)}
-            />
-          </g>
-        </mask>
-      </defs>
-      <path d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
-    </svg>
+    <span ref={wrap} className={className} style={{ display: "inline-block" }}>
+      <svg
+        ref={svg}
+        viewBox="0 0 512 512"
+        role="img"
+        aria-label={label}
+        style={{ display: "block", width: "100%", height: "100%", transformOrigin: "50% 99.2%" }}
+      >
+        <defs>
+          <mask id={maskId}>
+            <rect width="512" height="512" fill="#fff" />
+            <g fill="none" stroke="#000" strokeLinecap="round">
+              <path
+                ref={left}
+                d={arcD(REST.l)}
+                strokeWidth={REST.l.width}
+                transform={eyeMatrix(REST.l, rest.lookX, rest.lookY)}
+              />
+              <path
+                ref={right}
+                d={arcD(REST.r)}
+                strokeWidth={REST.r.width}
+                transform={eyeMatrix(REST.r, rest.lookX, rest.lookY)}
+              />
+            </g>
+          </mask>
+        </defs>
+        <path d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
+      </svg>
+    </span>
   );
 }

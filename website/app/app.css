@@ -80,6 +80,8 @@ a {
   width: clamp(56px, 10.4vw, 150px);
   height: clamp(56px, 10.4vw, 150px);
   flex: none;
+  cursor: pointer;
+  transform-origin: 50% 60%;
 }
 .lockup__name {
   font-family: var(--display);

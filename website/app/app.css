@@ -257,18 +257,44 @@ a {
 .install__button {
   position: relative;
   isolation: isolate;
-  background: var(--white);
+  background: none;
   color: var(--black);
   border: 0;
   border-radius: 999px;
-  padding: 14px 28px;
+  padding: 0;
   font: 700 clamp(16px, 1.4vw, 19px) / 1 var(--display);
   cursor: pointer;
   box-shadow: 0 0 0 6px var(--black);
   --spin: 0deg;
 }
-.install__button:hover {
+/* The fill lives on the label layer, above the ring. Both labels share one cell,
+   so the button keeps the size of the longer one. */
+.install__labels {
+  position: relative;
+  display: grid;
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: var(--white);
+}
+.install__button:hover .install__labels {
   background: var(--sky);
+}
+.install__label {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.install__label[data-shown] {
+  visibility: visible;
+}
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes ring-turn {
+  to {
+    --spin: 360deg;
+  }
 }
 .install__button::before,
 .install__button::after {
@@ -292,13 +318,19 @@ a {
   inset: -14px;
   filter: blur(22px);
 }
-.install__button.is-lit {
+.install__button.is-lit,
+.install__button:hover {
   box-shadow: 0 0 0 6px transparent;
 }
-.install__button.is-lit::before {
+.install__button:hover {
+  animation: ring-turn 2.4s linear infinite;
+}
+.install__button.is-lit::before,
+.install__button:hover::before {
   opacity: 1;
 }
-.install__button.is-lit::after {
+.install__button.is-lit::after,
+.install__button:hover::after {
   opacity: 0.9;
 }
 .install__command {

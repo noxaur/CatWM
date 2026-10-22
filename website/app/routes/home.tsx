@@ -52,7 +52,14 @@ function Install({ cta = false }: { cta?: boolean }) {
         onClick={copy}
         aria-live="polite"
       >
-        {copied ? "Copied. Paste it in Terminal." : "Install the beta"}
+        <span className="install__labels">
+          <span className="install__label" data-shown={!copied || undefined}>
+            Install the beta
+          </span>
+          <span className="install__label" data-shown={copied || undefined}>
+            Installing…
+          </span>
+        </span>
       </button>
       {copied && <code className="install__command">{INSTALL}</code>}
     </div>

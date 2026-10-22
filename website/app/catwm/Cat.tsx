@@ -159,57 +159,80 @@ function idleMotion(t: number) {
 
 const REST = resolvePose("content");
 
-// The turn. The cat turns about its vertical axis like a solid: each row of
-// the outline is an ellipse seen from the side, so its centre swings with
-// cos(turn) and its width shrinks towards the depth. The eyes ride the head
-// sphere the gaze already uses, and hide behind it. This is the Grok bot's
-// 2D trick, not a 3D scene.
-const AXIS = 256;
-const DEPTH = 0.62;
-const SAMPLES = 288;
-type Sample = { y: number; centre: number; offset: number };
+// The moves, ported from Sources/ouch/UI/Theme/CatMotion.swift. Each move is
+// keyframe tracks over seconds. lift is a share of the body height, stretch
+// squashes about the feet, lean is degrees, and lookX / lookY turn the face on
+// the head sphere, so a lookX of 2π is a full spin.
+type Motion = { lift: number; stretch: number; lean: number; lookX: number; lookY: number };
+type Curve = "ease" | "easeIn" | "easeOut" | "linear";
+type Track = { times: number[]; values: number[]; curves?: Curve[] };
+type CatMove = "hop" | "spin" | "wiggle" | "look";
 
-function sampleOutline(path: SVGPathElement): Sample[] {
-  const length = path.getTotalLength();
-  const ring = Array.from({ length: SAMPLES }, (_, i) => {
-    const p = path.getPointAtLength((length * i) / SAMPLES);
-    return [p.x, p.y] as const;
-  });
-  return ring.map(([x, y]) => {
-    let left = Infinity;
-    let right = -Infinity;
-    for (let j = 0; j < ring.length; j++) {
-      const [ax, ay] = ring[j];
-      const [bx, by] = ring[(j + 1) % ring.length];
-      if (ay <= y === by <= y) continue;
-      const cx = ax + ((bx - ax) * (y - ay)) / (by - ay);
-      left = Math.min(left, cx);
-      right = Math.max(right, cx);
-    }
-    if (!Number.isFinite(left)) {
-      left = x;
-      right = x;
-    }
-    const centre = (left + right) / 2;
-    return { y, centre, offset: x - centre };
-  });
+const EASE: Record<Curve, (p: number) => number> = {
+  ease: (p) => p * p * (3 - 2 * p),
+  easeIn: (p) => p * p,
+  easeOut: (p) => 1 - (1 - p) * (1 - p),
+  linear: (p) => p,
+};
+
+const MOVES: Record<CatMove, Partial<Record<keyof Motion, Track>>> = {
+  hop: {
+    lift: {
+      times: [0, 0.14, 0.35, 0.56, 0.66, 0.74],
+      values: [0, 0, 0.22, 0, 0.03, 0],
+      curves: ["linear", "easeOut", "easeIn", "easeOut", "easeIn"],
+    },
+    stretch: {
+      times: [0, 0.14, 0.22, 0.35, 0.56, 0.62, 0.74, 0.8, 0.92, 1.05],
+      values: [1, 0.8, 1.16, 1, 1.06, 0.8, 0.94, 1.06, 0.98, 1],
+    },
+    lookY: { times: [0, 0.14, 0.35, 0.6, 0.9], values: [0, 0.2, -0.35, -0.1, 0] },
+  },
+  spin: {
+    lift: {
+      times: [0, 0.14, 0.4, 0.7, 0.78, 0.86],
+      values: [0, 0, 0.14, 0, 0.02, 0],
+      curves: ["linear", "easeOut", "easeIn", "easeOut", "easeIn"],
+    },
+    stretch: {
+      times: [0, 0.14, 0.24, 0.4, 0.7, 0.76, 0.88, 1.0],
+      values: [1, 0.86, 1.08, 1, 1.03, 0.88, 1.03, 1],
+    },
+    lookX: { times: [0, 0.12, 0.75, 0.9], values: [0, -0.25, 2 * Math.PI + 0.12, 2 * Math.PI] },
+  },
+  wiggle: {
+    stretch: { times: [0, 0.1, 0.3, 0.5, 0.8], values: [1, 0.92, 1.05, 0.98, 1] },
+    lean: { times: [0, 0.1, 0.26, 0.42, 0.56, 0.68, 0.8], values: [0, 10, -10, 7, -4, 1.5, 0] },
+    lookX: { times: [0, 0.1, 0.26, 0.42, 0.56, 0.8], values: [0, -0.35, 0.35, -0.25, 0.12, 0] },
+  },
+  look: {
+    stretch: { times: [0, 0.2, 0.35, 1.1, 1.25, 1.9], values: [1, 1.03, 1, 1, 1.03, 1] },
+    lookX: { times: [0, 0.3, 1.0, 1.35, 1.95, 2.3], values: [0, 0.75, 0.75, -0.7, -0.7, 0] },
+    lookY: { times: [0, 0.3, 1.0, 1.35, 1.95, 2.3], values: [0, -0.5, -0.5, 0.15, 0.15, 0] },
+  },
+};
+
+function trackValue({ times, values, curves = [] }: Track, time: number) {
+  if (time <= times[0]) return values[0];
+  const next = times.findIndex((t) => t > time);
+  if (next < 0) return values[values.length - 1];
+  const start = next - 1;
+  const p = (time - times[start]) / (times[next] - times[start]);
+  return values[start] + (values[next] - values[start]) * EASE[curves[start] ?? "ease"](p);
 }
 
-function turnedPath(samples: Sample[], turn: number): string {
-  const c = Math.cos(turn);
-  const w = Math.sqrt(c * c + DEPTH * DEPTH * (1 - c * c));
-  let d = "";
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const x = AXIS + (s.centre - AXIS) * c + s.offset * w;
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${s.y.toFixed(1)}`;
-  }
-  return `${d}Z`;
-}
+const moveDuration = (move: CatMove) =>
+  Math.max(...Object.values(MOVES[move]).map((t) => t.times[t.times.length - 1]));
 
-function eyeFacing(e: Eye, lookX: number) {
-  const restX = Math.asin(Math.max(-1, Math.min(1, (e.x - 302) / 118)));
-  return Math.cos(restX + lookX) > 0.03;
+// The body is 475 of the 512 viewBox units tall; lift is a share of it.
+const BODY_HEIGHT = 475 / 512;
+
+// An eye turned past the edge of the head sphere is out of view behind it.
+function eyeShown(e: Eye, lookX: number, lookY: number) {
+  const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+  const ax = Math.asin(clamp((e.x - 302) / 118)) + lookX;
+  const ay = Math.asin(clamp((e.y - 184) / 118)) + lookY;
+  return Math.cos(ax) > 0 && Math.cos(ay) > 0;
 }
 
 type Props = {
@@ -223,8 +246,6 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
   const id = useId();
   const wrap = useRef<HTMLSpanElement>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const body = useRef<SVGPathElement>(null);
-  const probe = useRef<SVGPathElement>(null);
   const left = useRef<SVGPathElement>(null);
   const right = useRef<SVGPathElement>(null);
 
@@ -232,49 +253,8 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
     const el = svg.current;
     const l = left.current;
     const r = right.current;
-    const head = body.current;
-    const outline = probe.current;
-    if (!el || !l || !r || !head || !outline) return;
+    if (!el || !l || !r) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const samples = sampleOutline(outline);
-
-    // The turn in radians, its speed in radians per second, a spring that
-    // carries a spin or a settle, and the lean a vertical drag gives.
-    let turn = 0;
-    let turnV = 0;
-    let spring: { v: number; target: number } | null = null;
-    const tilt = { x: 0, v: 0, target: 0 };
-    let dragging = false;
-    const SPIN_HZ = 6.2;
-    const FRICTION = 2.2;
-    const REST_SPEED = 0.9;
-    const stepTurn = (dt: number) => {
-      if (spring) {
-        const a = -2 * SPIN_HZ * spring.v - SPIN_HZ * SPIN_HZ * (turn - spring.target);
-        spring.v += a * dt;
-        turn += spring.v * dt;
-        if (Math.abs(turn - spring.target) < 0.002 && Math.abs(spring.v) < 0.02) {
-          turn = spring.target;
-          spring = null;
-        }
-      } else if (!dragging && turnV !== 0) {
-        turn += turnV * dt;
-        turnV *= Math.exp(-FRICTION * dt);
-        if (Math.abs(turnV) < REST_SPEED) {
-          const target = Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
-          spring = { v: turnV, target };
-          turnV = 0;
-        }
-      }
-      const ta = -2 * 0.9 * 5 * tilt.v - 25 * (tilt.x - tilt.target);
-      tilt.v += ta * dt;
-      tilt.x += tilt.v * dt;
-    };
-    const spin = (direction: 1 | -1) => {
-      turnV = 0;
-      const base = Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
-      spring = { v: spring?.v ?? 0, target: base + Math.PI * 2 * direction };
-    };
 
     let pose = resolvePose("content");
     type Spring = { value: number; target: number; velocity: number };
@@ -287,6 +267,7 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
     let clock = 0;
     let pending: { at: number; side: "l" | "r"; values: Eye }[] = [];
     let blinks: { at: number; s: number }[] = [];
+    let move: { name: CatMove; start: number } | null = null;
     let idleT = 0;
     let scriptT = 0;
     let raf = 0;
@@ -299,29 +280,38 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       return o;
     };
 
-    let turned = false;
-    const draw = (a: Eye, b: Eye, lid: number, m: ReturnType<typeof idleMotion>) => {
-      const ea = withLid(a, lid);
-      const eb = withLid(b, lid);
-      const lookX = m.lookX + turn;
-      l.setAttribute("d", arcD(ea));
-      r.setAttribute("d", arcD(eb));
-      l.setAttribute("transform", eyeMatrix(ea, lookX, m.lookY));
-      r.setAttribute("transform", eyeMatrix(eb, lookX, m.lookY));
-      l.setAttribute("stroke-width", Math.max(0.5, ea.width).toFixed(2));
-      r.setAttribute("stroke-width", Math.max(0.5, eb.width).toFixed(2));
-      l.setAttribute("stroke-opacity", eyeFacing(ea, lookX) ? "1" : "0");
-      r.setAttribute("stroke-opacity", eyeFacing(eb, lookX) ? "1" : "0");
-      const facing = Math.abs(((turn % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) < 0.002;
-      if (facing) {
-        if (turned) head.setAttribute("d", CAT_PATH);
-        turned = false;
-      } else {
-        head.setAttribute("d", turnedPath(samples, turn));
-        turned = true;
+    // Idle motion plus the playing move, combined the way CatPuppet does.
+    const motionAt = (now: number): Motion => {
+      const m: Motion = { lift: 0, ...idleMotion((now - born) / 1000) };
+      if (!move) return m;
+      const at = (now - move.start) / 1000;
+      if (at >= moveDuration(move.name)) {
+        move = null;
+        return m;
+      }
+      const tracks = MOVES[move.name];
+      const value = (k: keyof Motion, rest: number) =>
+        tracks[k] ? trackValue(tracks[k], at) : rest;
+      m.lift = value("lift", 0);
+      m.stretch *= value("stretch", 1);
+      m.lean += value("lean", 0);
+      m.lookX += value("lookX", 0);
+      m.lookY += value("lookY", 0);
+      return m;
+    };
+
+    const draw = (a: Eye, b: Eye, lid: number, m: Motion) => {
+      for (const [path, eye] of [
+        [l, withLid(a, lid)],
+        [r, withLid(b, lid)],
+      ] as const) {
+        path.setAttribute("d", arcD(eye));
+        path.setAttribute("transform", eyeMatrix(eye, m.lookX, m.lookY));
+        path.setAttribute("stroke-width", Math.max(0.5, eye.width).toFixed(2));
+        path.setAttribute("stroke-opacity", eyeShown(eye, m.lookX, m.lookY) ? "1" : "0");
       }
       const width = 1 + (1 - m.stretch) * 0.7;
-      el.style.transform = `rotate(${(m.lean + tilt.x).toFixed(3)}deg) scale(${width.toFixed(4)}, ${m.stretch.toFixed(4)})`;
+      el.style.transform = `translateY(${(-m.lift * BODY_HEIGHT * 100).toFixed(3)}%) rotate(${m.lean.toFixed(3)}deg) scale(${width.toFixed(4)}, ${m.stretch.toFixed(4)})`;
     };
 
     const frame = (now: number) => {
@@ -355,8 +345,7 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
         }
       }
       const lid = blinks.reduce((m, b) => Math.max(m, lidAt(clock - b.at, b.s)), 0);
-      for (let j = 0; j < n; j++) stepTurn(h);
-      draw(read("l"), read("r"), lid, idleMotion((now - born) / 1000));
+      draw(read("l"), read("r"), lid, motionAt(now));
       raf = requestAnimationFrame(frame);
     };
 
@@ -393,76 +382,24 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       scriptT = window.setTimeout(next, step[1]);
     };
 
-    // The pointer: a hop and an alert look on hover. A sideways drag turns the
-    // cat by hand, a vertical drag leans it, a release lets it coast and settle
-    // facing front, and a click spins it one turn on the Grok bot's spring.
+    // The pointer: a hop and an alert look on hover, and a click plays the
+    // app's spin. A new move restarts from its start, as in the app.
     const box = wrap.current;
-    const TURN_PER_PX = 0.012;
-    const LEAN_PER_PX = 0.18;
-    let moved = false;
-    let startY = 0;
-    let lastX = 0;
-    let lastT = 0;
-    let speed = 0;
     const onEnter = () => {
       to("alert");
       gsap.to(box, { yPercent: -6, duration: 0.3, ease: "back.out(2.5)", overwrite: "auto" });
     };
     const onLeave = () => {
-      if (dragging) return;
       to("content");
       gsap.to(box, { yPercent: 0, duration: 0.4, ease: "power2.out", overwrite: "auto" });
     };
-    const onDown = (e: PointerEvent) => {
-      if (!box) return;
-      dragging = true;
-      moved = false;
-      startY = e.clientY;
-      lastX = e.clientX;
-      lastT = e.timeStamp;
-      speed = 0;
-      spring = null;
-      turnV = 0;
-      box.setPointerCapture(e.pointerId);
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX;
-      const dt = Math.max(1, e.timeStamp - lastT);
-      if (Math.abs(dx) + Math.abs(e.clientY - startY) > 3) moved = true;
-      speed = (dx / dt) * 1000;
-      lastX = e.clientX;
-      lastT = e.timeStamp;
-      turn += dx * TURN_PER_PX;
-      tilt.target = Math.max(-22, Math.min(22, (e.clientY - startY) * LEAN_PER_PX));
-    };
-    const onUp = (e: PointerEvent) => {
-      if (!dragging || !box) return;
-      dragging = false;
-      box.releasePointerCapture(e.pointerId);
-      tilt.target = 0;
-      if (moved) {
-        turnV = e.timeStamp - lastT > 80 ? 0 : speed * TURN_PER_PX;
-        if (turnV === 0) {
-          spring = { v: 0, target: Math.round(turn / (Math.PI * 2)) * Math.PI * 2 };
-        }
-        return;
-      }
-      to("shut");
-      window.setTimeout(() => to("alert"), 600);
-      gsap
-        .timeline()
-        .to(box, { scaleX: 0.88, scaleY: 1.12, duration: 0.1, ease: "power2.in" }, 0)
-        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.12);
-      spin(e.clientX < box.getBoundingClientRect().left + box.clientWidth / 2 ? -1 : 1);
+    const onClick = () => {
+      move = { name: "spin", start: performance.now() };
     };
     if (box) {
       box.addEventListener("pointerenter", onEnter);
       box.addEventListener("pointerleave", onLeave);
-      box.addEventListener("pointerdown", onDown);
-      box.addEventListener("pointermove", onMove);
-      box.addEventListener("pointerup", onUp);
-      box.addEventListener("pointercancel", onUp);
+      box.addEventListener("click", onClick);
     }
 
     scheduleIdle();
@@ -476,16 +413,12 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       if (box) {
         box.removeEventListener("pointerenter", onEnter);
         box.removeEventListener("pointerleave", onLeave);
-        box.removeEventListener("pointerdown", onDown);
-        box.removeEventListener("pointermove", onMove);
-        box.removeEventListener("pointerup", onUp);
-        box.removeEventListener("pointercancel", onUp);
+        box.removeEventListener("click", onClick);
         gsap.killTweensOf(box);
       }
     };
   }, [feelings]);
 
-  const rest = { stretch: 1, lean: 0, lookX: 0, lookY: 0 };
   const maskId = `cat-eyes-${id.replace(/:/g, "")}`;
   return (
     <span ref={wrap} className={`cat ${className ?? ""}`}>
@@ -495,10 +428,9 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
         role="img"
         aria-label={label}
         className="cat__face"
-        style={{ transformOrigin: "50% 99.2%" }}
+        style={{ transformOrigin: "49.2% 99%" }}
       >
         <defs>
-          <path ref={probe} d={CAT_PATH} />
           <mask id={maskId}>
             <rect width="512" height="512" fill="#fff" />
             <g fill="none" stroke="#000" strokeLinecap="round">
@@ -506,18 +438,18 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
                 ref={left}
                 d={arcD(REST.l)}
                 strokeWidth={REST.l.width}
-                transform={eyeMatrix(REST.l, rest.lookX, rest.lookY)}
+                transform={eyeMatrix(REST.l, 0, 0)}
               />
               <path
                 ref={right}
                 d={arcD(REST.r)}
                 strokeWidth={REST.r.width}
-                transform={eyeMatrix(REST.r, rest.lookX, rest.lookY)}
+                transform={eyeMatrix(REST.r, 0, 0)}
               />
             </g>
           </mask>
         </defs>
-        <path ref={body} d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
+        <path d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
       </svg>
     </span>
   );

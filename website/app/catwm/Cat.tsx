@@ -284,29 +284,98 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       scriptT = window.setTimeout(next, step[1]);
     };
 
-    // The pointer: a hop and an alert look on hover, a spin with a squash on click.
-    // The wrapper takes these moves, since the frame loop owns the svg's transform.
+    // The pointer: a hop and an alert look on hover. The cat turns in 3D around
+    // its vertical axis: a click gives one full turn, a drag turns it by hand,
+    // and a release carries the fling and settles facing front. The wrapper
+    // takes these moves, since the frame loop owns the svg's transform.
     const box = wrap.current;
+    const TURN_PER_PX = 0.8;
+    const FLING_MS = 160;
+    const angle = () => Number(gsap.getProperty(box, "rotationY"));
+    const shade = () => {
+      if (!box) return;
+      const edge = Math.abs(Math.sin((angle() * Math.PI) / 180));
+      box.style.filter = `brightness(${(1 - 0.4 * edge).toFixed(3)})`;
+    };
+    const settle = (target: number, fling: number) => {
+      gsap.to(box, {
+        rotationY: target,
+        duration: 0.6 + Math.min(1, Math.abs(fling) / 720) * 0.7,
+        ease: "power3.out",
+        overwrite: "auto",
+        onUpdate: shade,
+      });
+    };
+    const spin = () => {
+      to("shut");
+      gsap
+        .timeline({ onComplete: () => to("alert"), onUpdate: shade })
+        .to(box, { scaleX: 0.86, scaleY: 1.14, duration: 0.1, ease: "power2.in" }, 0)
+        .to(
+          box,
+          { rotationY: "+=360", duration: 0.8, ease: "back.out(1.1)", overwrite: "auto" },
+          0.06,
+        )
+        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.3);
+    };
+    gsap.set(box, { transformPerspective: 700 });
+
+    let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let startAngle = 0;
+    let lastX = 0;
+    let lastT = 0;
+    let speed = 0;
     const onEnter = () => {
       to("alert");
       gsap.to(box, { yPercent: -6, duration: 0.3, ease: "back.out(2.5)", overwrite: "auto" });
     };
     const onLeave = () => {
+      if (dragging) return;
       to("content");
       gsap.to(box, { yPercent: 0, duration: 0.4, ease: "power2.out", overwrite: "auto" });
     };
-    const onClick = () => {
-      to("shut");
-      gsap
-        .timeline({ onComplete: () => to("alert") })
-        .to(box, { scaleX: 0.82, scaleY: 1.18, duration: 0.1, ease: "power2.in" }, 0)
-        .to(box, { rotation: "+=360", duration: 0.75, ease: "back.out(1.1)" }, 0.08)
-        .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.3);
+    const onDown = (e: PointerEvent) => {
+      if (!box) return;
+      dragging = true;
+      moved = false;
+      startX = e.clientX;
+      startAngle = angle();
+      lastX = e.clientX;
+      lastT = e.timeStamp;
+      speed = 0;
+      gsap.killTweensOf(box, "rotationY");
+      box.setPointerCapture(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 4) moved = true;
+      speed = (e.clientX - lastX) / Math.max(1, e.timeStamp - lastT);
+      lastX = e.clientX;
+      lastT = e.timeStamp;
+      gsap.set(box, { rotationY: startAngle + dx * TURN_PER_PX });
+      shade();
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!dragging || !box) return;
+      dragging = false;
+      box.releasePointerCapture(e.pointerId);
+      if (!moved) {
+        spin();
+        return;
+      }
+      const fling = speed * TURN_PER_PX * FLING_MS;
+      settle(Math.round((angle() + fling) / 360) * 360, fling);
     };
     if (box) {
       box.addEventListener("pointerenter", onEnter);
       box.addEventListener("pointerleave", onLeave);
-      box.addEventListener("click", onClick);
+      box.addEventListener("pointerdown", onDown);
+      box.addEventListener("pointermove", onMove);
+      box.addEventListener("pointerup", onUp);
+      box.addEventListener("pointercancel", onUp);
     }
 
     scheduleIdle();
@@ -320,7 +389,10 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       if (box) {
         box.removeEventListener("pointerenter", onEnter);
         box.removeEventListener("pointerleave", onLeave);
-        box.removeEventListener("click", onClick);
+        box.removeEventListener("pointerdown", onDown);
+        box.removeEventListener("pointermove", onMove);
+        box.removeEventListener("pointerup", onUp);
+        box.removeEventListener("pointercancel", onUp);
         gsap.killTweensOf(box);
       }
     };

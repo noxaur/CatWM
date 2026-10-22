@@ -80,8 +80,14 @@ a {
   width: clamp(56px, 10.4vw, 150px);
   height: clamp(56px, 10.4vw, 150px);
   flex: none;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   transform-origin: 50% 60%;
+}
+.lockup__cat:active {
+  cursor: grabbing;
 }
 .lockup__name {
   font-family: var(--display);

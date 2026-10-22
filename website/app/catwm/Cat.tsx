@@ -158,7 +158,59 @@ function idleMotion(t: number) {
 }
 
 const REST = resolvePose("content");
-const LAYERS = 18;
+
+// The turn. The cat turns about its vertical axis like a solid: each row of
+// the outline is an ellipse seen from the side, so its centre swings with
+// cos(turn) and its width shrinks towards the depth. The eyes ride the head
+// sphere the gaze already uses, and hide behind it. This is the Grok bot's
+// 2D trick, not a 3D scene.
+const AXIS = 256;
+const DEPTH = 0.62;
+const SAMPLES = 288;
+type Sample = { y: number; centre: number; offset: number };
+
+function sampleOutline(path: SVGPathElement): Sample[] {
+  const length = path.getTotalLength();
+  const ring = Array.from({ length: SAMPLES }, (_, i) => {
+    const p = path.getPointAtLength((length * i) / SAMPLES);
+    return [p.x, p.y] as const;
+  });
+  return ring.map(([x, y]) => {
+    let left = Infinity;
+    let right = -Infinity;
+    for (let j = 0; j < ring.length; j++) {
+      const [ax, ay] = ring[j];
+      const [bx, by] = ring[(j + 1) % ring.length];
+      if (ay <= y === by <= y) continue;
+      const cx = ax + ((bx - ax) * (y - ay)) / (by - ay);
+      left = Math.min(left, cx);
+      right = Math.max(right, cx);
+    }
+    if (!Number.isFinite(left)) {
+      left = x;
+      right = x;
+    }
+    const centre = (left + right) / 2;
+    return { y, centre, offset: x - centre };
+  });
+}
+
+function turnedPath(samples: Sample[], turn: number): string {
+  const c = Math.cos(turn);
+  const w = Math.sqrt(c * c + DEPTH * DEPTH * (1 - c * c));
+  let d = "";
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const x = AXIS + (s.centre - AXIS) * c + s.offset * w;
+    d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${s.y.toFixed(1)}`;
+  }
+  return `${d}Z`;
+}
+
+function eyeFacing(e: Eye, lookX: number) {
+  const restX = Math.asin(Math.max(-1, Math.min(1, (e.x - 302) / 118)));
+  return Math.cos(restX + lookX) > 0.03;
+}
 
 type Props = {
   className?: string;
@@ -171,6 +223,8 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
   const id = useId();
   const wrap = useRef<HTMLSpanElement>(null);
   const svg = useRef<SVGSVGElement>(null);
+  const body = useRef<SVGPathElement>(null);
+  const probe = useRef<SVGPathElement>(null);
   const left = useRef<SVGPathElement>(null);
   const right = useRef<SVGPathElement>(null);
 
@@ -178,8 +232,49 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
     const el = svg.current;
     const l = left.current;
     const r = right.current;
-    if (!el || !l || !r) return;
+    const head = body.current;
+    const outline = probe.current;
+    if (!el || !l || !r || !head || !outline) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const samples = sampleOutline(outline);
+
+    // The turn in radians, its speed in radians per second, a spring that
+    // carries a spin or a settle, and the lean a vertical drag gives.
+    let turn = 0;
+    let turnV = 0;
+    let spring: { v: number; target: number } | null = null;
+    const tilt = { x: 0, v: 0, target: 0 };
+    let dragging = false;
+    const SPIN_HZ = 6.2;
+    const FRICTION = 2.2;
+    const REST_SPEED = 0.9;
+    const stepTurn = (dt: number) => {
+      if (spring) {
+        const a = -2 * SPIN_HZ * spring.v - SPIN_HZ * SPIN_HZ * (turn - spring.target);
+        spring.v += a * dt;
+        turn += spring.v * dt;
+        if (Math.abs(turn - spring.target) < 0.002 && Math.abs(spring.v) < 0.02) {
+          turn = spring.target;
+          spring = null;
+        }
+      } else if (!dragging && turnV !== 0) {
+        turn += turnV * dt;
+        turnV *= Math.exp(-FRICTION * dt);
+        if (Math.abs(turnV) < REST_SPEED) {
+          const target = Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+          spring = { v: turnV, target };
+          turnV = 0;
+        }
+      }
+      const ta = -2 * 0.9 * 5 * tilt.v - 25 * (tilt.x - tilt.target);
+      tilt.v += ta * dt;
+      tilt.x += tilt.v * dt;
+    };
+    const spin = (direction: 1 | -1) => {
+      turnV = 0;
+      const base = Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+      spring = { v: spring?.v ?? 0, target: base + Math.PI * 2 * direction };
+    };
 
     let pose = resolvePose("content");
     type Spring = { value: number; target: number; velocity: number };
@@ -204,17 +299,29 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       return o;
     };
 
+    let turned = false;
     const draw = (a: Eye, b: Eye, lid: number, m: ReturnType<typeof idleMotion>) => {
       const ea = withLid(a, lid);
       const eb = withLid(b, lid);
+      const lookX = m.lookX + turn;
       l.setAttribute("d", arcD(ea));
       r.setAttribute("d", arcD(eb));
-      l.setAttribute("transform", eyeMatrix(ea, m.lookX, m.lookY));
-      r.setAttribute("transform", eyeMatrix(eb, m.lookX, m.lookY));
+      l.setAttribute("transform", eyeMatrix(ea, lookX, m.lookY));
+      r.setAttribute("transform", eyeMatrix(eb, lookX, m.lookY));
       l.setAttribute("stroke-width", Math.max(0.5, ea.width).toFixed(2));
       r.setAttribute("stroke-width", Math.max(0.5, eb.width).toFixed(2));
+      l.setAttribute("stroke-opacity", eyeFacing(ea, lookX) ? "1" : "0");
+      r.setAttribute("stroke-opacity", eyeFacing(eb, lookX) ? "1" : "0");
+      const facing = Math.abs(((turn % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) < 0.002;
+      if (facing) {
+        if (turned) head.setAttribute("d", CAT_PATH);
+        turned = false;
+      } else {
+        head.setAttribute("d", turnedPath(samples, turn));
+        turned = true;
+      }
       const width = 1 + (1 - m.stretch) * 0.7;
-      el.style.transform = `rotate(${m.lean.toFixed(3)}deg) scale(${width.toFixed(4)}, ${m.stretch.toFixed(4)})`;
+      el.style.transform = `rotate(${(m.lean + tilt.x).toFixed(3)}deg) scale(${width.toFixed(4)}, ${m.stretch.toFixed(4)})`;
     };
 
     const frame = (now: number) => {
@@ -248,6 +355,7 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
         }
       }
       const lid = blinks.reduce((m, b) => Math.max(m, lidAt(clock - b.at, b.s)), 0);
+      for (let j = 0; j < n; j++) stepTurn(h);
       draw(read("l"), read("r"), lid, idleMotion((now - born) / 1000));
       raf = requestAnimationFrame(frame);
     };
@@ -285,54 +393,17 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       scriptT = window.setTimeout(next, step[1]);
     };
 
-    // The pointer. The cat is a solid: the front face carries the eyes, and the
-    // layers behind it give it depth. A drag turns it on both axes like a
-    // trackball, a release keeps it spinning with friction, and a click throws
-    // it into a turn. The wrapper takes these moves, since the frame loop owns
-    // the svg's transform.
+    // The pointer: a hop and an alert look on hover. A sideways drag turns the
+    // cat by hand, a vertical drag leans it, a release lets it coast and settle
+    // facing front, and a click spins it one turn on the Grok bot's spring.
     const box = wrap.current;
-    const TURN_PER_PX = 0.6;
-    const FRICTION = 0.0025;
-    const REST = 0.02;
-    let dragging = false;
+    const TURN_PER_PX = 0.012;
+    const LEAN_PER_PX = 0.18;
     let moved = false;
+    let startY = 0;
     let lastX = 0;
-    let lastY = 0;
     let lastT = 0;
-    let vx = 0;
-    let vy = 0;
-    let spinRaf = 0;
-    let spinT = 0;
-    const turn = (dx: number, dy: number) => {
-      if (!box) return;
-      gsap.set(box, {
-        rotationY: `+=${dx * TURN_PER_PX}`,
-        rotationX: `+=${-dy * TURN_PER_PX}`,
-      });
-    };
-    const coast = (now: number) => {
-      const dt = Math.min(50, now - spinT);
-      spinT = now;
-      turn(vx * dt, vy * dt);
-      const decay = Math.exp(-FRICTION * dt);
-      vx *= decay;
-      vy *= decay;
-      if (Math.hypot(vx, vy) * TURN_PER_PX > REST / 16) spinRaf = requestAnimationFrame(coast);
-    };
-    const throwCat = (x: number, y: number) => {
-      cancelAnimationFrame(spinRaf);
-      vx = x;
-      vy = y;
-      spinT = performance.now();
-      spinRaf = requestAnimationFrame(coast);
-    };
-    const size = () => {
-      if (box) box.style.setProperty("--depth", `${(box.clientWidth * 0.16).toFixed(1)}px`);
-    };
-    size();
-    window.addEventListener("resize", size);
-    gsap.set(box, { transformPerspective: 900 });
-
+    let speed = 0;
     const onEnter = () => {
       to("alert");
       gsap.to(box, { yPercent: -6, duration: 0.3, ease: "back.out(2.5)", overwrite: "auto" });
@@ -346,43 +417,44 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       if (!box) return;
       dragging = true;
       moved = false;
+      startY = e.clientY;
       lastX = e.clientX;
-      lastY = e.clientY;
       lastT = e.timeStamp;
-      vx = 0;
-      vy = 0;
-      cancelAnimationFrame(spinRaf);
+      speed = 0;
+      spring = null;
+      turnV = 0;
       box.setPointerCapture(e.pointerId);
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging) return;
       const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
       const dt = Math.max(1, e.timeStamp - lastT);
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-      vx = dx / dt;
-      vy = dy / dt;
+      if (Math.abs(dx) + Math.abs(e.clientY - startY) > 3) moved = true;
+      speed = (dx / dt) * 1000;
       lastX = e.clientX;
-      lastY = e.clientY;
       lastT = e.timeStamp;
-      turn(dx, dy);
+      turn += dx * TURN_PER_PX;
+      tilt.target = Math.max(-22, Math.min(22, (e.clientY - startY) * LEAN_PER_PX));
     };
     const onUp = (e: PointerEvent) => {
       if (!dragging || !box) return;
       dragging = false;
       box.releasePointerCapture(e.pointerId);
+      tilt.target = 0;
       if (moved) {
-        if (e.timeStamp - lastT > 80) return;
-        throwCat(vx, vy);
+        turnV = e.timeStamp - lastT > 80 ? 0 : speed * TURN_PER_PX;
+        if (turnV === 0) {
+          spring = { v: 0, target: Math.round(turn / (Math.PI * 2)) * Math.PI * 2 };
+        }
         return;
       }
       to("shut");
-      window.setTimeout(() => to("alert"), 700);
+      window.setTimeout(() => to("alert"), 600);
       gsap
         .timeline()
-        .to(box, { scaleX: 0.86, scaleY: 1.14, duration: 0.1, ease: "power2.in" }, 0)
+        .to(box, { scaleX: 0.88, scaleY: 1.12, duration: 0.1, ease: "power2.in" }, 0)
         .to(box, { scaleX: 1, scaleY: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }, 0.12);
-      throwCat(2.4, 0);
+      spin(e.clientX < box.getBoundingClientRect().left + box.clientWidth / 2 ? -1 : 1);
     };
     if (box) {
       box.addEventListener("pointerenter", onEnter);
@@ -401,8 +473,6 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
       cancelAnimationFrame(raf);
       clearTimeout(idleT);
       clearTimeout(scriptT);
-      cancelAnimationFrame(spinRaf);
-      window.removeEventListener("resize", size);
       if (box) {
         box.removeEventListener("pointerenter", onEnter);
         box.removeEventListener("pointerleave", onLeave);
@@ -419,17 +489,6 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
   const maskId = `cat-eyes-${id.replace(/:/g, "")}`;
   return (
     <span ref={wrap} className={`cat ${className ?? ""}`}>
-      {Array.from({ length: LAYERS }, (_, i) => (
-        <svg
-          key={i}
-          className={`cat__layer${i === LAYERS - 1 ? " cat__layer--back" : ""}`}
-          viewBox="0 0 512 512"
-          aria-hidden="true"
-          style={{ transform: `translateZ(calc(var(--depth, 0px) * ${-(i + 1) / LAYERS}))` }}
-        >
-          <path d={CAT_PATH} fill="currentColor" />
-        </svg>
-      ))}
       <svg
         ref={svg}
         viewBox="0 0 512 512"
@@ -439,6 +498,7 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
         style={{ transformOrigin: "50% 99.2%" }}
       >
         <defs>
+          <path ref={probe} d={CAT_PATH} />
           <mask id={maskId}>
             <rect width="512" height="512" fill="#fff" />
             <g fill="none" stroke="#000" strokeLinecap="round">
@@ -457,7 +517,7 @@ export function Cat({ className, feelings = false, label = "The CatWM cat" }: Pr
             </g>
           </mask>
         </defs>
-        <path d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
+        <path ref={body} d={CAT_PATH} fill="currentColor" mask={`url(#${maskId})`} />
       </svg>
     </span>
   );

@@ -82,11 +82,10 @@ a {
   flex: none;
 }
 
-/* The cat as a solid: the face in front, the layers behind it for depth. */
+/* The cat: drag it to turn it, click it to spin it. */
 .cat {
   position: relative;
   display: inline-block;
-  transform-style: preserve-3d;
   transform-origin: 50% 60%;
   cursor: grab;
   touch-action: none;
@@ -95,17 +94,6 @@ a {
 }
 .cat:active {
   cursor: grabbing;
-}
-.cat__layer {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: #b4b4b4;
-  pointer-events: none;
-}
-.cat__layer--back {
-  color: inherit;
 }
 .cat__face {
   position: relative;

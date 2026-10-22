@@ -200,6 +200,7 @@ export function Stage({ hero }: Props) {
     const cta = el.querySelector<HTMLElement>("[data-cta]");
     let pulseTimer = 0;
     let onScreen = true;
+    let running: gsap.core.Timeline | null = null;
     const pulse = (light: boolean) => {
       if (!veil || !cta) return;
       const stage = el.getBoundingClientRect();
@@ -207,22 +208,29 @@ export function Stage({ hero }: Props) {
       const x = b.left + b.width / 2 - stage.left;
       const y = b.top + b.height / 2 - stage.top;
       const reach = Math.hypot(Math.max(x, stage.width - x), Math.max(y, stage.height - y));
-      veil.style.background = light ? "rgba(255, 255, 255, 0.6)" : "rgba(0, 0, 0, 0.58)";
-      gsap.killTweensOf(veil);
-      gsap
-        .timeline()
+      veil.style.background = light ? "#fff" : "#000";
+      running?.kill();
+      cta.classList.add("is-lit");
+      running = gsap
+        .timeline({ onComplete: () => cta.classList.remove("is-lit") })
         .fromTo(
           veil,
           { clipPath: `circle(${b.width * 0.5}px at ${x}px ${y}px)`, opacity: 1 },
           { clipPath: `circle(${reach}px at ${x}px ${y}px)`, duration: 1.3, ease: "power2.out" },
+          0,
         )
-        .to(veil, { opacity: 0, duration: 0.8, ease: "power1.inOut" }, "+=0.1");
+        .fromTo(cta, { "--spin": "0deg" }, { "--spin": "720deg", duration: 2.8, ease: "none" }, 0)
+        .to(veil, { opacity: 0, duration: 0.9, ease: "power1.inOut" }, 1.8);
     };
     const cycle = () => {
       if (onScreen && !document.hidden) pulse(false);
       pulseTimer = window.setTimeout(cycle, 6500);
     };
-    const onCta = () => pulse(true);
+    const onCta = () => {
+      window.clearTimeout(pulseTimer);
+      pulseTimer = window.setTimeout(cycle, 6500);
+      pulse(true);
+    };
     const io = new IntersectionObserver(([entry]) => {
       onScreen = entry.isIntersecting;
     });
@@ -237,7 +245,7 @@ export function Stage({ hero }: Props) {
       window.clearTimeout(pulseTimer);
       io.disconnect();
       cta?.removeEventListener("click", onCta);
-      if (veil) gsap.killTweensOf(veil);
+      running?.kill();
     };
   }, [press, stopAttract]);
 

@@ -32,13 +32,16 @@ export function meta() {
   ];
 }
 
-// One button. It copies the install command, and shows it only once copied.
+// One button. It copies the install command and says so in a tooltip.
 function Install({ cta = false }: { cta?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [tip, setTip] = useState(false);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(INSTALL);
       setCopied(true);
+      setTip(true);
+      setTimeout(() => setTip(false), 2200);
     } catch {
       setCopied(false);
     }
@@ -61,7 +64,11 @@ function Install({ cta = false }: { cta?: boolean }) {
           </span>
         </span>
       </button>
-      {copied && <code className="install__command">{INSTALL}</code>}
+      {tip && (
+        <span className="install__tip" role="status">
+          Copied to clipboard
+        </span>
+      )}
     </div>
   );
 }

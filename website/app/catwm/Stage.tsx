@@ -245,12 +245,6 @@ export function Stage({ hero }: Props) {
         <span className="hud__text" data-hud-text />
       </div>
 
-      <header className="nav">
-        <a href="https://github.com/noxaur/ouch" className="pill pill--link">
-          GitHub
-        </a>
-      </header>
-
       <div className="hero">{hero}</div>
 
       <div className="keys" aria-label="Try the keys">

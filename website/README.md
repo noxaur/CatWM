@@ -31,6 +31,12 @@ vp build
 
 ## Deploy
 
+The `deploy-website` GitHub Actions workflow deploys every push to `main` that touches `website/`.
+It needs a `CLOUDFLARE_API_TOKEN` repository secret with Workers Scripts and Workers KV Storage
+edit access on the account, and Workers Routes and DNS edit access on the `perwko.com` zone.
+
+To deploy by hand:
+
 ```sh
 vp exec void connect --platform cloudflare
 vp exec void deploy

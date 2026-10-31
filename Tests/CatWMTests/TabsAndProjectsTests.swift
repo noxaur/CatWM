@@ -75,6 +75,11 @@ import Testing
         #expect(found?.absoluteString == "file:///Users/a/Code/catwm")
     }
 
+    @Test func rootFolderOwnsItsFiles() {
+        let root = URL(fileURLWithPath: "/")
+        #expect(ProjectGuess.pick([root], title: "", document: "file:///tmp/example.swift") == root)
+    }
+
     @Test func theNamedProjectWinsOverARecentlyOpenedNestedFolder() throws {
         let window = AppStateCapture.Window(id: 1, bundleID: "com.microsoft.VSCode",
                                           title: "main.swift — Code — Visual Studio Code",

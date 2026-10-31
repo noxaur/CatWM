@@ -106,7 +106,8 @@ enum ProjectGuess {
             let owners = candidates.filter {
                 let projectPath = $0.standardizedFileURL.path
                 return path == projectPath
-                    || ($0.pathExtension != "code-workspace" && path.hasPrefix(projectPath + "/"))
+                    || ($0.pathExtension != "code-workspace"
+                        && path.hasPrefix(projectPath == "/" ? "/" : projectPath + "/"))
             }
             if let owner = owners.max(by: { $0.standardizedFileURL.path.count < $1.standardizedFileURL.path.count }) {
                 return owner

@@ -64,7 +64,12 @@ APP=build/CatWM.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources"
 cp ".build/$CONFIG/CatWM" "$APP/Contents/MacOS/"
-xcrun vtool -set-build-version macos 14.0 "$(xcrun --show-sdk-version)" -replace \
+SDK_VERSION=$(xcrun --sdk macosx --show-sdk-version)
+if [ -z "$SDK_VERSION" ]; then
+  echo "build: cannot read the macOS SDK version; macOS would draw the app with the old pre-26 look" >&2
+  exit 1
+fi
+xcrun vtool -set-build-version macos 14.0 "$SDK_VERSION" -replace \
   -output "$APP/Contents/MacOS/CatWM" "$APP/Contents/MacOS/CatWM"
 cp Info.plist "$APP/Contents/"
 PLIST="$APP/Contents/Info.plist"

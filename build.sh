@@ -71,6 +71,11 @@ if [ -z "$SDK_VERSION" ]; then
 fi
 xcrun vtool -set-build-version macos 14.0 "$SDK_VERSION" -replace \
   -output "$APP/Contents/MacOS/CatWM" "$APP/Contents/MacOS/CatWM"
+STAMPED=$(xcrun vtool -show-build "$APP/Contents/MacOS/CatWM" | awk '$1 == "sdk" { print $2 }')
+if [ "$STAMPED" != "$SDK_VERSION" ]; then
+  echo "build: the app is stamped with SDK '$STAMPED', not $SDK_VERSION; macOS would draw it with the old pre-26 look" >&2
+  exit 1
+fi
 cp Info.plist "$APP/Contents/"
 PLIST="$APP/Contents/Info.plist"
 BUILD=$(git rev-list --count HEAD)

@@ -24,6 +24,10 @@ import Testing
         manager.dispatch("splitratio", "exact 0.6")
         #expect(await fake.settle(manager))
         #expect(abs(manager.state(for: screen).ratio - 0.6) < 0.001)
+        if layout.hasMainPane, count > 1 {
+            let extent = layout == .wide ? fake.frame(of: first).height : fake.frame(of: first).width
+            #expect(extent == (layout == .wide ? screen.visible.height : screen.visible.width) * 0.6)
+        }
         manager.dispatch("splitratio", "exact 0.5")
         #expect(await fake.settle(manager))
         #expect(ids.map(fake.frame(of:)) == original)

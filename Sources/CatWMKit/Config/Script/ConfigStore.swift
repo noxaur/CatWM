@@ -8,7 +8,7 @@ package final class ConfigStore {
     package static let shared = ConfigStore(folder: Instance.configFolder, defaults: Instance.defaults)
 
     package static let scriptName = "catwm.config.ts"
-    package static let timeLimit = 3.0
+    package static let timeLimit = 5.0
     package static let overridesName = "catwm.overrides.json"
 
     package let folder: URL

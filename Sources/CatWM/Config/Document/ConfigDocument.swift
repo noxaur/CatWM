@@ -10,6 +10,7 @@ final class ConfigDocument: ObservableObject {
     @Published var binds: [BindRow] = []
     @Published var fileErrors: [String] = []
     @Published var saveError: String?
+    @Published var overrides: [String] = []
     var source = ConfigText("")
     var savedText = ""
     var openedText = ""

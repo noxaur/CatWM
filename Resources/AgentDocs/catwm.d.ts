@@ -205,45 +205,45 @@ export interface Config {
   debugLogging?: boolean
   features?: {
     input?: {
-      /** Quick actions at the pointer in window mode. On by default. */
+      /** Quick actions at the pointer in window mode. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       cursorActions?: boolean
-      /** Switch workspaces with trackpad swipes. On by default. */
+      /** Switch workspaces with trackpad swipes. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       gestures?: boolean
-      /** Read key presses for the binds. On by default. */
+      /** Read key presses for the binds. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       keys?: boolean
-      /** Swap and resize windows with the mouse, and pull windows from the Dock. On by default. */
+      /** Swap and resize windows with the mouse, and pull windows from the Dock. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       mouse?: boolean
     }
     presentation?: {
-      /** Dim and blur the other windows. On by default. */
+      /** Dim and blur the other windows. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       dimming?: boolean
-      /** The layout and config messages. On by default. */
+      /** The layout and config messages. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       hud?: boolean
-      /** The keyboard help in window mode. On by default. */
+      /** The keyboard help in window mode. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       keyHelp?: boolean
-      /** The Overview of every workspace. On by default. */
+      /** The Overview of every workspace. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       overview?: boolean
-      /** The window switcher. On by default. */
+      /** The window switcher. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       switcher?: boolean
-      /** The tab strip above a tab group. On by default. */
+      /** The tab strip above a tab group. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       tabStrips?: boolean
     }
     services?: {
-      /** Unread badges on tabs. On by default. */
+      /** Unread badges on tabs. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       notifications?: boolean
-      /** Save and open app windows, tabs and folders. On by default. */
+      /** Save and open app windows, tabs and folders. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       sessions?: boolean
-      /** The control socket for the CLI and the libraries. On by default. */
+      /** The control socket for the CLI and the libraries. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       socket?: boolean
-      /** Saved workspace templates. On by default. */
+      /** Saved workspace templates. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       templates?: boolean
     }
     windows?: {
-      /** Run each workspace as a macOS Desktop. On by default. */
+      /** Run each workspace as a macOS Desktop. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       desktops?: boolean
-      /** Group windows as tabs. On by default. */
+      /** Group windows as tabs. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       tabGroups?: boolean
-      /** Lay out windows with the layouts. On by default. */
+      /** Lay out windows with the layouts. Embedded mode reads this. Standalone CatWM keeps every feature on for now. */
       tiling?: boolean
     }
   }

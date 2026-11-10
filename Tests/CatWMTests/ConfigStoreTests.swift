@@ -32,6 +32,38 @@ import Testing
         #expect(overrides(folder) == nil)
     }
 
+    @Test func aBrokenOverridesFileKeepsTheLastGoodConfig() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": "export default { gaps: { size: 8 } }\n"])
+        defer { folder.remove() }
+        let store = store(folder)
+        _ = store.load()
+        try store.set(option: ConfigOption.at(\Config.windowMarginSize), "20")
+        #expect(store.reload(.changed).windowMarginSize == 20)
+
+        try folder.write(ConfigStore.overridesName, "{ \"gaps\": ")
+        let kept = store.reload(.changed)
+
+        #expect(kept.windowMarginSize == 20)
+        #expect(store.failures.first?.file == folder.url.appendingPathComponent(ConfigStore.overridesName).path)
+        try folder.write(ConfigStore.overridesName, "{ \"gaps\": { \"size\": 12 } }")
+        #expect(store.reload(.changed).windowMarginSize == 12)
+        #expect(store.failures.isEmpty)
+    }
+
+    @Test func settingsKeepsDollarSignsInBindArguments() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": """
+        export default { binds: [{ mods: ["alt"], key: "t", run: ["exec", "echo $mod $HOME"] }] }
+        """])
+        defer { folder.remove() }
+        let store = store(folder)
+        _ = store.load()
+
+        let edited = ConfigText(store.settingsText).config
+
+        #expect(edited.bindings.first?.arg == "echo $mod $HOME")
+        #expect(edited.changes(from: store.base).isEmpty)
+    }
+
     @Test func aSettingsSaveWritesOnlyWhatDiffersFromTheTypeScriptConfig() throws {
         let folder = try ConfigFolder(["catwm.config.ts": """
         export default {

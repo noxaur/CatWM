@@ -26,7 +26,7 @@ export default {
 - **Data only.** Functions, loops and imports can compute the config, but the exported value must be plain data. A function in it is an error. There are no timers, events or native APIs. Use only erasable TypeScript syntax (no `enum` or `namespace`); the shipped `tsconfig.json` sets `erasableSyntaxOnly`.
 - **Imports:** relative paths only, such as `import { binds } from "./binds"`. A type import from `"./catwm"` is free.
 - **Settings and `catwm config.set`** never edit the TypeScript file. They write `catwm.overrides.json` beside it. The order is defaults, then `catwm.config.ts`, then the overrides. Settings → General lists each override and can drop it, so the file value applies again.
-- **Features:** `features: { windows, input, services, presentation }` turns parts of CatWM on or off, such as `features: { presentation: { hud: true } }`. Every feature is on by default. Embedded mode will use these.
+- **Features:** `features: { windows, input, services, presentation }` turns parts of CatWM on or off, such as `features: { presentation: { hud: true } }`. Embedded mode will read these switches. Standalone CatWM checks them but keeps every feature on for now.
 - **From `catwm.conf`:** the first launch converts an existing `catwm.conf` to `catwm.config.ts` once, checks that the result gives the same config, and keeps `catwm.conf` as an unread backup. If the conversion fails, CatWM keeps using `catwm.conf` and says why in the log and the menu bar menu.
 
 ## Options

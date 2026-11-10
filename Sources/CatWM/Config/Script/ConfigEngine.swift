@@ -77,7 +77,8 @@ final class ConfigEngine {
         }
         let ran = result["ran"]?.array?.compactMap(\.string) ?? []
         if let error = result["error"] {
-            return Run(value: value, ran: ran, files: files,
+            let tried = (result["files"]?.array ?? []).compactMap(\.string).map { URL(fileURLWithPath: $0) }
+            return Run(value: value, ran: ran, files: files + tried.filter { !files.contains($0) },
                        failures: [ConfigDiagnostic(error) ?? ConfigDiagnostic(phase: .evaluate, message: "\(error)")])
         }
         let next = result["value"] ?? .null

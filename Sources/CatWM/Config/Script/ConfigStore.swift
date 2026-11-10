@@ -21,6 +21,7 @@ final class ConfigStore {
     private var watcher: ConfigWatcher?
     private var files: [URL] = []
     private var onChange: ((Config) -> Void)?
+    private var hasPublished = false
 
     var scriptURL: URL { folder.appendingPathComponent(Self.scriptName) }
     var overridesURL: URL { folder.appendingPathComponent(Self.overridesName) }
@@ -94,17 +95,28 @@ final class ConfigStore {
 
     private func publish(_ run: ConfigEngine.Run, notify: Bool) {
         if !run.files.isEmpty { files = run.files }
-        failures = run.failures
+        var failures = run.failures
         var base = Config()
         if let value = run.value { _ = ConfigScript.read(value, into: &base, file: scriptURL.path) }
         var current = base
         let overrides = readOverrides()
-        var notes = overrides.problems
-        notes += ConfigScript.read(.object(overrides.value), into: &current, file: overridesURL.path)
+        let problems = overrides.problems
+            + ConfigScript.read(.object(overrides.value), into: &current, file: overridesURL.path)
+        if problems.isEmpty {
+            hasPublished = true
+        } else {
+            failures += problems
+            if hasPublished {
+                base = self.base
+                current = self.current
+            }
+        }
+        current.errors = []
         current.reportEmptySubmaps()
-        notes += current.errors.map { ConfigDiagnostic(file: scriptURL.path, phase: .validate, message: $0) }
+        let notes = current.errors.map { ConfigDiagnostic(file: scriptURL.path, phase: .validate, message: $0) }
         current.diagnostics = failures + notes
         current.errors = current.diagnostics.map(\.text)
+        self.failures = failures
         self.base = base
         self.current = current
         let names = run.ran.map { URL(fileURLWithPath: $0).lastPathComponent }
@@ -254,13 +266,15 @@ extension ConfigStore {
             guard !main.isEmpty, let flags = ConfigText.flags(row.mods), flags.isSuperset(of: main) else { return row }
             var copy = row
             let rest = ConfigScript.mods.filter { flags.subtracting(main).contains($0.flag) }.map(\.conf)
-            copy.mods = (["$mod"] + rest).joined(separator: " ")
+            copy.mods = ([Self.settingsMod] + rest).joined(separator: " ")
             return copy
         }
-        let mod = VarRow(name: "$mod", value: mainText.isEmpty ? "ALT" : mainText)
+        let mod = VarRow(name: Self.settingsMod, value: mainText.isEmpty ? "ALT" : mainText)
         return ConfigText.keyboard(vars: [mod], binds: rows)
             + Options.lines(current).joined(separator: "\n") + "\n"
     }
+
+    private static let settingsMod = "$__catwm_main_mod"
 
     private func readOverrides() -> (value: [String: JSON], problems: [ConfigDiagnostic]) {
         guard let data = try? Data(contentsOf: overridesURL) else { return ([:], []) }

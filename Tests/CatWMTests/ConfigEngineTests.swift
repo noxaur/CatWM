@@ -102,4 +102,32 @@ struct ConfigFolder {
         #expect(run.failures.first?.phase == .validate)
         #expect(run.failures.first?.message == "`binds[0].run` is a function. A config holds only data")
     }
+
+    @Test func aModuleCanNotChangeTheExportsOfAnother() throws {
+        let folder = try ConfigFolder([
+            "catwm.config.ts": "import { apps } from \"./apps\"\napps.push(\"B\")\n"
+                + "export default { floating: { apps } }\n",
+            "apps.ts": "export const apps = [\"A\"]\n"
+        ])
+        defer { folder.remove() }
+
+        let run = ConfigEngine(entry: folder.entry).run(.all)
+
+        #expect(run.failures.first?.phase == .evaluate)
+        #expect(run.failures.first?.line == 2)
+        #expect(run.failures.first?.file == folder.entry.path)
+    }
+
+    @Test func aFailedRunListsTheFilesItTried() throws {
+        let folder = try ConfigFolder([
+            "catwm.config.ts": "import { size } from \"./shared/gaps\"\nexport default { gaps: { size } }\n",
+            "shared/gaps.ts": "export const size = \n"
+        ])
+        defer { folder.remove() }
+
+        let run = ConfigEngine(entry: folder.entry).run(.all)
+
+        #expect(run.failures.first?.phase == .transform)
+        #expect(run.files.map(\.lastPathComponent).sorted() == ["catwm.config.ts", "gaps.ts"])
+    }
 }

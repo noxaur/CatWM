@@ -98,7 +98,8 @@ enum ConfigTypes {
         add("submaps", "Record<string, readonly Bind[]>",
             "Key modes. `[\"submap\", \"window\"]` enters one and `[\"submap\", \"reset\"]` leaves it.")
         for feature in Feature.allCases {
-            add(feature.path, "boolean", feature.summary + ". On by default.")
+            add(feature.path, "boolean",
+                feature.summary + ". Embedded mode reads this. Standalone CatWM keeps every feature on for now.")
         }
         return root
     }

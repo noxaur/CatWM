@@ -8,9 +8,11 @@ enum ConfigRuntime {
       let previous = new Map();
       const compiled = new Map();
       let ran = [];
+      let touched = [];
       const fail = (phase, file, line, message) => ({ catwmDiagnostic: true, phase, file, line, message });
 
       function load(path) {
+        if (!touched.includes(path)) touched.push(path);
         const known = records.get(path);
         if (known) return known.module.exports;
         const source = catwmHost.read(path);
@@ -36,7 +38,15 @@ enum ConfigRuntime {
           if (!record.deps.includes(target)) record.deps.push(target);
           return load(target);
         }, record.module);
-        return record.module.exports;
+        return freeze(record.module.exports);
+      }
+
+      function freeze(value) {
+        if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+          Object.freeze(value);
+          for (const key of Object.keys(value)) freeze(value[key]);
+        }
+        return value;
       }
 
       function invalidate(changed) {
@@ -102,6 +112,7 @@ enum ConfigRuntime {
           const before = new Map(records);
           previous = before;
           ran = [];
+          touched = [];
           if (changed === null) records.clear(); else invalidate(changed);
           try {
             const exports = load(entry);
@@ -113,7 +124,7 @@ enum ConfigRuntime {
             return JSON.stringify({ value: exports.default, ran, files: [...records.keys()] });
           } catch (error) {
             records = before;
-            return JSON.stringify({ error: describe(error), ran });
+            return JSON.stringify({ error: describe(error), ran, files: touched });
           }
         },
         rollback() { records = previous; }

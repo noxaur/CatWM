@@ -31,6 +31,7 @@ struct ConfigDiagnostic: Equatable {
     init?(_ json: JSON) {
         guard let message = json["message"]?.string,
               let phase = json["phase"]?.string.flatMap(Phase.init(rawValue:)) else { return nil }
-        self.init(file: json["file"]?.string, line: json["line"]?.int, phase: phase, message: message)
+        let file = json["file"]?.string.map { $0.hasPrefix("file://") ? URL(string: $0)?.path ?? $0 : $0 }
+        self.init(file: file, line: json["line"]?.int, phase: phase, message: message)
     }
 }

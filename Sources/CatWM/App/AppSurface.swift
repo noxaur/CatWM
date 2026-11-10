@@ -1,4 +1,5 @@
 import AppKit
+import CatWMKit
 import QuartzCore
 
 struct AppSurface: TilingSurface {
@@ -27,12 +28,24 @@ struct AppSurface: TilingSurface {
             Log.debug("mode: \(name.isEmpty ? "reset" : name)")
             ModeFX.shared.setActive(!name.isEmpty)
             ModeCursor.shared.setActive(!name.isEmpty)
+            Popup.shared.closeAll()
             KeyHelp.shared.modeChanged(name)
             CursorActions.shared.modeChanged(name)
             Tips.shared.modeChanged(name)
             manager?.modeChanged(name)
         }
         Hotkeys.shared.handler = { [weak manager] binding in manager?.dispatch(binding.dispatcher, binding.arg) }
+        Hotkeys.shared.onWindowModeClick = { point in
+            let popup = Popup.shared
+            if popup.hitsMenu(at: point) { return false }
+            let menus = popup.windowNumbers
+            popup.closeAll()
+            guard let hit = CGWindowInfo.normalWindow(at: point, ignoring: menus),
+                  WindowManager.shared.windows[hit.id] != nil else { return false }
+            DispatchQueue.main.async { WindowContextMenu.open(hit.id) }
+            return true
+        }
+        manager.animator.beginRun = { kind in PerfMonitor.shared.begin(kind).map { run in { run.end(apps: $0) } } }
         KeyHelp.shared.install()
         CursorActions.shared.install()
         Switcher.shared.install()
@@ -56,6 +69,8 @@ struct AppSurface: TilingSurface {
         ModeFX.shared.style = config.modeEffect
         MacKeyboard.shared.setting = config.keyboardFinish
         Notifications.shared.setEnabled(config.tabNotificationBadges)
+        FocusDim.shared.configure(dim: config.dimOtherWindows, strength: config.dimStrength,
+                                  blur: config.blurOtherWindows, radius: Int(config.blurRadius))
     }
 
     func showHUD(_ text: String, layout: Layout?, on screen: NSScreen?) {
@@ -104,4 +119,34 @@ struct AppSurface: TilingSurface {
     func windowForgotten(_ id: CGWindowID) { Notifications.shared.forget(id) }
 
     func abandonOverview() { SortPanel.shared.abandon() }
+    func undoOverview() { SortPanel.shared.undoApplied() }
+    func refreshed(_ screens: [Screen]) { WindowManager.shared.watchCrowding(screens) }
+    func openSwitcher(backward: Bool) { Switcher.shared.open(backward: backward) }
+    func focusChanged() { FocusDim.shared.update() }
+    var loginItem: (enabled: Bool, needsApproval: Bool) { (LoginItem.shared.isEnabled, LoginItem.shared.needsApproval) }
+
+    func toggleOverview() {
+        let manager = WindowManager.shared
+        if manager.config.virtualWorkspaces {
+            SortPanel.shared.toggle()
+        } else {
+            HUD.shared.show("Overview needs CatWM workspaces", on: manager.currentScreen()?.nsScreen)
+        }
+    }
+
+    func toggleFocusEffect(_ effect: FocusEffect) {
+        FocusDim.features.first { $0.effect.dispatcher == effect.dispatcher }?.run()
+    }
+
+    func preview(_ command: String, _ argument: String) -> Bool {
+        let words = argument.split(separator: " ").map(String.init)
+        switch command {
+        case "modefx": ModeFX.shared.command(words)
+        case "panelfx": PanelMotionDemo.shared.command(words)
+        case "intro": Onboarding.shared.playIntro(IntroScore.Arrangement.named(argument) ?? .standard)
+        case "introlab": IntroLab.shared.open()
+        default: return false
+        }
+        return true
+    }
 }

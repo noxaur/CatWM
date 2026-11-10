@@ -2,7 +2,7 @@ import AppKit
 
 extension WindowManager {
     package enum TemplateError: LocalizedError, Equatable {
-        case notReady, empty, incomplete, busy, scoped
+        case notReady, empty, incomplete, busy, scoped, off
         package var errorDescription: String? {
             switch self {
             case .notReady: "Grant Accessibility access before you save or open a template."
@@ -10,6 +10,7 @@ extension WindowManager {
             case .incomplete: "CatWM could not read every window in time, so this template was not saved."
             case .busy: "CatWM is still reading another workspace, so this template was not saved."
             case .scoped: "This CatWM manages only some apps (CATWM_SCOPE), so it cannot open a template."
+            case .off: "Templates are off in the config (`features.services.templates`)."
             }
         }
     }
@@ -17,6 +18,7 @@ extension WindowManager {
     @MainActor
     package func captureTemplate() async throws -> WorkspaceTemplate {
         try Task.checkCancellation()
+        guard config.features.contains(.templates) else { throw TemplateError.off }
         let request = try makeRequest()
         let stop = StopFlag()
         let outcome = await withTaskCancellationHandler {

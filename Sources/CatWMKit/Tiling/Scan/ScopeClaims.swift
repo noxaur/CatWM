@@ -63,6 +63,16 @@ package final class ScopeClaims {
         }
     }
 
+    package func stop() {
+        queue.sync {
+            changed = nil
+            folderWatch?.cancel()
+            folderWatch = nil
+            ownerWatches.values.forEach { $0.cancel() }
+            ownerWatches = [:]
+        }
+    }
+
     package func folderChanged() {
         queue.sync {
             guard pids != read() else { return }

@@ -43,6 +43,8 @@ package final class Notifications: NotificationSink {
 
     package func stopListening(_ token: Token) { listeners[token.value] = nil }
 
+    package var hasSources: Bool { !sources.isEmpty }
+
     package func register(_ source: NotificationSource) {
         guard !sources.contains(where: { $0 === source }) else { return }
         sources.append(source)

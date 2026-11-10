@@ -23,14 +23,15 @@ package func tapCallback(proxy _: CGEventTapProxy, type: CGEventType, event: CGE
         }
     }
     let lockNow = CapsLockChord.isLocked(event.flags)
-    if type == .flagsChanged, CapsLockChord.shared.isEcho(lockNow: lockNow) {
-        CapsLockChord.shared.restoreLock(lockNow)
+    let chord = Hotkeys.shared.capsLockChord
+    if type == .flagsChanged, chord?.isEcho(lockNow: lockNow) == true {
+        chord?.restoreLock(lockNow)
         return nil
     }
     let result = Hotkeys.shared.match(event)
     if type == .flagsChanged {
         guard case .bind = result else { return Unmanaged.passUnretained(event) }
-        CapsLockChord.shared.slowPathFired(lockNow: lockNow)
+        chord?.slowPathFired(lockNow: lockNow)
     }
     switch result {
     case .pass:

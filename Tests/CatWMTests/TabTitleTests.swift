@@ -16,6 +16,8 @@ private final class TitleSurface: TilingSurface {
     var keybindsActive: Bool { false }
     var keysPaused: Bool { false }
     func setKeyTap(enabled _: Bool) {}
+    func setKeyBinds(enabled _: Bool) {}
+    func stop() {}
     func tilesDidChange(instant _: Bool) {}
     func splitSwapped(on _: String) {}
     func tabsDidChange(instant _: Bool) { tabChanges += 1 }

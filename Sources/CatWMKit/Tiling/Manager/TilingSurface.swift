@@ -12,6 +12,8 @@ package protocol TilingSurface {
     var keybindsActive: Bool { get }
     var keysPaused: Bool { get }
     func setKeyTap(enabled: Bool)
+    func setKeyBinds(enabled: Bool)
+    func stop()
 
     func tilesDidChange(instant: Bool)
     func splitSwapped(on screen: String)
@@ -56,6 +58,8 @@ package struct HeadlessSurface: TilingSurface {
     package var keybindsActive: Bool { false }
     package var keysPaused: Bool { false }
     package func setKeyTap(enabled _: Bool) {}
+    package func setKeyBinds(enabled _: Bool) {}
+    package func stop() {}
     package func tilesDidChange(instant _: Bool) {}
     package func splitSwapped(on _: String) {}
     package func tabsDidChange(instant _: Bool) {}

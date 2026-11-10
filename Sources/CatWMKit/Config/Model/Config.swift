@@ -3,6 +3,12 @@ import AppKit
 package struct Config {
     package init() {}
 
+    package static let embedded: Config = {
+        var config = Config()
+        config.features = []
+        return config
+    }()
+
     package var layouts: [Layout] = [.bsp, .wide, .floating, .fullscreen]
     package var windowMargins = true
     package var windowMarginSize: CGFloat = 10

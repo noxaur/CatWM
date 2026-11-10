@@ -81,7 +81,7 @@ extension CommandRegistry {
                 throw ControlError.invalid(problem)
             }
             do {
-                try ConfigStore.shared.set(option: option, value)
+                try call.manager.store.set(option: option, value)
             } catch {
                 throw ControlError.failed("Could not save config: \(error.localizedDescription)")
             }

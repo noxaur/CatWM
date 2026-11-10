@@ -24,7 +24,6 @@ package final class ControlServer {
 
     package func start(path: String = ControlServer.socketPath) {
         guard listener == nil else { return }
-        signal(SIGPIPE, SIG_IGN)
         guard let descriptor = Self.listen(on: path) else { return }
         let source = DispatchSource.makeReadSource(fileDescriptor: descriptor, queue: queue)
         source.setEventHandler { [weak self] in self?.accept(descriptor) }

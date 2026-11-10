@@ -8,10 +8,21 @@ package final class DockArea {
 
     private var screenObserver: NSObjectProtocol?
 
-    package init() {
+    package init() {}
+
+    deinit { stop() }
+
+    package func start() {
+        refresh()
+        guard screenObserver == nil else { return }
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in self?.refresh() }
+    }
+
+    package func stop() {
+        if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        screenObserver = nil
     }
 
     package func contains(_ point: CGPoint) -> Bool {

@@ -4,7 +4,9 @@ extension Hotkeys {
     package func setBindings(_ list: [KeyBinding]) {
         tables = [:]
         for bind in list { tables[bind.submap, default: [:]][Self.key(bind.keyCode, bind.mods)] = bind }
-        CapsLockChord.shared.setBound(list.contains { $0.keyCode == CapsLockChord.keyCode })
+        if WindowManager.shared.input.capsLock {
+            CapsLockChord.shared.setBound(list.contains { $0.keyCode == CapsLockChord.keyCode })
+        }
         if !submap.isEmpty, tables[submap] == nil { setSubmap("") }
     }
 
@@ -25,7 +27,9 @@ extension Hotkeys {
     @discardableResult
     package func start() -> Bool {
         if tap != nil { return true }
-        guard Instance.input.keys else { return false }
+        let input = WindowManager.shared.input
+        guard input.keys else { return false }
+        capsLock = input.capsLock
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue) | CGEventMask(1 << CGEventType.flagsChanged.rawValue)
             | CGEventMask(1 << CGEventType.scrollWheel.rawValue) | CGEventMask(1 << CGEventType.rightMouseDown.rawValue)
             | CGEventMask(1 << CGEventType.rightMouseUp.rawValue)
@@ -36,8 +40,17 @@ extension Hotkeys {
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, newTap, 0), .commonModes)
         CGEvent.tapEnable(tap: newTap, enable: true)
         startSwipes()
-        CapsLockChord.shared.start()
+        if capsLock { CapsLockChord.shared.start() }
         return true
+    }
+
+    package func stop() {
+        if let tap { CFMachPortInvalidate(tap) }
+        tap = nil
+        if let swipeMonitor { NSEvent.removeMonitor(swipeMonitor) }
+        swipeMonitor = nil
+        if capsLock { CapsLockChord.shared.stop() }
+        setSubmap("")
     }
 
     package func startSwipes() {

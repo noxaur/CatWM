@@ -80,9 +80,9 @@ package struct GlobalInput: Equatable {
     package let mouseTaps: Bool
     package let pointerAndFocus: Bool
 
-    package init(scope: WindowScope?, keys: String?) {
-        self.keys = scope == nil || keys == "on"
-        capsLock = scope == nil
+    package init(scope: WindowScope?, keys: String?, embedded: Bool = false) {
+        self.keys = scope == nil || keys == "on" || embedded
+        capsLock = scope == nil && !embedded
         mouseTaps = scope == nil
         pointerAndFocus = scope == nil
     }

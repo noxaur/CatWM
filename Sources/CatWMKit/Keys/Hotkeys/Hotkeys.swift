@@ -21,6 +21,8 @@ package final class Hotkeys {
     package var intercept: ((CGEventType, CGEvent) -> Bool)?
     package var heldChord: CGEventFlags = []
     package var tap: CFMachPort?
+    package var capsLock = false
+    package var capsLockChord: CapsLockChord? { capsLock ? .shared : nil }
     package var swipeMonitor: Any?
     package var scrollAccum: [Int: Double] = [:]
     package var lastScrollFire: [Int: TimeInterval] = [:]

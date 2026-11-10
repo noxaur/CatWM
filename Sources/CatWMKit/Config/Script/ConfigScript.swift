@@ -52,13 +52,18 @@ package enum ConfigScript {
         return groups.mapValues { $0.sorted() }
     }()
 
-    package static func read(_ value: JSON, into config: inout Config, file: String?) -> [ConfigDiagnostic] {
+    package static func read(_ value: JSON, into config: inout Config, file: String?,
+                             embedded: Bool = false) -> [ConfigDiagnostic] {
         var reader = Reader(file: file)
         guard let object = value.object else {
             reader.fail("", "the default export must be an object, such as `export default { gaps: { size: 8 } }`")
             return reader.diagnostics
         }
         reader.read(object, prefix: "", into: &config)
+        for feature in Feature.allCases where embedded && !feature.isEmbeddable && config.features.contains(feature) {
+            reader.fail(feature.path, "isn't available in embedded mode, because the host draws its own GUI")
+            config.features.remove(feature)
+        }
         for feature in Feature.allCases where config.features.contains(feature) {
             for need in feature.needs where !config.features.contains(need) {
                 reader.fail(feature.path, "needs `\(need.path)`, which is off")

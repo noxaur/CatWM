@@ -59,6 +59,9 @@ package final class EventBus {
             Field(name: "dot", type: "bool", summary: "The app shows unread items with no number"),
             Field(name: "source", type: "string?", summary: "dock, banner or database, or null")
         ]),
+        EventSpec(name: "permissions.changed", summary: "A permission was granted or revoked", data: [
+            Field(name: "granted", type: "string[]", summary: "The permissions that are granted now")
+        ]),
         EventSpec(name: "config.reloaded", summary: "CatWM applied the config again", data: [
             Field(name: "errors", type: "object[]",
                   summary: "Problems in the config: file, line, phase and message. "
@@ -77,12 +80,25 @@ package final class EventBus {
     }
 
     private var subscriptions: [ObjectIdentifier: (client: ControlConnection, events: Set<String>)] = [:]
+    private var listeners: [UUID: (String, JSON) -> Void] = [:]
     private var last: StateSnapshot?
 
-    package var hasSubscribers: Bool { !subscriptions.isEmpty }
+    package var hasSubscribers: Bool { !subscriptions.isEmpty || !listeners.isEmpty }
+
+    package func listen(_ listener: @escaping (_ name: String, _ data: JSON) -> Void) -> UUID {
+        if !hasSubscribers { last = WindowManager.shared.snapshot() }
+        let token = UUID()
+        listeners[token] = listener
+        return token
+    }
+
+    package func stopListening(_ token: UUID) {
+        listeners[token] = nil
+        if !hasSubscribers { last = nil }
+    }
 
     package func subscribe(_ client: ControlConnection, to events: [String]) -> [String] {
-        let wasIdle = subscriptions.isEmpty
+        let wasIdle = !hasSubscribers
         let key = ObjectIdentifier(client)
         let merged = (subscriptions[key]?.events ?? []).union(events)
         subscriptions[key] = (client, merged)
@@ -95,19 +111,26 @@ package final class EventBus {
         guard var entry = subscriptions[key] else { return [] }
         entry.events.subtract(events)
         subscriptions[key] = entry.events.isEmpty ? nil : entry
-        if subscriptions.isEmpty { last = nil }
+        if !hasSubscribers { last = nil }
         return Self.allNames.filter(entry.events.contains)
     }
 
     package func remove(_ client: ControlConnection) {
         subscriptions[ObjectIdentifier(client)] = nil
-        if subscriptions.isEmpty { last = nil }
+        if !hasSubscribers { last = nil }
     }
 
     package func emit(_ name: String, _ data: JSON) {
         guard hasSubscribers else { return }
+        listeners.values.forEach { $0(name, data) }
+        guard !subscriptions.isEmpty else { return }
         let line = JSON.object(["event": .string(name), "data": data]).encoded() + Data("\n".utf8)
         for entry in subscriptions.values where entry.events.contains(name) { entry.client.send(line) }
+    }
+
+    package func permissionsChanged(_ granted: Set<Permission>) {
+        let names = Permission.allCases.filter(granted.contains).map { JSON.string($0.id) }
+        emit("permissions.changed", ["granted": .array(names)])
     }
 
     package func stateChanged() {

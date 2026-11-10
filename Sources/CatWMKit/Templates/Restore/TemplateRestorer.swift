@@ -24,6 +24,7 @@ package final class TemplateRestorer {
     package init(template: WorkspaceTemplate) { self.template = template }
 
     package func restore() async throws -> String {
+        guard manager.config.features.contains(.templates) else { throw WindowManager.TemplateError.off }
         guard manager.scope == nil else { throw WindowManager.TemplateError.scoped }
         guard manager.isStarted, !Screen.all().isEmpty else { throw WindowManager.TemplateError.notReady }
         initialWindowIDs = Set(CGWindowInfo.onScreen(options: [.optionAll, .excludeDesktopElements]).map(\.id))

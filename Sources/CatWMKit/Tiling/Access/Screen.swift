@@ -25,7 +25,7 @@ package struct Screen {
                           isBuiltin: CGDisplayIsBuiltin(id) != 0, nsScreen: screen)
         }
         .sorted { ($0.frame.minX, $0.frame.minY) < ($1.frame.minX, $1.frame.minY) }
-        return Instance.scope?.filter(screens) ?? screens
+        return (Instance.scope ?? Instance.embedding.scope)?.filter(screens) ?? screens
     }
 }
 

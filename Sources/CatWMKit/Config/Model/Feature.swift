@@ -43,12 +43,15 @@ package enum Feature: String, CaseIterable {
 
     package var needs: [Feature] {
         switch self {
+        case .tabGroups, .desktops, .keys, .mouse, .gestures, .notifications: [.tiling]
         case .tabStrips: [.tabGroups]
         case .keyHelp, .cursorActions: [.keys]
-        case .templates: [.sessions]
+        case .templates: [.tiling, .sessions]
         default: []
         }
     }
+
+    package var isEmbeddable: Bool { group != .presentation && self != .cursorActions }
 
     package var path: String { "features.\(group.rawValue).\(rawValue)" }
 }

@@ -23,9 +23,14 @@ package final class PermissionWatcher {
         atLaunch = read()
     }
 
-    deinit {
+    deinit { stop() }
+
+    package func stop() {
         timer?.invalidate()
+        timer = nil
         if let accessibilityObserver { DistributedNotificationCenter.default().removeObserver(accessibilityObserver) }
+        accessibilityObserver = nil
+        subscribers = []
     }
 
     package func start() {

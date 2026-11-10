@@ -1,6 +1,6 @@
 import Foundation
 
-package enum JSON: Equatable, Codable {
+public enum JSON: Equatable, Codable, Sendable {
     case null
     case bool(Bool)
     case int(Int)
@@ -9,31 +9,31 @@ package enum JSON: Equatable, Codable {
     case array([JSON])
     case object([String: JSON])
 
-    package var string: String? { if case .string(let value) = self { value } else { nil } }
-    package var int: Int? {
+    public var string: String? { if case .string(let value) = self { value } else { nil } }
+    public var int: Int? {
         switch self {
         case .int(let value): value
         case .number(let value): Int(exactly: value)
         default: nil
         }
     }
-    package var double: Double? {
+    public var double: Double? {
         switch self {
         case .int(let value): Double(value)
         case .number(let value): value
         default: nil
         }
     }
-    package var isTrue: Bool { self == .bool(true) }
-    package var isBool: Bool { if case .bool = self { true } else { false } }
-    package var array: [JSON]? { if case .array(let value) = self { value } else { nil } }
-    package var object: [String: JSON]? { if case .object(let value) = self { value } else { nil } }
+    public var isTrue: Bool { self == .bool(true) }
+    public var isBool: Bool { if case .bool = self { true } else { false } }
+    public var array: [JSON]? { if case .array(let value) = self { value } else { nil } }
+    public var object: [String: JSON]? { if case .object(let value) = self { value } else { nil } }
 
-    package subscript(key: String) -> JSON? { object?[key] }
+    public subscript(key: String) -> JSON? { object?[key] }
 
     package static func parse(_ data: Data) -> JSON? { try? JSONDecoder().decode(JSON.self, from: data) }
 
-    package init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
             self = .null
@@ -52,7 +52,7 @@ package enum JSON: Equatable, Codable {
         }
     }
 
-    package func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case .null: try container.encodeNil()
@@ -77,12 +77,12 @@ package enum JSON: Equatable, Codable {
 
 extension JSON: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByBooleanLiteral,
                 ExpressibleByDictionaryLiteral, ExpressibleByArrayLiteral, ExpressibleByFloatLiteral {
-    package init(stringLiteral value: String) { self = .string(value) }
-    package init(integerLiteral value: Int) { self = .int(value) }
-    package init(booleanLiteral value: Bool) { self = .bool(value) }
-    package init(floatLiteral value: Double) { self = .number(value) }
-    package init(arrayLiteral elements: JSON...) { self = .array(elements) }
-    package init(dictionaryLiteral elements: (String, JSON)...) {
+    public init(stringLiteral value: String) { self = .string(value) }
+    public init(integerLiteral value: Int) { self = .int(value) }
+    public init(booleanLiteral value: Bool) { self = .bool(value) }
+    public init(floatLiteral value: Double) { self = .number(value) }
+    public init(arrayLiteral elements: JSON...) { self = .array(elements) }
+    public init(dictionaryLiteral elements: (String, JSON)...) {
         self = .object(Dictionary(elements, uniquingKeysWith: { $1 }))
     }
 }

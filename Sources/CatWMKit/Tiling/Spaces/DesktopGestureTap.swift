@@ -28,6 +28,15 @@ package final class DesktopGestureTap {
         CGEvent.tapEnable(tap: tap, enable: true)
     }
 
+    package func stop() {
+        guard let tap else { return }
+        setEnabled(false)
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        CFMachPortInvalidate(tap)
+        self.tap = nil
+        source = nil
+    }
+
     package func setEnabled(_ enabled: Bool) {
         guard let tap else { return }
         if !enabled && tracking {

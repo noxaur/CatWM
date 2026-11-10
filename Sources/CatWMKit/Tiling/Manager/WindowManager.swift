@@ -1,12 +1,34 @@
 import AppKit
 
 package final class WindowManager {
-    package static let shared = WindowManager(config: ConfigStore.shared.load(), scope: Instance.scope)
+    private final class Slot {
+        private let lock = NSLock()
+        private var installed: WindowManager?
+        private var standalone: WindowManager?
+
+        var manager: WindowManager {
+            lock.withLock {
+                if let manager = installed ?? standalone { return manager }
+                let manager = WindowManager(config: ConfigStore.shared.load(), scope: Instance.scope)
+                standalone = manager
+                return manager
+            }
+        }
+
+        func install(_ manager: WindowManager) { lock.withLock { installed = manager } }
+    }
+
+    private static let slot = Slot()
+    package static var shared: WindowManager { slot.manager }
+    package static func install(_ manager: WindowManager) { slot.install(manager) }
 
     package let backend: any WindowBackend
     package let scope: WindowScope?
+    package let embedded: Bool
     package let input: GlobalInput
     package var config: Config
+    package lazy var store = ConfigStore.shared
+    package var socketPath = ControlServer.socketPath
     package var tilingEnabled = true
     package var restoringTemplate = false {
         didSet {
@@ -106,9 +128,12 @@ package final class WindowManager {
     package var dividerState = DividerState()
     package var refreshDeadline = DispatchTime.distantFuture
     package var isStarted = false
+    package var servicesStarted = false
+    package var mayTile: () -> Bool = { true }
     package var ignoreMouseUntil = Date.distantPast
     package var animator: Animator
-    package var notificationObservers: [NSObjectProtocol] = []
+    package var notificationObservers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
+    package var eventMonitors: [Any] = []
     package let scanner: WindowScanner
     package let dockWindowPull = DockWindowPull()
     package let dockArea = DockArea()
@@ -116,11 +141,13 @@ package final class WindowManager {
     package var warp: (CGPoint) -> Void = { CGWarpMouseCursorPosition($0) }
 
     package init(backend: any WindowBackend = AXBackend.shared, config: Config, scope: WindowScope? = nil,
-                 scanner: WindowScanner? = nil) {
+                 scanner: WindowScanner? = nil, embedded: Bool = false) {
         self.backend = backend
         self.scope = scope
-        input = GlobalInput(scope: scope, keys: Instance.keys)
-        self.config = scope?.restrict(config) ?? config
+        self.embedded = embedded
+        nativeDesktop.guarded = !embedded
+        input = GlobalInput(scope: scope, keys: Instance.keys, embedded: embedded)
+        self.config = Self.effective(config, scope: scope)
         frontmostPID = { backend.frontmostPID() }
         animator = Animator(backend: backend)
         cursorRefresh = CursorRefresh(backend: backend)
@@ -132,10 +159,48 @@ package final class WindowManager {
     }
 
     package func scopeRefusal(_ command: String) -> String? {
-        guard let scope, !scope.allows(command) else { return nil }
         let name = WindowActions.named(command)?.name ?? command
+        if embedded, name == WindowActions.exit.name {
+            return "`exit` is not available in embedded mode: the host owns the process"
+        }
+        if let feature = Self.feature(of: name), !config.features.contains(feature) {
+            return "`\(name)` needs `\(feature.path)`, which is off"
+        }
+        guard let scope, !scope.allows(command) else { return nil }
         return "`\(name)` is not available in a scoped instance: "
             + "it would act on windows, Desktops or input outside the scope"
+    }
+
+    package static func feature(of command: String) -> Feature? {
+        if command == WindowActions.switcher.name { return .switcher }
+        return switch WindowActions.named(command)?.group {
+        case "tabs": .tabGroups
+        case "overview": .overview
+        case "window", "layout", "workspaces", "focus", "displays": .tiling
+        default: nil
+        }
+    }
+
+    package static func effective(_ config: Config, scope: WindowScope?) -> Config {
+        var config = scope?.restrict(config) ?? config
+        let features = config.features
+        if !features.contains(.desktops) { config.virtualWorkspaces = false }
+        if !features.contains(.mouse) {
+            config.mouseSwapsWindows = false
+            config.mouseResizesWindows = false
+        }
+        if !features.contains(.cursorActions) { config.cursorActions = false }
+        if !features.contains(.notifications) { config.tabNotificationBadges = false }
+        if !features.contains(.dimming) {
+            config.dimOtherWindows = false
+            config.blurOtherWindows = false
+        }
+        if !features.contains(.keyHelp) { config.keyboardHelp = false }
+        if !features.contains(.hud) {
+            config.enablesLayoutHUD = false
+            config.enablesLayoutHUDOnSpaceChange = false
+        }
+        return config
     }
 
     package func warpPointer(to point: CGPoint) {

@@ -15,6 +15,15 @@ package enum Permission: CaseIterable {
         }
     }
 
+    package var id: String {
+        switch self {
+        case .accessibility: "accessibility"
+        case .inputMonitoring: "inputMonitoring"
+        case .screenRecording: "screenRecording"
+        case .fullDiskAccess: "fullDiskAccess"
+        }
+    }
+
     package var title: String {
         switch self {
         case .accessibility: "Accessibility"

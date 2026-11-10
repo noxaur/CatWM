@@ -7,7 +7,7 @@ extension WindowManager {
     }
 
     package func observe(pid: pid_t) {
-        guard pid != getpid(), observers[pid] == nil, scanner.keeps(pid) else { return }
+        guard isStarted, pid != getpid(), observers[pid] == nil, scanner.keeps(pid) else { return }
         guard observing[pid] == nil else { return }
         let token = UUID()
         observing[pid] = token
@@ -25,7 +25,7 @@ extension WindowManager {
             }
             let registered = added ? observer : nil
             DispatchQueue.main.async {
-                guard let self, self.observing[pid] == token else { return }
+                guard let self, self.isStarted, self.observing[pid] == token else { return }
                 self.observing[pid] = nil
                 guard let registered, self.backend.isRunning(pid) else { return }
                 CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(registered), .defaultMode)

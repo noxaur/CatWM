@@ -15,6 +15,7 @@ package final class NativeDesktopController {
     package var isForward: (_ source: UInt64, _ target: UInt64, _ desktopOrder: Bool) -> Bool = { $2 }
     package var onIdle: () -> Void = {}
     package var onFailure: (String) -> Void = { _ in }
+    package var guarded = true
     package private(set) var requested: Request?
     package private(set) var isRunning = false
     private var gesture = false
@@ -60,7 +61,11 @@ package final class NativeDesktopController {
             defer { self.isRunning = false; self.gesture = false; self.onIdle() }
             while let target = self.requested {
                 do {
-                    try await self.transition(target, since: self.requestedAt)
+                    if self.guarded {
+                        try await self.transition(target, since: self.requestedAt)
+                    } else {
+                        try await self.swipeUnguarded(to: target)
+                    }
                 } catch {
                     if self.requested == target { self.requested = nil }
                     self.gesture = false
@@ -283,6 +288,7 @@ extension NativeDesktopController {
     }
 
     @MainActor package func prewarmGuard() {
+        guard guarded else { return }
         DesktopWallpaperCover.shared.prepare()
         guard warmGuard?.process.isRunning != true else { return }
         let client = DesktopGuardClient()
@@ -302,5 +308,13 @@ extension NativeDesktopController {
         } else if warmGuard !== recovery {
             try await recovery.shutDown()
         }
+    }
+}
+
+extension NativeDesktopController {
+    @MainActor func swipeUnguarded(to target: Request) async throws {
+        let changed = Spaces.current(display: target.display) != target.space
+        try await swipe(to: target)
+        if Spaces.current(display: target.display) == target.space { onSettled(target, changed) }
     }
 }

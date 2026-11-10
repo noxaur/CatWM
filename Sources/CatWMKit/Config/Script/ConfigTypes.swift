@@ -99,7 +99,8 @@ package enum ConfigTypes {
             "Key modes. `[\"submap\", \"window\"]` enters one and `[\"submap\", \"reset\"]` leaves it.")
         for feature in Feature.allCases {
             add(feature.path, "boolean",
-                feature.summary + ". Embedded mode reads this. Standalone CatWM keeps every feature on for now.")
+                feature.summary + (feature.isEmbeddable ? ". On by default, off by default in embedded mode."
+                    : ". On by default. Embedded mode doesn't have it."))
         }
         return root
     }

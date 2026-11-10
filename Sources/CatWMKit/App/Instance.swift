@@ -70,9 +70,40 @@ package struct InstancePaths: Equatable {
     }
 }
 
+package final class Embedding {
+    private let lock = NSLock()
+    private var id: String?
+    private var frozen = false
+    private var hostScope: WindowScope?
+
+    package var scope: WindowScope? {
+        get { lock.withLock { hostScope } }
+        set { lock.withLock { hostScope = newValue } }
+    }
+
+    package func claim(_ id: String) -> Bool {
+        lock.withLock {
+            guard !frozen || self.id == id else { return false }
+            self.id = id
+            return true
+        }
+    }
+
+    package func freeze() -> String? {
+        lock.withLock {
+            frozen = true
+            return id
+        }
+    }
+}
+
 package enum Instance {
+    package static let embedding = Embedding()
+    package static let embeddedID = embedding.freeze()
+    package static let isEmbedded = embeddedID != nil
+
     package static let paths: InstancePaths = {
-        let id = ProcessInfo.processInfo.environment["CATWM_INSTANCE"]
+        let id = embeddedID ?? ProcessInfo.processInfo.environment["CATWM_INSTANCE"]
         guard let paths = InstancePaths(id: id, home: FileManager.default.homeDirectoryForCurrentUser) else {
             fail("CATWM_INSTANCE must be 1 to \(InstancePaths.maxLength) characters of a-z, 0-9 and -")
         }
@@ -88,7 +119,7 @@ package enum Instance {
     package static let pidFile = paths.pidFile
 
     package static let scope: WindowScope? = {
-        guard let text = ProcessInfo.processInfo.environment["CATWM_SCOPE"] else { return nil }
+        guard !isEmbedded, let text = ProcessInfo.processInfo.environment["CATWM_SCOPE"] else { return nil }
         guard isNamed else { fail("CATWM_SCOPE needs CATWM_INSTANCE") }
         guard let scope = WindowScope(text) else {
             fail("CATWM_SCOPE must be pids:<pid>,<pid>... with an optional ;display:<display UUID>")
@@ -97,7 +128,6 @@ package enum Instance {
     }()
 
     package static let keys = ProcessInfo.processInfo.environment["CATWM_KEYS"]
-    package static let input = GlobalInput(scope: scope, keys: keys)
 
     package static let defaults: UserDefaults = {
         guard let suite = paths.defaultsSuite else { return .standard }

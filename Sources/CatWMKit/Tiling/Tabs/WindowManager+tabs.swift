@@ -9,6 +9,7 @@ extension WindowManager {
     package var tabs: TabGroups { model.tabs }
 
     package func joinTab(_ id: CGWindowID, onto host: CGWindowID) {
+        guard config.features.contains(.tabGroups) else { return }
         guard id != host, let window = windows[id], windows[host]?.isFloating == false,
               let workspace = workspaceOf[host] else { return }
         if window.isFloating {
@@ -45,6 +46,16 @@ extension WindowManager {
 
     package func assignTabs(of id: CGWindowID, to workspace: String?) {
         moveTabs(of: id, to: workspace) { member, _ in assignManagedWindow(member, to: workspace) }
+    }
+
+    package func dissolveTabs() {
+        tabUI.savedTabs = []
+        let members = tabs.groups.flatMap { $0.members.dropFirst() }
+        guard !members.isEmpty else { return }
+        for id in members { model.leaveTab(id) }
+        Log.info("tabs: tab groups are off, so \(members.count) window(s) left their tabs")
+        surface.tabsDidChange(instant: true)
+        refresh()
     }
 
     package func untab(_ id: CGWindowID, droppedAt point: CGPoint? = nil) {

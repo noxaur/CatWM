@@ -97,6 +97,7 @@ package final class WindowScanner {
     }
 
     package func watchClaims(_ changed: @escaping () -> Void) { claims?.watch(changed) }
+    package func stopWatchingClaims() { claims?.stop() }
 
     package func keeps(_ pid: pid_t) -> Bool { scope?.pids.contains(pid) ?? !claimed.contains(pid) }
 

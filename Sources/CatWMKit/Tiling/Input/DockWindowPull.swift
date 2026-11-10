@@ -4,6 +4,7 @@ package final class DockWindowPull {
     package var prepare: ((CGPoint) -> (() -> Void)?)?
     package var post: (CGEvent) -> Void = { $0.post(tap: .cgSessionEventTap) }
     private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
     private var pending: (down: CGEvent, action: () -> Void)?
     private var hold: DispatchWorkItem?
     private static let replayMarker: Int64 = 0x4f55_4348_444f_434b
@@ -26,9 +27,19 @@ package final class DockWindowPull {
             return owner.handle(type, event) ? nil : Unmanaged.passUnretained(event)
         }, userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return false }
         tap = port
-        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, port, 0), .commonModes)
+        source = CFMachPortCreateRunLoopSource(nil, port, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: port, enable: true)
         return true
+    }
+
+    package func stop() {
+        guard let tap else { return }
+        setEnabled(false)
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        CFMachPortInvalidate(tap)
+        self.tap = nil
+        source = nil
     }
 
     package var isInstalled: Bool { tap != nil }

@@ -64,6 +64,65 @@ import Testing
         #expect(edited.changes(from: store.base).isEmpty)
     }
 
+    @Test func aSettingsSaveKeepsValuesTheSettingsTextCanNotHold() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": """
+        export default {
+          mod: [],
+          binds: [{ mods: ["alt"], key: "t", run: ["exec", "echo first\\necho second"] }],
+        }
+        """])
+        defer { folder.remove() }
+        let store = store(folder)
+        _ = store.load()
+        let shown = ConfigText(store.settingsText).config
+        var edited = shown
+        edited.windowMarginSize = 30
+
+        try store.save(settings: edited, shown: shown)
+
+        #expect(overrides(folder) == .object(["gaps": .object(["size": .int(30)])]))
+        let current = store.reload(.changed)
+        #expect(current.mainMod.isEmpty)
+        #expect(current.bindings.first?.arg == "echo first\necho second")
+    }
+
+    @Test func anUnreadableOverridesFileKeepsTheLastGoodConfig() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": "export default { gaps: { size: 8 } }\n"])
+        let file = folder.url.appendingPathComponent(ConfigStore.overridesName)
+        defer {
+            Log.attempt("unlock overrides") {
+                try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+            }
+            folder.remove()
+        }
+        let store = store(folder)
+        _ = store.load()
+        try store.set(option: ConfigOption.at(\Config.windowMarginSize), "20")
+        #expect(store.reload(.changed).windowMarginSize == 20)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: file.path)
+
+        #expect(store.reload(.changed).windowMarginSize == 20)
+        #expect(store.failures.first?.message == "CatWM can't read this file")
+    }
+
+    @Test(.timeLimit(.minutes(1))) func aConfigThatNeverFinishesDoesNotHoldUpCatWM() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": "export default { gaps: { size: 8 } }\n"])
+        defer { folder.remove() }
+        let store = store(folder)
+        _ = store.load()
+
+        try folder.write("catwm.config.ts", "while (true) {}\nexport default {}\n")
+        let started = Date()
+        let kept = store.reload(.all)
+
+        #expect(Date().timeIntervalSince(started) < ConfigStore.timeLimit + 1)
+        #expect(kept.windowMarginSize == 8)
+        #expect(store.failures.first?.message.hasPrefix("the config didn't finish within 3 s") == true)
+        try folder.write("catwm.config.ts", "export default { gaps: { size: 12 } }\n")
+        #expect(store.reload(.changed).windowMarginSize == 12)
+    }
+
     @Test func aSettingsSaveWritesOnlyWhatDiffersFromTheTypeScriptConfig() throws {
         let folder = try ConfigFolder(["catwm.config.ts": """
         export default {
@@ -74,12 +133,13 @@ import Testing
         defer { folder.remove() }
         let store = store(folder)
         _ = store.load()
-        var edited = ConfigText(store.settingsText).config
+        let shown = ConfigText(store.settingsText).config
+        var edited = shown
         #expect(edited.changes(from: store.current).isEmpty)
 
         edited.animate = false
         edited.bindings[0] = KeyBinding(keyCode: 31, mods: [.maskAlternate, .maskShift], dispatcher: "sort", arg: "")
-        try store.save(settings: edited)
+        try store.save(settings: edited, shown: shown)
 
         #expect(overrides(folder) == .object([
             "animation": .object(["enabled": .bool(false)]),

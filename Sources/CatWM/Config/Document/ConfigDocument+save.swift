@@ -11,7 +11,7 @@ extension ConfigDocument {
         let store = ConfigStore.shared
         do {
             if store.isScript {
-                try store.save(settings: ConfigText(text).config)
+                try store.save(settings: ConfigText(text).config, shown: shownConfig ?? store.current)
             } else {
                 try FileManager.default.createDirectory(at: Config.url.deletingLastPathComponent(),
                                                         withIntermediateDirectories: true)

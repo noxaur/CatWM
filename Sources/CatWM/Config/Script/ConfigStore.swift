@@ -8,6 +8,7 @@ final class ConfigStore {
     static let shared = ConfigStore(folder: Instance.configFolder, defaults: Instance.defaults)
 
     static let scriptName = "catwm.config.ts"
+    static let timeLimit = 3.0
     static let overridesName = "catwm.overrides.json"
 
     let folder: URL
@@ -44,20 +45,36 @@ final class ConfigStore {
         }
         source = .script
         writeTypes()
+        publish(evaluate(.all), notify: false)
+        return current
+    }
+
+    private func makeEngine() -> ConfigEngine {
         let scriptPath = scriptURL.path
-        let engine = ConfigEngine(entry: scriptURL) { value in
+        return ConfigEngine(entry: scriptURL) { value in
             var config = Config()
             return ConfigScript.read(value, into: &config, file: scriptPath)
         }
+    }
+
+    private func evaluate(_ pass: ConfigEngine.Pass) -> ConfigEngine.Run {
+        let engine = engine ?? makeEngine()
         self.engine = engine
-        publish(engine.run(.all), notify: false)
-        return current
+        return engine.run(pass, timeout: Self.timeLimit) ?? stuck(engine)
+    }
+
+    private func stuck(_ engine: ConfigEngine) -> ConfigEngine.Run {
+        if self.engine === engine { self.engine = nil }
+        let message = "the config didn't finish within \(Int(Self.timeLimit)) s, so CatWM stopped waiting. "
+            + "Look for an endless loop, save, and restart CatWM to free the stuck thread"
+        return ConfigEngine.Run(value: nil, failures: [ConfigDiagnostic(file: scriptURL.path, phase: .evaluate,
+                                                                         message: message)], isStuck: true)
     }
 
     func reload(_ pass: ConfigEngine.Pass) -> Config {
         guard isLoaded else { return load() }
-        guard source == .script, let engine else { return loadConf() }
-        publish(engine.run(pass), notify: false)
+        guard source == .script else { return loadConf() }
+        publish(evaluate(pass), notify: false)
         return current
     }
 
@@ -89,8 +106,21 @@ final class ConfigStore {
             return name == Self.overridesName || (name.hasSuffix(".ts") && !name.hasSuffix(".d.ts"))
                 || name.hasSuffix(".js")
         }
-        guard relevant, let engine else { return }
-        engine.run(.changed) { run in DispatchQueue.main.async { [weak self] in self?.publish(run, notify: true) } }
+        guard relevant else { return }
+        let engine = engine ?? makeEngine()
+        self.engine = engine
+        var finished = false
+        engine.run(.changed) { run in
+            DispatchQueue.main.async { [weak self] in
+                finished = true
+                guard let self, self.engine === engine else { return }
+                publish(run, notify: true)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.timeLimit) { [weak self] in
+            guard let self, !finished, self.engine === engine else { return }
+            publish(stuck(engine), notify: true)
+        }
     }
 
     private func publish(_ run: ConfigEngine.Run, notify: Bool) {
@@ -102,7 +132,10 @@ final class ConfigStore {
         let overrides = readOverrides()
         let problems = overrides.problems
             + ConfigScript.read(.object(overrides.value), into: &current, file: overridesURL.path)
-        if problems.isEmpty {
+        if run.isStuck, hasPublished {
+            base = self.base
+            current = self.current
+        } else if problems.isEmpty {
             hasPublished = true
         } else {
             failures += problems
@@ -130,7 +163,9 @@ final class ConfigStore {
             Log.info("config: ran \(names.joined(separator: ", ")) (\(count)) in \(time)")
         }
         watcher?.watch(folders)
-        if notify { onChange?(current) }
+        guard notify else { return }
+        onChange?(current)
+        NotificationCenter.default.post(name: .configStoreChanged, object: self)
     }
 
     private func prepareScript() -> [ConfigDiagnostic] {
@@ -172,7 +207,9 @@ final class ConfigStore {
         } catch {
             return fail(error.localizedDescription)
         }
-        let run = ConfigEngine(entry: trial).run(.all)
+        guard let run = ConfigEngine(entry: trial).run(.all, timeout: Self.timeLimit) else {
+            return fail("the converted config didn't finish")
+        }
         if let failure = run.failures.first { return fail(failure.message) }
         var config = Config()
         if let problem = run.value.map({ ConfigScript.read($0, into: &config, file: nil) })?.first {
@@ -229,7 +266,23 @@ extension ConfigStore {
         try writeOverrides(overrides)
     }
 
-    func save(settings edited: Config) throws {
+    func save(settings edited: Config, shown: Config) throws {
+        var merged = current
+        for option in Options.all where option.text(edited) != option.text(shown) { option.copy(&merged, edited) }
+        if edited.layouts != shown.layouts { merged.layouts = edited.layouts }
+        if edited.floating != shown.floating { merged.floating = edited.floating }
+        if edited.mainMod != shown.mainMod { merged.mainMod = edited.mainMod }
+        if edited.changes(from: shown).contains("bindings") {
+            let aligned = shown.bindings.count == current.bindings.count
+            merged.bindings = edited.bindings.map { binding in
+                guard aligned, let index = shown.bindings.firstIndex(of: binding) else { return binding }
+                return current.bindings[index]
+            }
+        }
+        try writeOverrides(overrides(merged))
+    }
+
+    private func overrides(_ edited: Config) -> [String: JSON] {
         var overrides: [String: JSON] = [:]
         for option in Options.all where option.text(edited) != option.text(base) {
             ConfigScript.set(ConfigScript.json(option, in: edited), at: option.script, in: &overrides)
@@ -245,7 +298,7 @@ extension ConfigStore {
             overrides["binds"] = binds.binds
             overrides["submaps"] = binds.submaps
         }
-        try writeOverrides(overrides)
+        return overrides
     }
 
     func resetOverride(_ path: String?) throws {
@@ -277,7 +330,11 @@ extension ConfigStore {
     private static let settingsMod = "$__catwm_main_mod"
 
     private func readOverrides() -> (value: [String: JSON], problems: [ConfigDiagnostic]) {
-        guard let data = try? Data(contentsOf: overridesURL) else { return ([:], []) }
+        guard FileManager.default.fileExists(atPath: overridesURL.path) else { return ([:], []) }
+        guard let data = try? Data(contentsOf: overridesURL) else {
+            let problem = ConfigDiagnostic(file: overridesURL.path, phase: .read, message: "CatWM can't read this file")
+            return ([:], [problem])
+        }
         guard let object = JSON.parse(data)?.object else {
             return ([:], [ConfigDiagnostic(file: overridesURL.path, phase: .read,
                                            message: "isn't a JSON object, so CatWM leaves it out")])
@@ -301,4 +358,8 @@ extension ConfigStore {
 struct ConfigError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
+}
+
+extension Notification.Name {
+    static let configStoreChanged = Notification.Name("CatWM.configStoreChanged")
 }

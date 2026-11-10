@@ -17,8 +17,8 @@
 
 ## Errors
 
-A failure is a `ConfigDiagnostic`: file, line, phase (`read`, `resolve`, `transform`, `evaluate`, `validate`, `migrate`) and message. `ConfigStore.failures` holds the last failure until a good save. The menu bar menu shows it, and `config.reloaded` sends every diagnostic in `errors`.
+A failure is a `ConfigDiagnostic`: file, line, phase (`read`, `resolve`, `transform`, `evaluate`, `validate`, `migrate`) and message. `ConfigStore.failures` holds the last failure until a good save. A run that takes longer than `ConfigStore.timeLimit` (3 s), such as an endless loop, counts as a failure: CatWM stops waiting, keeps the last good config and starts a new engine for the next save. JavaScriptCore has no public API to stop a running script, so the old thread keeps running until CatWM quits. The menu bar menu shows it, and `config.reloaded` sends every diagnostic in `errors`.
 
 ## Settings
 
-Settings and `config.set` never write the TypeScript file. `ConfigDocument` edits `ConfigStore.settingsText`, and a save writes the values that differ from the TypeScript config (`ConfigStore.base`) as overrides. Settings → General lists the overrides and drops one with **Use File Value**. Saved presets in `configs.json` keep their `.conf` text and apply through the same path.
+Settings and `config.set` never write the TypeScript file. `ConfigDocument` edits `ConfigStore.settingsText` and reloads it after each save of the TypeScript config. A Settings save takes only what changed from the text it loaded, puts it on the running config, and writes the values that differ from the TypeScript config (`ConfigStore.base`) as overrides. So a value that the `.conf` text can't hold, such as a command with a line break, keeps its TypeScript value. Settings → General lists the overrides and drops one with **Use File Value**. Saved presets in `configs.json` keep their `.conf` text and apply through the same path.

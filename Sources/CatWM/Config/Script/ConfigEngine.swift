@@ -13,6 +13,7 @@ final class ConfigEngine {
         var files: [URL] = []
         var failures: [ConfigDiagnostic] = []
         var isNew = false
+        var isStuck = false
         var milliseconds = 0.0
     }
 
@@ -34,15 +35,23 @@ final class ConfigEngine {
         thread.stop()
     }
 
-    func run(_ pass: Pass) -> Run {
-        var result = Run()
+    func run(_ pass: Pass) -> Run { run(pass, timeout: .infinity) ?? Run() }
+
+    func run(_ pass: Pass, timeout: TimeInterval) -> Run? {
+        final class Box {
+            let lock = NSLock()
+            var run: Run?
+        }
+        let box = Box()
         let done = DispatchSemaphore(value: 0)
         thread.perform {
-            result = self.evaluate(pass)
+            let run = self.evaluate(pass)
+            box.lock.withLock { box.run = run }
             done.signal()
         }
-        done.wait()
-        return result
+        let deadline: DispatchTime = timeout.isFinite ? .now() + timeout : .distantFuture
+        guard done.wait(timeout: deadline) == .success else { return nil }
+        return box.lock.withLock { box.run }
     }
 
     func run(_ pass: Pass, then finish: @escaping (Run) -> Void) {
@@ -85,7 +94,8 @@ final class ConfigEngine {
         let problems = check(next)
         if !problems.isEmpty {
             registry.invokeMethod("rollback", withArguments: [])
-            return Run(value: value, ran: ran, files: files, failures: problems)
+            let tried = (result["files"]?.array ?? []).compactMap(\.string).map { URL(fileURLWithPath: $0) }
+            return Run(value: value, ran: ran, files: files + tried.filter { !files.contains($0) }, failures: problems)
         }
         let isNew = next != value
         value = next

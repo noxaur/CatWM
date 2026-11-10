@@ -131,11 +131,10 @@ extension MigrationReader {
         let mods = flags.flatMap { flags in
             flags.isEmpty ? nil : ConfigScript.mods.filter { flags.contains($0.flag) }.map(\.name)
         }
-        variables.removeAll { $0.name == name }
         variables.append(MigrationVariable(name: name, identifier: identifier(name), value: value, mods: mods))
         comments += comment
         if !comments.isEmpty {
-            variableComments[name] = comments
+            variableComments[variables[variables.count - 1].identifier] = comments
             comments = []
         }
     }
@@ -148,8 +147,14 @@ extension MigrationReader {
                                      "while", "with", "let", "static", "yield", "await", "enum"]
         var text = String(name.dropFirst()).map { $0.isLetter || $0.isNumber || $0 == "_" ? String($0) : "_" }.joined()
         if text.first?.isNumber == true { text = "_" + text }
-        let taken = Set(variables.filter { $0.name != name }.map(\.identifier))
-        return text.isEmpty || reserved.contains(text) || taken.contains(text) ? name : text
+        if text.isEmpty || reserved.contains(text) { text = "_" + text }
+        let taken = Set(variables.map(\.identifier))
+        var candidate = text, number = 2
+        while taken.contains(candidate) {
+            candidate = text + String(number)
+            number += 1
+        }
+        return candidate
     }
 
     private mutating func bind(_ kind: String, value: String, expanded: String, raw line: String, comment: [String]) {
@@ -191,7 +196,9 @@ extension MigrationReader {
     }
 
     private func argLiteral(raw: String, expanded: String) -> String {
-        let used = variables.filter { $0.mods == nil && raw.contains($0.name) }
+        let names = Set(variables.map(\.name))
+        let used = names.compactMap { name in variables.last { $0.name == name } }
+            .filter { $0.mods == nil && raw.contains($0.name) }
         guard !used.isEmpty else { return ConfigScript.quoted(expanded) }
         var text = raw.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "`", with: "\\`")
             .replacingOccurrences(of: "${", with: "\\${")
@@ -204,7 +211,7 @@ extension MigrationReader {
     func render(header: [String]) -> String {
         var out = header + ["import type { Config } from \"./catwm\"", ""]
         for variable in variables {
-            out += variableComments[variable.name] ?? []
+            out += variableComments[variable.identifier] ?? []
             let value = variable.mods.map { mods in
                 mods.count == 1 ? ConfigScript.quoted(mods[0])
                     : "[" + mods.map(ConfigScript.quoted).joined(separator: ", ") + "] as const"
@@ -214,7 +221,8 @@ extension MigrationReader {
         if !variables.isEmpty { out.append("") }
         out.append("export default {")
         var entries: [MigrationEntry] = []
-        if let mod = variables.first(where: { $0.name.lowercased().contains("mod") && $0.mods != nil }) {
+        if let first = variables.first(where: { $0.name.lowercased().contains("mod") && $0.mods != nil }),
+           let mod = variables.last(where: { $0.name == first.name && $0.mods != nil }) {
             entries.append(.leaf(key: "mod", value: mod.identifier, comments: []))
         }
         let split = paths.contains { $0.path.hasPrefix("padding.") }

@@ -62,4 +62,18 @@ import Testing
         #expect(result.source.contains("  submaps: {\n    resize: ["))
         #expect(result.source.contains("      { key: \"escape\", run: [\"submap\", \"reset\"] },"))
     }
+
+    @Test func aReassignedVariableKeepsTheValueOfEachBind() throws {
+        let conf = """
+        $app = Safari
+        bind = ALT, s, exec, open -a $app
+        $app = Mail
+        bind = ALT, m, exec, open -a $app
+        """
+        let result = try migrated(conf)
+
+        #expect(result.diagnostics.isEmpty)
+        #expect(result.config.changes(from: Config.parse(conf)).isEmpty)
+        #expect(result.source.contains("const app = \"Safari\"\nconst app2 = \"Mail\""))
+    }
 }

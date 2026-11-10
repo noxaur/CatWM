@@ -120,6 +120,11 @@ final class ConfigEngine {
             }
             return JSValue(object: path, in: JSContext.current())
         }
+        let candidate: @convention(block) (String, String) -> JSValue = { from, specifier in
+            let base = URL(fileURLWithPath: from).deletingLastPathComponent()
+            let path = URL(fileURLWithPath: specifier, relativeTo: base).standardizedFileURL.path
+            return JSValue(object: path, in: JSContext.current())
+        }
         let compile: @convention(block) (String, String) -> JSValue? = { path, code in
             JSContext.current()?.evaluateScript("(function (exports, require, module) {" + code + "\n})",
                                                 withSourceURL: URL(fileURLWithPath: path))
@@ -128,6 +133,7 @@ final class ConfigEngine {
         host?.setValue(read, forProperty: "read")
         host?.setValue(resolve, forProperty: "resolve")
         host?.setValue(compile, forProperty: "compile")
+        host?.setValue(candidate, forProperty: "candidate")
         context.globalObject.setValue(host, forProperty: "catwmHost")
         context.evaluateScript(sucrase, withSourceURL: URL(fileURLWithPath: "sucrase.js"))
         context.evaluateScript(ConfigRuntime.source, withSourceURL: URL(fileURLWithPath: "catwm-registry.js"))

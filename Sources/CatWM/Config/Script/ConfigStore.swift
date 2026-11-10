@@ -132,7 +132,7 @@ final class ConfigStore {
         let overrides = readOverrides()
         let problems = overrides.problems
             + ConfigScript.read(.object(overrides.value), into: &current, file: overridesURL.path)
-        if run.isStuck, hasPublished {
+        if hasPublished, run.isStuck || run.value == nil {
             base = self.base
             current = self.current
         } else if problems.isEmpty {
@@ -266,17 +266,29 @@ extension ConfigStore {
         try writeOverrides(overrides)
     }
 
-    func save(settings edited: Config, shown: Config) throws {
+    struct SettingsCopy {
+        let text: String
+        let shown: Config
+        let source: Config
+    }
+
+    var settingsCopy: SettingsCopy {
+        let text = settingsText
+        return SettingsCopy(text: text, shown: ConfigText(text).config, source: current)
+    }
+
+    func save(settings edited: Config, from copy: SettingsCopy) throws {
+        let shown = copy.shown
         var merged = current
         for option in Options.all where option.text(edited) != option.text(shown) { option.copy(&merged, edited) }
         if edited.layouts != shown.layouts { merged.layouts = edited.layouts }
         if edited.floating != shown.floating { merged.floating = edited.floating }
         if edited.mainMod != shown.mainMod { merged.mainMod = edited.mainMod }
         if edited.changes(from: shown).contains("bindings") {
-            let aligned = shown.bindings.count == current.bindings.count
+            let aligned = shown.bindings.count == copy.source.bindings.count
             merged.bindings = edited.bindings.map { binding in
                 guard aligned, let index = shown.bindings.firstIndex(of: binding) else { return binding }
-                return current.bindings[index]
+                return copy.source.bindings[index]
             }
         }
         try writeOverrides(overrides(merged))

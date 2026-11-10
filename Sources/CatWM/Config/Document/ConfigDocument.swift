@@ -18,7 +18,7 @@ final class ConfigDocument: ObservableObject {
     var unreadable = false
     var autosave: AnyCancellable?
     var comboCache: ComboCache?
-    var shownConfig: Config?
+    var settingsCopy: ConfigStore.SettingsCopy?
     var storeObserver: NSObjectProtocol?
 
     static let modifierChoices: [(value: String, label: String)] = [

@@ -74,11 +74,11 @@ import Testing
         defer { folder.remove() }
         let store = store(folder)
         _ = store.load()
-        let shown = ConfigText(store.settingsText).config
-        var edited = shown
+        let copy = store.settingsCopy
+        var edited = copy.shown
         edited.windowMarginSize = 30
 
-        try store.save(settings: edited, shown: shown)
+        try store.save(settings: edited, from: copy)
 
         #expect(overrides(folder) == .object(["gaps": .object(["size": .int(30)])]))
         let current = store.reload(.changed)
@@ -119,8 +119,32 @@ import Testing
         #expect(Date().timeIntervalSince(started) < ConfigStore.timeLimit + 1)
         #expect(kept.windowMarginSize == 8)
         #expect(store.failures.first?.message.hasPrefix("the config didn't finish within 3 s") == true)
+        try folder.write("catwm.config.ts", "export default { gaps: { size: \"wide\" } }\n")
+        #expect(store.reload(.changed).windowMarginSize == 8)
         try folder.write("catwm.config.ts", "export default { gaps: { size: 12 } }\n")
         #expect(store.reload(.changed).windowMarginSize == 12)
+    }
+
+    @Test func aSettingsSaveFromAnOlderCopyKeepsBindsTheFileMoved() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": """
+        export default { binds: [{ mods: ["alt"], key: "a", run: "sort" }, { mods: ["alt"], key: "b", run: "retile" }] }
+        """])
+        defer { folder.remove() }
+        let store = store(folder)
+        _ = store.load()
+        let copy = store.settingsCopy
+        var edited = copy.shown
+        edited.bindings[0] = KeyBinding(keyCode: 8, mods: .maskAlternate, dispatcher: "sort", arg: "")
+        try folder.write("catwm.config.ts", """
+        export default { binds: [{ mods: ["alt"], key: "b", run: "retile" }, { mods: ["alt"], key: "a", run: "sort" }] }
+        """)
+        _ = store.reload(.changed)
+
+        try store.save(settings: edited, from: copy)
+
+        let binds = store.reload(.changed).bindings
+        #expect(binds.map(\.keyCode) == [8, 11])
+        #expect(binds.map(\.dispatcher) == ["sort", "retile"])
     }
 
     @Test func aSettingsSaveWritesOnlyWhatDiffersFromTheTypeScriptConfig() throws {
@@ -133,13 +157,13 @@ import Testing
         defer { folder.remove() }
         let store = store(folder)
         _ = store.load()
-        let shown = ConfigText(store.settingsText).config
-        var edited = shown
+        let copy = store.settingsCopy
+        var edited = copy.shown
         #expect(edited.changes(from: store.current).isEmpty)
 
         edited.animate = false
         edited.bindings[0] = KeyBinding(keyCode: 31, mods: [.maskAlternate, .maskShift], dispatcher: "sort", arg: "")
-        try store.save(settings: edited, shown: shown)
+        try store.save(settings: edited, from: copy)
 
         #expect(overrides(folder) == .object([
             "animation": .object(["enabled": .bool(false)]),

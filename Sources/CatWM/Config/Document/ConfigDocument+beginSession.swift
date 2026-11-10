@@ -63,9 +63,9 @@ extension ConfigDocument {
         let store = ConfigStore.shared
         if store.isScript {
             unreadable = false
-            let text = store.settingsText
-            apply(text: text)
-            shownConfig = ConfigText(text).config
+            let copy = store.settingsCopy
+            apply(text: copy.text)
+            settingsCopy = copy
             fileErrors = store.current.errors
             overrides = store.overriddenPaths
             savedText = serialize()

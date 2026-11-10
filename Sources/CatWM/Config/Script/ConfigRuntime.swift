@@ -34,7 +34,11 @@ enum ConfigRuntime {
         ran.push(path);
         entry.factory.call(undefined, record.module.exports, (specifier) => {
           const target = catwmHost.resolve(path, String(specifier));
-          if (typeof target !== "string") throw fail("resolve", path, null, `can't find the module "${specifier}"`);
+          if (typeof target !== "string") {
+            const candidate = catwmHost.candidate(path, String(specifier));
+            if (typeof candidate === "string" && !touched.includes(candidate)) touched.push(candidate);
+            throw fail("resolve", path, null, `can't find the module "${specifier}"`);
+          }
           if (!record.deps.includes(target)) record.deps.push(target);
           return load(target);
         }, record.module);

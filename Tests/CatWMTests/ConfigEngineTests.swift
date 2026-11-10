@@ -130,4 +130,17 @@ struct ConfigFolder {
         #expect(run.failures.first?.phase == .transform)
         #expect(run.files.map(\.lastPathComponent).sorted() == ["catwm.config.ts", "gaps.ts"])
     }
+
+    @Test func aMissingImportIsWatchedUntilItExists() throws {
+        let folder = try ConfigFolder([
+            "catwm.config.ts": "import { size } from \"./shared/gaps\"\nexport default { gaps: { size } }\n",
+            "shared/other.ts": "export const other = 1\n"
+        ])
+        defer { folder.remove() }
+
+        let run = ConfigEngine(entry: folder.entry).run(.all)
+
+        #expect(run.failures.first?.phase == .resolve)
+        #expect(run.files.map { $0.deletingLastPathComponent().lastPathComponent }.contains("shared"))
+    }
 }

@@ -30,6 +30,36 @@ Two `@preconcurrency` imports remain. `CoreGraphics` in `tapCallback.swift`: tap
 
 Isolated `deinit` needs a newer runtime than the macOS 14 target. A main-actor owner that must close a panel or stop a clock when it goes away (`Animator`, `WindowResizeFill`) captures those objects and closes them in `DispatchQueue.main.async`, one main turn after release. `PermissionWatcher`, `DockArea`, `WindowResizeScene` and `TrafficLights` lost their `deinit`. Their owners stop or close the first three explicitly. `TrafficLights` removes its flags monitors in `viewDidMoveToWindow` when the view leaves its window.
 
+## A scoped instance ends with its scope
+
+An incident left two scoped test instances on the user's screen for over an hour. They were orphans (parent pid 1) whose `CATWM_SCOPE` was `pids:1`, and nothing ended them because the scope never exits. Two rules close this.
+
+**A scope with pid 1 is refused at start** (`WindowScope.refusal`, exit code 2). launchd never exits, so such an instance would never end, and no test owns launchd. A shell's `$PPID` becomes 1 once its parent dies, which is the likely way a test ends up with `pids:1`. The scope must name a process that the test owns, such as `$$`.
+
+**The instance quits when every pid of its scope has exited** (`ScopeLifetime`, started by `AppDelegate` before any window work). It watches each pid with a `DispatchSource` process source and checks once at start for a pid that is already gone, because a source on a dead pid never fires. The check reads `proc_pidinfo` and treats a zombie as gone, because `kill(pid, 0)` still succeeds for a zombie that its parent has not reaped. Quitting is `SIGTERM` to itself, which takes the normal path in `main.swift` (restore parked windows, remove the pid file and claim). The alternatives were a poll (a timer that wakes an idle app, which the perf budgets count) and reusing `ScopeClaims`' owner watches. `ScopeClaims` watches the owner of a claim for the other instances, not the pids inside a scope, and it exists only on the unscoped side. A scope that holds only apps the test launches ends the instance when those apps quit, so a harness that wants a longer life adds its own pid (`Tools/smoke.py` does).
+
+**Only the default instance relaunches itself** (`InstancePaths.mayRelaunchItself`). The Input Monitoring relaunch in `CapsLockChord` runs `open -n <bundle>`, and the crash watchdog in `CrashWatch` runs `open <bundle>`. Both start the bundle as the user's default app, so a named instance that took either path would leave an extra default CatWM behind. `open` does not pass the caller's environment on, so a relaunch never carried `CATWM_*` into `/Applications`. The danger was the extra default instance, so both paths now stay off for a named instance, scoped or not.
+
+## What a scoped instance can still reach
+
+Checked in code, no leak found. `restrict` turns Desktops off, so the Desktop slide, `DesktopGuardClient`, the wallpaper and menu bar covers, `WindowServerUpdates` leases in `moveNativeWindow`, native space moves and empty-Desktop removal never run. The commands that would start them are in `refusedCommands`. `restoreHiddenWindows` and parked-window restore iterate `windows`, which holds only scope pids, and the scanner drops other pids before the manager sees them, so cached AX elements belong to the scope. `GlobalInput` leaves out the event taps, Caps Lock, the pointer and the focus sink. What a scope without a display still draws on the user's screens is the next section's subject.
+
+## A scope with a display draws nothing on the user's screens
+
+`CATWM_SCOPE=...;display:<uuid>` makes the instance contained (`Instance.isContained`). Everything it draws goes to that display or is not drawn. One chokepoint for each kind of drawing, because patching every call site would miss the next one.
+
+- **Screens.** `NSScreen.userScreens` returns only the scope's display, and only for a contained instance. Before this, every CatWM process dropped every agent display from `userScreens`, so a scope naming one saw no screens at all. Mode effects, dimming and `Screen.all` read this one list.
+- **Panels.** Every panel is a `CatWMPanel`, which clamps its frame into the scope's display on each `setFrame`, `setFrameOrigin`, `setFrameTopLeftPoint` and each way of ordering it front. A display that is gone means the panel never shows. Callers keep choosing a screen with `NSScreen.main` or the pointer, so the clamp is what keeps a HUD or tab strip off the user's screen. The alternative, an audit of the 24 files that make panels, would break at the next new panel.
+- **Status item and menu.** No `NSStatusItem` is made. The status menu, the menu bar tip and the sort nudge anchor to it, so they have nothing to open from.
+- **Windows and prompts.** `SettingsWindow.show` (also reached by reopening the app), the update alert, onboarding, the design gallery and `PermissionGuide.show` do nothing. `PermissionGuide.show` is the single path for the Accessibility and other permission prompts. The unnamed-only surfaces (Tips, What's New, the updater, crash reports, the login item) were already off for any named instance.
+- **The focus sink** is never ordered front, because a scoped instance has no pointer or focus handling.
+
+An untrusted contained instance therefore just logs that it has no Accessibility permission. `ScopeLifetime` still ends it with its scope pids.
+
+## The perf app scenario on an agent display
+
+`Tools/perf.py` opens an agent display through the running user CatWM (`Sandbox`, one connection for the whole run) and scopes each instance with `;display:<uuid>`. All parallel runs share the display, since the instances manage no windows. The display belongs to the connection, so the kernel closes it if perf.py dies, and `ScopeLifetime` ends the instances with perf.py. With no CatWM socket, or one without `agent.open` (a build from before the agent display), CI keeps the old behaviour (scoped to its own pid on the real display, whose screen nobody watches) and says so. Anywhere else the script stops and asks for an agent display or `--skip-app`, because a fallback to the real display would put test instances on a developer's screen.
+
 ## An engine on a fake never reaches the user's input
 
 An engine built on `FakeBackend` must never reach the user's input: the perf tool, CI perf and `swift test` must not post a key, press the pointer, warp it or switch a Desktop. The engine reaches all of these through `WindowBackend`, and `RealInput` refuses the ones that skip it (see `fake-backend.md` for the decision and the alternative). The scope's `GlobalInput` was not enough: an unscoped manager has `pointerAndFocus` on, and a fake manager is unscoped.

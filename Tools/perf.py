@@ -5,14 +5,20 @@ The caps are for the device in budgets.json. A fixed benchmark (CatWMPerf calibr
 this machine is next to that device, and each CPU time in ms is scaled to that device before the check,
 so a faster or slower runner needs no new caps.
 
-Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. The runs go in parallel.
-Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
+Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
+slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
+check, the launch caches and a cold file cache), the calibration, then each run's engine scenarios and its app
+instance. CI gets its speed from
+three machines instead: each writes its samples with --json, and --merge scales each file by its own machine's speed
+and checks the merged rows. Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
 named instance `perf-<run>`, scoped to this process, so it manages no window. When a CatWM runs (a developer's
 Mac), the instances also go on a private agent display that it opens for this run, and they draw nothing on the
-real screens. Without one, CI runs them on the real display and says so, and anywhere else the script stops. The exit status is
+real screens. Without one, CI runs them on the real display and says so, and anywhere else the script stops. The idle
+window starts once macOS has finished measuring the launch, so it holds only CatWM's own idle work. The exit status is
 1 when a value is over its cap.
 
-    python3 Tools/perf.py [--runs N] [--out report.md] [--json samples.json]
+    python3 Tools/perf.py [--runs N] [--out report.md] [--json samples.json] [--no-check]
+    python3 Tools/perf.py --merge a.json b.json … [--out report.md]
 """
 import argparse
 import ctypes
@@ -25,19 +31,18 @@ import subprocess
 import sys
 import time
 import unittest
-from concurrent.futures import ThreadPoolExecutor
+from functools import cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "Clients/python"))
-from catwm import CatWMError  # noqa: E402
-from catwm.testing import Sandbox  # noqa: E402
 
 PERF = ROOT / ".build/release/CatWMPerf"
 APP = ROOT / "build/CatWM.app/Contents/MacOS/CatWM"
 BUDGETS = ROOT / "Tools/Perf/budgets.json"
-ENGINE_SCENARIOS = ["calibrate", "engine-idle", "engine-tile", "engine-actions", "config-load"]
-APP_LAUNCH_SECONDS, APP_IDLE_SECONDS = 5, 20
+ENGINE_SCENARIOS = ["engine-idle", "engine-tile", "engine-actions", "config-load"]
+APP_LAUNCH_SECONDS, APP_IDLE_SECONDS, APP_MEASURED_SECONDS = 5, 20, 20
+LAUNCH_MEASURED = ("ApplicationLaunchExtendedResponsive", "Bailing responsive launch check")
 
 libc = ctypes.CDLL(None)
 
@@ -46,9 +51,11 @@ class Timebase(ctypes.Structure):
     _fields_ = [("numer", ctypes.c_uint32), ("denom", ctypes.c_uint32)]
 
 
-timebase = Timebase()
-libc.mach_timebase_info(ctypes.byref(timebase))
-TICK_NS = timebase.numer / timebase.denom
+@cache
+def tick_ns():
+    timebase = Timebase()
+    libc.mach_timebase_info(ctypes.byref(timebase))
+    return timebase.numer / timebase.denom
 
 
 def usage(pid):
@@ -59,7 +66,7 @@ def usage(pid):
         raise OSError(f"proc_pid_rusage({pid}) failed")
     fields = buffer[2:]
     mb = 1024 * 1024
-    return {"cpu": (fields[0] + fields[1]) * TICK_NS / 1e6, "wakeups": fields[2],
+    return {"cpu": (fields[0] + fields[1]) * tick_ns() / 1e6, "wakeups": fields[2],
             "footprint": fields[7] / mb, "peak": fields[28] / mb}
 
 
@@ -72,6 +79,8 @@ def run_engine(scenario):
 
 def open_display():
     """Open an agent display through the running CatWM. Returns (sandbox, uuid), or (None, None) without one."""
+    from catwm import CatWMError
+    from catwm.testing import Sandbox
     try:
         sandbox = Sandbox(timeout=15)
     except (unittest.SkipTest, CatWMError, OSError) as error:
@@ -87,16 +96,33 @@ def scope(display):
     return f"pids:{os.getpid()}" + (f";display:{display}" if display else "")
 
 
+def launch_measured(pid, since):
+    """Whether macOS has logged the end of its launch measurement for pid. Reads the stored log, because a live
+    stream makes the process send each message as it logs it, which the idle rows would count."""
+    seconds = math.ceil(time.monotonic() - since) + 1
+    log = subprocess.run(["log", "show", "--last", f"{seconds}s", "--signpost", "--info", "--style", "compact",
+                          "--predicate", f'subsystem == "com.apple.app_launch_measurement" AND processID == {pid}'],
+                         capture_output=True, text=True).stdout
+    return any(marker in log for marker in LAUNCH_MEASURED)
+
+
 def run_app(run, display=None):
     env = {**os.environ, "CATWM_INSTANCE": f"perf-{run}", "CATWM_SCOPE": scope(display)}
+    started = time.monotonic()
     process = subprocess.Popen([str(APP)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     samples = {}
     try:
         time.sleep(APP_LAUNCH_SECONDS)
         if process.poll() is not None:
             sys.exit(f"perf: CatWM.app quit during launch with status {process.returncode}")
+        samples["app.launch.cpu"] = [usage(process.pid)["cpu"]]
+        while not launch_measured(process.pid, started):
+            if time.monotonic() - started >= APP_MEASURED_SECONDS:
+                print(f"perf: run {run} logged no end of the launch measurement in {APP_MEASURED_SECONDS} s",
+                      file=sys.stderr)
+                break
+            time.sleep(0.5)
         last = usage(process.pid)
-        samples["app.launch.cpu"] = [last["cpu"]]
         for _ in range(APP_IDLE_SECONDS):
             time.sleep(1)
             now = usage(process.pid)
@@ -112,6 +138,23 @@ def run_app(run, display=None):
         except subprocess.TimeoutExpired:
             process.kill()
     return samples
+
+
+def profile_app(display, out):
+    """Run one extra instance after the measured runs, with a verbose log, and sample its first idle seconds, so a
+    cost seen only on another machine has a stack and log lines. It adds to no row."""
+    env = {**os.environ, "CATWM_INSTANCE": "perf-profile", "CATWM_SCOPE": scope(display)}
+    process = subprocess.Popen([str(APP), "--verbose"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(APP_LAUNCH_SECONDS)
+        subprocess.run(["sample", str(process.pid), "8", "1", "-mayDie", "-file", str(out)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=60)
+    finally:
+        process.send_signal(signal.SIGTERM)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 def machine():
@@ -135,14 +178,19 @@ def number(value):
     return f"{value:,.0f}" if abs(value) >= 100 else f"{value:.2f}" if abs(value) >= 1 else f"{value:.3f}"
 
 
-def report(samples, budgets, runner):
+def report(shards, budgets):
+    """shards: (machine, samples) per machine. Each machine's ms rows are scaled by its own speed before the merge."""
     device = budgets["device"]
-    speed = device["calibrate"] / statistics.median(samples["calibrate.cpu"])
+    merged, runners = {}, []
+    for runner, samples in shards:
+        speed = device["calibrate"] / statistics.median(samples["calibrate.cpu"])
+        runners.append(f"{speed:.2f}×")
+        for metric, values in samples.items():
+            unit = budgets["rows"].get(metric, {}).get("unit")
+            merged.setdefault(metric, []).extend(value * speed if unit == "ms" else value for value in values)
     tables, failed = {}, []
     for metric, budget in budgets["rows"].items():
-        values = samples.get(metric)
-        if values and budget["unit"] == "ms":
-            values = [value * speed for value in values]
+        values = merged.get(metric)
         row = stats(values) if values else None
         ok = row is not None and row["p99"] <= budget["cap"]
         if not ok:
@@ -154,51 +202,67 @@ def report(samples, budgets, runner):
             cells = "| | **none**"
         tables.setdefault(budget["group"], []).append(
             f"| {budget['label']} | {cells} | ≤ {budget['cap']:,g} {budget['unit']} | {'✅' if ok else '❌'} |")
-    note = f"(as an {device['name']} · runner: {runner}, speed {speed:.2f}×)"
+    machines = sorted({runner for runner, _ in shards})
+    note = f"(as an {device['name']} · {'; '.join(machines)} · speed {', '.join(runners)})"
     lines = [f"### ✅ Performance {note}" if not failed else f"### ❌ Performance: {len(failed)} over the cap {note}"]
     for group, rows in tables.items():
         lines += ["", f"| {group} | Median | Mean | P99 | Cap | |", "|:--|:--|:--|:--|:--|:--|", *rows]
     return "\n".join([*lines, ""]), failed
 
 
+def measure(args):
+    sandbox, display = (None, None) if args.skip_app else open_display()
+    samples = {}
+
+    def add(result):
+        for metric, values in result.items():
+            samples.setdefault(metric, []).extend(values)
+    try:
+        for scenario in ENGINE_SCENARIOS:
+            run_engine(scenario)
+        if not args.skip_app:
+            run_app("warm", display)
+        for _ in range(args.runs):
+            add(run_engine("calibrate"))
+        for run in range(1, args.runs + 1):
+            for scenario in ENGINE_SCENARIOS:
+                add(run_engine(scenario))
+            if not args.skip_app:
+                add(run_app(run, display))
+            print(f"perf: run {run} done", file=sys.stderr)
+        if args.profile and not args.skip_app:
+            profile_app(display, args.profile)
+    finally:
+        if sandbox:
+            sandbox.close()
+    return samples
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--runs", type=int, default=5, help="runs of each scenario (default 5)")
     parser.add_argument("--out", type=Path, help="write the Markdown table to this file")
-    parser.add_argument("--json", type=Path, help="write the raw samples to this file")
+    parser.add_argument("--json", type=Path, help="write this machine and its raw samples to this file")
     parser.add_argument("--skip-app", action="store_true", help="measure only the engine scenarios")
+    parser.add_argument("--profile", type=Path, help="after the runs, sample one app instance into this file")
+    parser.add_argument("--no-check", action="store_true", help="exit 0 even when a row is over its cap")
+    parser.add_argument("--merge", type=Path, nargs="+", help="report the samples of these --json files")
     args = parser.parse_args()
 
     budgets = json.loads(BUDGETS.read_text())
-    if args.skip_app:
+    if args.merge:
+        shards = [(shard["machine"], shard["samples"]) for shard in (json.loads(path.read_text()) for path in args.merge)]
+    else:
+        shards = [(machine(), measure(args))]
+        if args.json:
+            args.json.write_text(json.dumps({"machine": shards[0][0], "samples": shards[0][1]}, indent=1, sort_keys=True))
+    if all(not any(metric.startswith("app.") for metric in samples) for _, samples in shards):
         budgets["rows"] = {key: value for key, value in budgets["rows"].items() if not key.startswith("app.")}
-    sandbox, display = (None, None) if args.skip_app else open_display()
-
-    def run(number):
-        results = [run_engine(scenario) for scenario in ENGINE_SCENARIOS]
-        if not args.skip_app:
-            results.append(run_app(number, display))
-        print(f"perf: run {number} done", file=sys.stderr)
-        return results
-
-    samples = {}
-    try:
-        with ThreadPoolExecutor(max_workers=args.runs) as pool:
-            for results in pool.map(run, range(1, args.runs + 1)):
-                for result in results:
-                    for metric, values in result.items():
-                        samples.setdefault(metric, []).extend(values)
-    finally:
-        if sandbox:
-            sandbox.close()
-
-    table, failed = report(samples, budgets, machine())
+    table, failed = report(shards, budgets)
     print(table)
     if args.out:
         args.out.write_text(table)
-    if args.json:
-        args.json.write_text(json.dumps(samples, indent=1, sort_keys=True))
-    sys.exit(1 if failed else 0)
+    sys.exit(1 if failed and not args.no_check else 0)
 
 
 if __name__ == "__main__":

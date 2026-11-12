@@ -14,6 +14,20 @@ struct Usage {
         return Double(base.numer) / Double(base.denom)
     }()
 
+    static func engineThread() -> Double {
+        var info = thread_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<thread_basic_info>.size / MemoryLayout<integer_t>.size)
+        let thread = mach_thread_self()
+        defer { mach_port_deallocate(mach_task_self_, thread) }
+        _ = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                thread_info(thread, thread_flavor_t(THREAD_BASIC_INFO), $0, &count)
+            }
+        }
+        let user = info.user_time, system = info.system_time
+        return Double(user.seconds + system.seconds) * 1000 + Double(user.microseconds + system.microseconds) / 1000
+    }
+
     static func now() -> Usage {
         var info = rusage_info_v4()
         withUnsafeMutablePointer(to: &info) { pointer in
@@ -110,9 +124,9 @@ struct Usage {
         }
         let start = Usage.now()
         for step in 0..<390 {
-            let before = Usage.now().cpu
+            let before = Usage.engineThread()
             await act(step)
-            record("engine.action.cpu", Usage.now().cpu - before)
+            record("engine.action.cpu", Usage.engineThread() - before)
         }
         record("engine.action.growth", (Usage.now().footprint - start.footprint) * 1024)
         guard writes > 0 else { fail("the actions moved no window") }

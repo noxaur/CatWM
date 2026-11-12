@@ -13,8 +13,10 @@ runs:
       run: sudo xcode-select -s /Applications/Xcode_27.2.app
     - shell: bash
       run: python3 Tools/stamp-mtimes.py
-    # A key per commit saves each build; the restore takes the newest one of this config.
-    - uses: actions/cache@v4
+    # Every run restores the newest build of its config, and every run but a PR saves its own. A PR
+    # builds a small diff from main, so its save would only cost upload time.
+    - id: cache
+      uses: actions/cache/restore@v4
       with:
         path: .build
         key: build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
@@ -23,3 +25,8 @@ runs:
           build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-
     - shell: bash
       run: CATWM_INSTANCE=ci ./build.sh ${{ inputs.config == 'debug' && '--dev' || '' }}
+    - if: github.event_name != 'pull_request' && steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: .build
+        key: ${{ steps.cache.outputs.cache-primary-key }}

@@ -1,0 +1,25 @@
+name: build
+description: Build CatWM on a macOS runner from a cached .build that compiles only what changed.
+
+inputs:
+  config:
+    description: "debug or release"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: sudo xcode-select -s /Applications/Xcode_27.2.app
+    - shell: bash
+      run: python3 Tools/stamp-mtimes.py
+    # A key per commit saves each build; the restore takes the newest one of this config.
+    - uses: actions/cache@v4
+      with:
+        path: .build
+        key: build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+        restore-keys: |
+          build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-
+          build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-
+    - shell: bash
+      run: CATWM_INSTANCE=ci ./build.sh ${{ inputs.config == 'debug' && '--dev' || '' }}

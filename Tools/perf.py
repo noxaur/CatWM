@@ -6,7 +6,9 @@ this machine is next to that device, and each CPU time in ms is scaled to that d
 so a faster or slower runner needs no new caps.
 
 Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
-slows another: the calibration first, then each run's engine scenarios and its app instance. CI gets its speed from
+slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
+check, the launch caches and a cold file cache), the calibration, then each run's engine scenarios and its app
+instance. CI gets its speed from
 three machines instead: each writes its samples with --json, and --merge scales each file by its own machine's speed
 and checks the merged rows. Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
 named instance `perf-<run>`, scoped to this process, so it manages no window. When a CatWM runs (a developer's
@@ -215,9 +217,13 @@ def measure(args):
     def add(result):
         for metric, values in result.items():
             samples.setdefault(metric, []).extend(values)
-    for _ in range(args.runs):
-        add(run_engine("calibrate"))
     try:
+        for scenario in ENGINE_SCENARIOS:
+            run_engine(scenario)
+        if not args.skip_app:
+            run_app("warm", display)
+        for _ in range(args.runs):
+            add(run_engine("calibrate"))
         for run in range(1, args.runs + 1):
             for scenario in ENGINE_SCENARIOS:
                 add(run_engine(scenario))

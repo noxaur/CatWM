@@ -63,8 +63,9 @@ jobs:
       - id: perf
         continue-on-error: true
         run: |
-          test "$(ls shards/perf-*/perf.json | wc -l)" -eq 3 || { echo "perf: a machine wrote no samples" >&2; exit 1; }
-          python3 Tools/perf.py --merge shards/perf-*/perf.json --out perf.md
+          files=$(find shards -name perf.json)
+          test "$(echo "$files" | grep -c .)" -eq 3 || { echo "perf: a machine wrote no samples: $files" >&2; exit 1; }
+          python3 Tools/perf.py --merge $files --out perf.md
       - if: always() && hashFiles('perf.md') != ''
         run: cat perf.md >> "$GITHUB_STEP_SUMMARY"
       - if: always() && hashFiles('perf.md') != ''

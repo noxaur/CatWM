@@ -11,10 +11,8 @@ Thank you for your help. This page tells you how to set up, check and submit a c
 ## Build and run
 
 - `./build.sh --dev` makes a fast debug build in `build/CatWM.app`. Use it while you work. It takes a few seconds, not approximately a minute.
-- `./build.sh` makes a release build. Do not ship a `--dev` build.
 - `open build/CatWM.app` starts the app.
-- `./install.sh` installs a beta build to `/Applications/CatWM.app` and opens it. Add `--stable` to remove the beta channel marker.
-- The app is ad-hoc signed. Each rebuild cancels its Accessibility permission. CatWM shows ⚠️ in the menu bar and opens Settings. Click **Reset Permission**, then turn CatWM on again.
+- `./install.sh` installs a public beta build to `/Applications/CatWM.app` and opens it. Add `--stable` to remove the beta channel marker.
 
 ### Launch arguments
 

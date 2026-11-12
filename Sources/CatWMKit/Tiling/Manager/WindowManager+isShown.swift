@@ -140,7 +140,7 @@ extension WindowManager {
         let observation = WorkspaceObservation(
             displays: screens.map {
                 .init(id: $0.uuid, frame: $0.frame, space: backend.currentSpace(display: $0.uuid),
-                      spaces: Set(Spaces.list(display: $0.uuid)?.ids ?? []))
+                      spaces: Set(Spaces.recentList(display: $0.uuid)?.ids ?? []))
             },
             frames: windows.mapValues(\.cachedFrame), present: present,
             held: held ? present : nativeMoves.movingIDs.union(present.filter { animator.isBusy($0) }),

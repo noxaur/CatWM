@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import os
 
 package enum Spaces {
     package static var canMoveWindows: Bool {
@@ -79,10 +80,51 @@ package enum Spaces {
         }
     }
 
+    package struct Remembered {
+        package static let maxAge: TimeInterval = 0.1
+        private var held: Snapshot?
+        private var readAt: TimeInterval = 0
+        private var lists: [String: DisplaySpaces?] = [:]
+
+        package mutating func remember(_ snapshot: Snapshot?, at now: TimeInterval) {
+            held = snapshot
+            readAt = now
+            lists = [:]
+        }
+
+        package func fresh(at now: TimeInterval) -> Snapshot? {
+            now - readAt < Self.maxAge ? held : nil
+        }
+
+        package mutating func list(display uuid: String, at now: TimeInterval) -> DisplaySpaces?? {
+            guard let snapshot = fresh(at: now) else { return nil }
+            if let known = lists[uuid] { return known }
+            let built = snapshot.list(display: uuid)
+            lists[uuid] = .some(built)
+            return .some(built)
+        }
+    }
+
+    private static let remembered = OSAllocatedUnfairLock(uncheckedState: Remembered())
+
     package static func snapshot() -> Snapshot? {
-        guard let conn, let copySpaces,
-              let arr = copySpaces(conn())?.takeRetainedValue() as? [[String: Any]] else { return nil }
-        return Snapshot(displays: arr)
+        let read: Snapshot?
+        if let conn, let copySpaces, let arr = copySpaces(conn())?.takeRetainedValue() as? [[String: Any]] {
+            read = Snapshot(displays: arr)
+        } else {
+            read = nil
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        remembered.withLockUnchecked { $0.remember(read, at: now) }
+        return read
+    }
+
+    package static func recentList(display uuid: String) -> DisplaySpaces? {
+        let now = ProcessInfo.processInfo.systemUptime
+        if let known = remembered.withLockUnchecked({ $0.list(display: uuid, at: now) }) { return known }
+        _ = snapshot()
+        guard let read = remembered.withLockUnchecked({ $0.list(display: uuid, at: now) }) else { return nil }
+        return read
     }
 
     package static func list(display uuid: String) -> DisplaySpaces? { snapshot()?.list(display: uuid) }

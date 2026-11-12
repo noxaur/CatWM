@@ -26,7 +26,7 @@ Here is a overview of what key binds are available within window mode. (This is 
   <img src="docs/assets/readme/window-mode-keys.png" width="760" alt="The keys available in window mode">
   <img src="docs/assets/readme/window-mode-keys-shift.png" width="760" alt="The keys available in window mode while shift is held">
 </p>
-<sub>Help wanted with this ui!</sub>
+<sub>↑Help wanted with this ui!↑</sub>
 
 ### Workspaces
 

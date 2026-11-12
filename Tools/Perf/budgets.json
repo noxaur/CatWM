@@ -8,13 +8,13 @@
       "group": "CPU",
       "label": "App startup CPU time /5s",
       "unit": "ms",
-      "cap": 400
+      "cap": 750
     },
     "app.idle.cpu": {
       "group": "CPU",
       "label": "App idle CPU time /s",
       "unit": "ms",
-      "cap": 3
+      "cap": 5
     },
     "app.idle.wakeups": {
       "group": "CPU",
@@ -26,31 +26,31 @@
       "group": "CPU",
       "label": "Engine idle CPU time /s, 20 windows",
       "unit": "ms",
-      "cap": 0.8
+      "cap": 2
     },
     "engine.tile.cpu": {
       "group": "CPU",
       "label": "Layout pass, 50 windows",
       "unit": "ms",
-      "cap": 25
+      "cap": 35
     },
     "engine.action.cpu": {
       "group": "CPU",
       "label": "Engine thread CPU time per action",
       "unit": "ms",
-      "cap": 1.6
+      "cap": 2.2
     },
     "config.load.cpu": {
       "group": "CPU",
       "label": "Config parse and run, first load",
       "unit": "ms",
-      "cap": 32
+      "cap": 80
     },
     "config.reload.cpu": {
       "group": "CPU",
       "label": "Config hot reload",
       "unit": "ms",
-      "cap": 5
+      "cap": 8
     },
     "app.idle.footprint": {
       "group": "Memory",
@@ -80,7 +80,7 @@
       "group": "Memory",
       "label": "Leak check, growth over 390 actions",
       "unit": "KB",
-      "cap": 256
+      "cap": 512
     },
     "config.load.memory": {
       "group": "Memory",

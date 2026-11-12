@@ -116,7 +116,7 @@ import Testing
         manager.windows = [31: Window(id: 31, element: AXUIElementCreateApplication(4242), pid: 4242, bundleID: nil)]
         let (changes, change) = AsyncStream.makeStream(of: Void.self)
         var changed = changes.makeAsyncIterator()
-        scanner.watchClaims { change.yield() }
+        scanner.watchClaims { _ in change.yield() }
 
         try paths.writeClaim(ScopeClaim(owner: 1, scope: WindowScope(pids: [4242])))
         await changed.next()
@@ -149,7 +149,7 @@ import Testing
         let scanner = claimedScanner(ScopeClaims(folder: paths.instancesFolder))
         let (changes, change) = AsyncStream.makeStream(of: Void.self)
         var changed = changes.makeAsyncIterator()
-        scanner.watchClaims { change.yield() }
+        scanner.watchClaims { _ in change.yield() }
         await scanDesktop(scanner)
         #expect(!scanner.keeps(4242))
 
@@ -192,17 +192,36 @@ import Testing
         #expect(handles(to: paths.instancesFolder) == 0)
     }
 
-    @Test func aFolderChangeWithoutAClaimChangeStartsNoScan() throws {
+    @Test func aFolderChangeWithoutAClaimChangeStartsNoScan() async throws {
         let paths = try #require(InstancePaths(id: "plain", home: folder))
         let claims = ScopeClaims(folder: paths.instancesFolder, alive: { _ in true })
-        let scans = OSAllocatedUnfairLock(initialState: 0)
-        claims.watch { scans.withLock { $0 += 1 } }
+        let (changes, change) = AsyncStream.makeStream(of: Set<pid_t>.self)
+        var changed = changes.makeAsyncIterator()
+        claims.watch { change.yield($0) }
+        defer { claims.stop() }
         try FileManager.default.createDirectory(at: paths.configFolder, withIntermediateDirectories: true)
         try Data("1".utf8).write(to: paths.pidFile, options: .atomic)
         claims.folderChanged()
-        #expect(scans.withLock { $0 } == 0)
         try paths.writeClaim(ScopeClaim(owner: 1, scope: WindowScope(pids: [10])))
         claims.folderChanged()
-        #expect(scans.withLock { $0 } == 1)
+        #expect(await changed.next() == [10])
+        try paths.writeClaim(ScopeClaim(owner: 1, scope: WindowScope(pids: [10, 11])))
+        claims.folderChanged()
+        #expect(await changed.next() == [11])
+    }
+
+    @Test func aClaimOfAProcessThatIsNoAppStartsNoRefreshButAHeldOrRunningAppDoes() throws {
+        let manager = WindowManager(config: Config(), scanner: WindowScanner(readDesktop: { _ in
+            WindowServerObservation()
+        }, readApplications: { [] }))
+        manager.claimsChanged([999_999])
+        #expect(manager.refreshWork == nil)
+        manager.observing[4242] = UUID()
+        manager.claimsChanged([999_999, 4242])
+        #expect(manager.refreshWork != nil)
+        manager.refreshWork = nil
+        let app = try #require(NSWorkspace.shared.runningApplications.first)
+        manager.claimsChanged([app.processIdentifier])
+        #expect(manager.refreshWork != nil)
     }
 }

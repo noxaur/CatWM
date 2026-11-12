@@ -72,7 +72,6 @@ catwm windows
 catwm events focus.changed
 ```
 
-<sub>We do not plan to add full support if any for urls (catwm://), if we do this anyone can close windows and etc.</sub>
 
 ## Contributing
 

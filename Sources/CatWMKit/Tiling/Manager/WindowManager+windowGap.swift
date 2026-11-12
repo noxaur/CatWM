@@ -10,7 +10,8 @@ extension WindowManager {
         _ ids: [CGWindowID], on screen: Screen, _ screenState: ScreenState, ratio: CGFloat, workspace: String? = nil
     ) -> ([CGRect], CGFloat)? {
         let gap = windowGap(count: ids.count, on: screen, workspace: workspace)
-        let area = usableRect(screen, workspace: workspace).insetBy(dx: -gap / 2, dy: -gap / 2)
+        let alone = ids.count == 1 ? config(on: screen, workspace: workspace).singleWindowPadding : 0
+        let area = usableRect(screen, workspace: workspace).insetBy(dx: alone - gap / 2, dy: alone - gap / 2)
         guard let raw = screenState.layout.frames(count: ids.count, in: area,
                                                   ratio: ratio, mainCount: screenState.mainCount) else { return nil }
         let slots = raw.map { $0.insetBy(dx: gap / 2, dy: gap / 2).pixelAligned }

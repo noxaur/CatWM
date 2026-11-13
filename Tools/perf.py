@@ -150,7 +150,7 @@ def profile_app(display, out):
     process = subprocess.Popen([str(APP), "--verbose"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(APP_LAUNCH_SECONDS)
-        subprocess.run(["sample", str(process.pid), "8", "1", "-mayDie", "-file", str(out)],
+        subprocess.run(["sample", str(process.pid), "8", "10", "-mayDie", "-file", str(out)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=60)
     finally:
         process.send_signal(signal.SIGTERM)

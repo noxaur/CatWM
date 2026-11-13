@@ -49,6 +49,11 @@ jobs:
         shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            Tools
+            Clients/python
+          filter: blob:none
       - uses: actions/download-artifact@v5
         with:
           name: perf-build

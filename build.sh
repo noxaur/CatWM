@@ -39,11 +39,9 @@ fi
 Tools/install-hooks.sh
 Tools/check-style.sh
 Tools/swiftlint.sh
-if [ "$CONFIG" = "debug" ]; then
-  swift build -c debug --build-system native
-else
-  swift build -c release
-fi
+# The native build system recompiles only what changed; the default one recompiled the whole app for a
+# one-file edit. A local manifest cache lives in .build, so CI's cached .build keeps it too.
+swift build -c "$CONFIG" --build-system native --manifest-cache local
 ".build/$CONFIG/CatWM" --write-schema
 ".build/$CONFIG/CatWM" --write-config-docs
 python3 Tools/generate-clients.py

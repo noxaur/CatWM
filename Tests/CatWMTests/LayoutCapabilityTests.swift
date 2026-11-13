@@ -3,10 +3,6 @@ import CatWMFakes
 import CoreGraphics
 import Testing
 
-@MainActor private final class Clock {
-    var time: CFTimeInterval = 0
-}
-
 @Suite(.timeLimit(.minutes(1))) @MainActor struct LayoutCapabilityTests {
     private nonisolated static let withoutMouseResize: Set<Layout> = [
         .middleWide, .fullscreen, .column, .row, .floating, .threeColumnMiddle
@@ -22,14 +18,14 @@ import Testing
     func aMouseResizeOfTheMainWindowMovesTheSplit(_ layout: Layout) async throws {
         let fake = FakeBackend()
         let screen = fake.addScreen()
-        let clock = Clock()
-        let manager = fake.makeManager(now: { clock.time })
+        let clock = FakeClock()
+        let manager = fake.makeManager(clock: clock)
         (0..<3).forEach { _ in fake.addWindow() }
         manager.setLayout(layout, on: screen)
         #expect(await fake.settle(manager))
-        let landed = fake.placementChecks
-        #expect(await fake.wait(manager) { fake.placementChecks == 2 * landed })
-        clock.time += 1
+        clock.advance(by: 1)
+        #expect(await fake.settle(manager))
+        clock.advance(by: 1)
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
         let tree = manager.state(for: screen).dwindle

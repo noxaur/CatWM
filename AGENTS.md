@@ -46,3 +46,21 @@ CatWM is an engine with no GUI, wrapped by an app that draws. Other Mac apps can
 
 - Agents read code well, so add comments only where the code can't speak for itself.
 - Keep plans, research notes and scratch files outside the worktree.
+
+## Rules and what enforces them
+
+When the operator corrects you, fix the mistake and add its rule here. If the rule is already here and nothing enforces it, enforce it in the same change. Drop a rule once its mistake can't happen.
+
+| Rule | Enforced by |
+| --- | --- |
+| Style with Theme tokens, motion with Motion tokens and helpers, panels with CatWMPanel | `check-style.sh` |
+| Log with `Log`, never `print` or a dropped `try?` | `check-style.sh` |
+| No comments, except `// style-ok: <reason>` on a line that breaks a check | `check-style.sh` |
+| Post input only through `RealInput`, so tests never touch the user's input or Desktops | `check-style.sh`, `RealInput` traps in tests |
+| Tests wait on an event or an injected clock, never on a sleep or a polled run loop | `check-style.sh`, partly. `ContinuousClock().sleep` and `RunLoop.run(mode:before:)` still pass |
+| `docs/internals` records why, not steps. `docs/README.md` lists every `docs/user` page | `check-style.sh` |
+| Commit the generated config docs | `check-style.sh` digest. The schema and clients: nothing |
+| `swift test` passes | nothing in CI |
+| Every layout supports what every other layout does, such as mouse resizing | nothing yet |
+| Write only what the user stated. No invented user stories, models or examples | judgment |
+| One concern per PR, with evidence | the `pr` skill |

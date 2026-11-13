@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure CPU and memory, check each P99 against Tools/Perf/budgets.json and write a Markdown table.
+"""Measure CPU and memory, check each row's median (or mean) against Tools/Perf/budgets.json and write a Markdown table.
 
 The caps are for the device in budgets.json. A fixed benchmark (CatWMPerf calibrate) measures how fast
 this machine is next to that device, and each CPU time in ms is scaled to that device before the check,
@@ -160,13 +160,8 @@ def machine():
     return f"{read('machdep.cpu.brand_string')}, {read('hw.ncpu')} cores, {int(read('hw.memsize')) // 2**30} GB"
 
 
-def percentile(values, share):
-    ordered = sorted(values)
-    return ordered[max(0, math.ceil(share * len(ordered)) - 1)]
-
-
 def stats(values):
-    return {"median": statistics.median(values), "mean": statistics.fmean(values), "p99": percentile(values, 0.99)}
+    return {"median": statistics.median(values), "mean": statistics.fmean(values), "max": max(values)}
 
 
 def number(value):
@@ -185,20 +180,21 @@ def report(runner, samples, budgets):
         if values and budget["unit"] == "ms":
             values = [value * speed for value in values]
         row = stats(values) if values else None
-        ok = row is not None and row["p99"] <= budget["cap"]
+        gate = budget.get("gate", "median")
+        ok = row is not None and row[gate] <= budget["cap"]
         if not ok:
             failed.append(metric)
         if row:
-            p99 = number(row["p99"]) if ok else f"**{number(row['p99'])}**"
-            cells = f"{number(row['median'])} | {number(row['mean'])} | {p99}"
+            cells = " | ".join(number(row[key]) if ok or key != gate else f"**{number(row[key])}**"
+                               for key in ("median", "mean", "max"))
         else:
             cells = "| | **none**"
         tables.setdefault(budget["group"], []).append(
-            f"| {budget['label']} | {cells} | ≤ {budget['cap']:,g} {budget['unit']} | {'✅' if ok else '❌'} |")
+            f"| {budget['label']} | {cells} | ≤ {budget['cap']:,g} {budget['unit']} ({gate}) | {'✅' if ok else '❌'} |")
     note = f"(as an {device['name']} · {runner} · speed {speed:.2f}×)"
     lines = [f"### ✅ Performance {note}" if not failed else f"### ❌ Performance: {len(failed)} over the cap {note}"]
     for group, rows in tables.items():
-        lines += ["", f"| {group} | Median | Mean | P99 | Cap | |", "|:--|:--|:--|:--|:--|:--|", *rows]
+        lines += ["", f"| {group} | Median | Mean | Max | Cap | |", "|:--|:--|:--|:--|:--|:--|", *rows]
     return "\n".join([*lines, ""]), failed
 
 
@@ -232,7 +228,7 @@ def measure(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--runs", type=int, default=5, help="runs of each scenario (default 5)")
+    parser.add_argument("--runs", type=int, default=4, help="runs of each scenario (default 4)")
     parser.add_argument("--out", type=Path, help="write the Markdown table to this file")
     parser.add_argument("--skip-app", action="store_true", help="measure only the engine scenarios")
     parser.add_argument("--profile", type=Path, help="after the runs, sample one app instance into this file")

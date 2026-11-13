@@ -30,7 +30,8 @@ struct AppSurface: TilingSurface {
             DispatchQueue.main.async { WindowContextMenu.open(hit.id) }
             return true
         }
-        manager.animator.beginRun = { kind in PerfMonitor.shared.begin(kind).map { run in { run.end(apps: $0) } } }
+        manager.animator.motionRun.beginRun = { PerfMonitor.shared.begin($0).map { run in { run.end(apps: $0) } } }
+        manager.animator.motionRun.readFrame = WindowSceneCapture.currentFrame
         KeyHelp.shared.install()
         CursorActions.shared.install()
         Switcher.shared.install()

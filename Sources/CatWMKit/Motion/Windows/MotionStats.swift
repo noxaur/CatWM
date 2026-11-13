@@ -84,7 +84,7 @@ extension Animator {
             lastTick = now
         }
 
-        package func log(_ writers: [(pid_t, AXWriter.Stats)]) {
+        package func log(_ writers: [(pid_t, AXWriter.Stats)], quality: MotionQuality? = nil) {
             let apps = writers.filter { $0.1.size.count + $0.1.position.count + $0.1.land.count > 0 }
             guard Log.verbose, !ticks.isEmpty else { return }
             Log.debug(String(format: "animate: %d ticks in %.0fms (display link) | tick %@ | gap %@",
@@ -98,6 +98,7 @@ extension Animator {
                     "animate:   \(name) (\(pid)) size \(stats.size.text) | position \(stats.position.text) "
                         + "| land \(stats.land.text) | skipped \(stats.skipped)"
                 )
+                if let summary = quality?.summary(pid) { Log.debug("animate:   \(name) (\(pid)) \(summary.text)") }
             }
         }
     }

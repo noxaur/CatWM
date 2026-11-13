@@ -9,7 +9,7 @@ const mod = "alt"
 
 catwm.mod = mod
 catwm.layouts = ["tall", "bsp", "fullscreen"]
-catwm.gaps.size = 10
+catwm.gaps = { size: 10, smart: true }
 catwm.padding = 10
 catwm.motion = { style: "snappy", bounce: 0.6 }
 catwm.floating.apps.push("com.apple.systempreferences", "com.apple.calculator")

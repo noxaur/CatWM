@@ -315,6 +315,10 @@ def main():
             for number, line in enumerate(handle, 1):
                 if RECIPE_HEADING.match(line):
                     failures.append((path, number, "docs: docs/internals records architecture and why, not steps. Delete the recipe, or put it in a skill under .agents/skills/", line.strip()))
+    index = open(os.path.join(ROOT, "docs/README.md"), encoding="utf-8").read()
+    for name in sorted(os.listdir(os.path.join(ROOT, "docs/user"))):
+        if name.endswith(".md") and f"(user/{name})" not in index:
+            failures.append(("docs/README.md", 1, f"docs: list user/{name} here with a link and one line on what it covers", ""))
     import importlib.util
     spec = importlib.util.spec_from_file_location("catalog_generator", os.path.join(ROOT, "Tools/generate-catalogs.py"))
     generator = importlib.util.module_from_spec(spec)

@@ -1,13 +1,13 @@
-# Config: TypeScript, the `catwm` module and overrides
+# Config: TypeScript, the `catwm` module and Settings
 
-`ConfigStore` (`Config/Script/`) owns the config that CatWM runs. It reads `catwm.config.ts` from `Instance.configFolder`, then `catwm.overrides.json`, and gives `WindowManager` one `Config`.
+`ConfigStore` (`Config/Script/`) owns the config that CatWM runs. It reads `catwm.config.ts` from `Instance.configFolder` and gives `WindowManager` one `Config`.
 
 ## Parts (`Sources/CatWMKit/Config/Script/`)
 
 - `ConfigEngine`: the system JavaScriptCore through its public API, on its own thread with a run loop. It loads the bundled `sucrase.js` (Sucrase 3.35.1, `Tools/bundle-sucrase.sh`) once and keeps the context loaded. Only the finished value goes to the main thread.
 - `ConfigRuntime`: the module registry in JavaScript. Sucrase turns `import` and `export` into `require` and `exports`, and each module runs as `function (exports, require, module)`. Every save runs the entry again from a fresh module map and keeps only the compiled functions, by file text, so Sucrase doesn't run twice on an unchanged file. A failed run, or a value that `ConfigScript` rejects, keeps the last good config and the key functions that went with it. CatWM doesn't use the native ES module loader: it's private API and keeps each old module for the life of the context.
 - `ConfigCatwm`: the host module that `import { catwm } from "./catwm"` resolves to. See "The `catwm` module".
-- `ConfigScript`: reads the store into `Config`. Each option's path comes from `.script(...)` in the option table. Only the paths in the value change, so reading the TypeScript value and then the overrides gives the precedence. `ConfigScript+rules` reads the recorded window and workspace rules into `Config.windowRules` and `Config.workspaceRules`.
+- `ConfigScript`: reads the store into `Config`. Each option's path comes from `.script(...)` in the option table. `ConfigScript+rules` reads the recorded window and workspace rules into `Config.windowRules` and `Config.workspaceRules`.
 - `ConfigWatcher`: FSEvents on the config folder and the folders of the imported files, not on the files. Editors and CatWM save by rename.
 - `ConfigMigration`: turns `catwm.conf` text, or the value of an old `export default` config, into TypeScript with `Config.parse` and `BindRange`. `ConfigStore` writes the result only when it runs and gives the same `Config`, never over an existing `catwm.config.ts`, and once (`DefaultsKey.migratedConfigToTypeScript`). A failed conversion leaves `catwm.conf` in use and reports why.
 - `ConfigTypes`: `catwm.d.ts` and `tsconfig.json`. The `catwm` object's types come from the option table, so a new option needs no second list. CatWM writes the types each launch, and `./build.sh` writes the same file to `Resources/AgentDocs/catwm.d.ts`.
@@ -32,7 +32,7 @@ A config sets options as `catwm.gaps.size = 10` instead of exporting one object.
 
 ### Workspace rules in `refresh()`
 
-`refresh()` resolves each visible workspace's config (`Config.resolved(for:)`, `WindowManager+workspaceRules`) right after the workspace reconciliation and before the layout asks for slots: the base config (which already holds the Settings overrides), then each matching rule in file order, last write wins per field. A rule beats a Settings override because the override only changes the base the rule starts from.
+`refresh()` resolves each visible workspace's config (`Config.resolved(for:)`, `WindowManager+workspaceRules`) right after the workspace reconciliation and before the layout asks for slots: the base config, then each matching rule in file order, last write wins per field. A rule beats a Settings value because Settings only changes the base the rule starts from.
 
 - **Resolve before layout, so no second pass.** The facts (window count, windows per app, apps, layout, name, display, focus) don't depend on the slots, so a rule that changes gaps or padding is already in effect when the slots are computed, in the same refresh. A rule can't change a fact it matches on, so nothing can loop.
 - **No cache across refreshes.** A fact is a count over `visible`, the windows CatWM places on the shown Desktop (tiled or floating; minimised windows and windows of hidden apps aren't there). That costs microseconds for a few rules, and a cache would have to be invalidated by every window event. Without rules `refresh()` does one empty-list check.
@@ -58,7 +58,7 @@ The first load pays for the whole engine: a JavaScript context, Sucrase and a co
 
 ## Applying a change
 
-`WindowManager.apply` compares the new `Config` with the old one (`Config.changes`) and applies only what differs. A bind change calls `surface.apply` and lays out nothing. A Desktop slide stops only when `virtual-workspaces` or `workspaces-per-display` changes. `refresh()` runs only for a field outside `WindowManager.liveFields`. An unchanged config with the same diagnostics does nothing, so the watcher event after an overrides write is free.
+`WindowManager.apply` compares the new `Config` with the old one (`Config.changes`) and applies only what differs. A bind change calls `surface.apply` and lays out nothing. A Desktop slide stops only when `virtual-workspaces` or `workspaces-per-display` changes. `refresh()` runs only for a field outside `WindowManager.liveFields`. An unchanged config with the same diagnostics does nothing, so the watcher event after Settings writes the file is free.
 
 ## Errors
 
@@ -66,8 +66,19 @@ A failure is a `ConfigDiagnostic`: file, line, phase (`read`, `resolve`, `transf
 
 ## Settings
 
-Settings and `config.set` never write the TypeScript file. `ConfigDocument` edits `ConfigStore.settingsText` and reloads it after each save of the TypeScript config. A Settings save takes only what changed from the text it loaded, puts it on the running config, and writes the values that differ from the TypeScript config (`ConfigStore.base`) as overrides. So a value that the `.conf` text can't hold, such as a command with a line break, keeps its TypeScript value. Settings → General lists the overrides and drops one with **Use File Value**. Saved presets in `configs.json` keep their `.conf` text and apply through the same path.
+Settings and `catwm.config.ts` are one config. We rejected a separate overrides file: it won, so a later edit of the file did nothing for any option Settings had touched, and the user had to find and drop each override. Now Settings shows `ConfigStore.current` (the config as it ran), and a Settings save edits the file.
+
+- **Every write has a source.** While the config loads, `ConfigCatwm.store` records the file and line of the last write to each option path (`ConfigEngine.Run.sources`). Sucrase keeps line numbers, so the line of a stack frame is the line in the user's file. We rejected a source map or a parser: the line is enough to pick the statement, and the scan below finds the value.
+- **A literal is replaced where it stands.** `ConfigEdit` scans tokens, not a syntax tree. It finds `catwm.a.b = <literal>` or `b: <literal>` inside `catwm.a = { … }` as a top-level statement, and replaces only the literal. A statement in a function, an `if` or a loop, or a value that is computed, is not edited. A scan that is wrong is caught by the trial run, so the scan can stay small.
+- **Everything else goes to the `// Settings` block** at the end of the entry file: one `catwm.<path> = <literal>` line for each option, updated in place on the next save. A later write wins, so the block overrides a computed value or an imported file without touching them. An option that the file never writes goes there too.
+- **Shortcuts use `catwm.binds` and `catwm.submaps`.** A bind written as `catwm.bind(...)` can't be edited in place, so Settings assigns the whole list of data binds. The setter replaces the binds that run an action and keeps the ones with a function, which Settings can't express as data. Function binds, rules and `features` written by hand stay read-only in the file.
+- **Every rewrite is trialled first.** `ConfigStore.trial` runs the config with the new text of each changed file in place of the disk (`ConfigEngine.run(overlay:)`), on the live engine, and compares the result with the config Settings meant to save (`Config.changes`). `install`, which writes the converted `catwm.conf` and `export default` files, uses the same trial. The first try edits in place. If that result is wrong, the second puts every edit in the block. If that fails too, the file is left as it was and the error shows in Settings. We rejected writing first and checking after, because the config watcher would apply a wrong file before CatWM could restore it.
+- **Writes follow symlinks**, so a config linked from a dotfiles folder stays a link.
+- **The watcher sees our own write.** The reload gives the same `Config`, so `Config.changes` finds nothing to apply.
+- **One migration.** `ConfigStore.migrateOverrides` writes the values of an old `catwm.overrides.json` through the same path, and deletes the file only if the trial run gave the config that the overrides described. `DefaultsKey.migratedOverridesToConfig` keeps it to one run, and a named instance skips it. It is a separate call from `load()` for the same reason as `convertLegacyConfig`.
+
+Saved presets in `configs.json` keep their `.conf` text and apply through the same save. `config.set` and the sort nudge use `ConfigStore.set(option:)`, which writes the file the same way.
 
 ## Embedded mode
 
-`ConfigStore(embedded: true)` starts from `Config.embedded`, with every feature off, and reads the entry file that the host gives (`use(entry:)`). It writes no files: no migration, no default config, no `catwm.d.ts`, and it keeps the overrides in memory. `ConfigScript.read(embedded: true)` rejects the features that embedded mode doesn't have. See `docs/internals/embedding.md`.
+`ConfigStore(embedded: true)` starts from `Config.embedded`, with every feature off, and reads the entry file that the host gives (`use(entry:)`). It writes no files: no migration, no default config, no `catwm.d.ts`, and no Settings save. `setOption` keeps its values in memory as overrides on top of the entry file (`ConfigStore.heldOverrides`). `ConfigScript.read(embedded: true)` rejects the features that embedded mode doesn't have. See `docs/internals/embedding.md`.

@@ -15,17 +15,18 @@ import os
     package let folder: URL
     package let embedded: Bool
     package private(set) var entry: URL?
-    private let defaults: UserDefaults
+    let defaults: UserDefaults
     var heldOverrides: [String: JSON] = [:]
     package private(set) var source = Source.script
     package private(set) var isLoaded = false
     var conversionFailure: ConfigDiagnostic?
     package private(set) var base = Config()
-    package private(set) var current = Config()
-    package private(set) var failures: [ConfigDiagnostic] = []
+    package internal(set) var current = Config()
+    package internal(set) var failures: [ConfigDiagnostic] = []
     private var engine: ConfigEngine?
     private var watcher: ConfigWatcher?
     private var files: [URL] = []
+    private(set) var sources: [String: ConfigEngine.Source] = [:]
     private var onChange: ((Config) -> Void)?
     private var hasPublished = false
 
@@ -140,8 +141,7 @@ import os
     private func changed(_ paths: [String]) {
         let relevant = paths.contains { path in
             let name = URL(fileURLWithPath: path).lastPathComponent
-            return name == Self.overridesName || (name.hasSuffix(".ts") && !name.hasSuffix(".d.ts"))
-                || name.hasSuffix(".js")
+            return (name.hasSuffix(".ts") && !name.hasSuffix(".d.ts")) || name.hasSuffix(".js")
         }
         guard relevant else { return }
         let engine = engine ?? makeEngine()
@@ -162,16 +162,14 @@ import os
 
     private func publish(_ run: ConfigEngine.Run, notify: Bool, extra: [ConfigDiagnostic] = []) {
         if !run.files.isEmpty { files = run.files }
+        if run.value != nil { sources = run.sources }
         var failures = extra + run.failures
         var base = baseline
         if let value = run.value {
             _ = ConfigScript.read(value, into: &base, file: scriptURL.path, embedded: embedded)
         }
         var current = base
-        let overrides = readOverrides()
-        let problems = overrides.problems
-            + ConfigScript.read(.object(overrides.value), into: &current, file: embedded ? nil : overridesURL.path,
-                                embedded: embedded)
+        let problems = ConfigScript.read(.object(heldOverrides), into: &current, file: nil, embedded: embedded)
         if hasPublished, run.isStuck || run.value == nil {
             base = self.base
             current = self.current
@@ -240,38 +238,30 @@ extension ConfigStore {
 
     func install(_ source: String, matching expected: Config, backup: URL? = nil,
                  fail: (String) -> ConfigDiagnostic) -> ConfigDiagnostic? {
-        let trial = folder.appendingPathComponent(".catwm.config.converting.ts")
-        defer {
-            if FileManager.default.fileExists(atPath: trial.path) {
-                Log.attempt("remove the trial config") { try FileManager.default.removeItem(at: trial) }
-            }
-        }
+        if let reason = trial([scriptURL.path: source], matching: expected) { return fail(reason) }
         do {
-            try source.write(to: trial, atomically: true, encoding: .utf8)
-        } catch {
-            return fail(error.localizedDescription)
-        }
-        guard let run = ConfigEngine(entry: trial).run(timeout: Self.timeLimit) else {
-            return fail("the converted config didn't finish")
-        }
-        if let failure = run.failures.first { return fail(failure.message) }
-        var config = Config()
-        if let problem = run.value.map({ ConfigScript.read($0, into: &config, file: nil) })?.first {
-            return fail(problem.message)
-        }
-        let changes = config.changes(from: expected)
-        if !changes.isEmpty { return fail("the result differs in \(changes.sorted().joined(separator: ", "))") }
-        do {
-            if let backup {
-                try FileManager.default.copyItem(at: scriptURL, to: backup)
-                _ = try FileManager.default.replaceItemAt(scriptURL, withItemAt: trial)
-            } else {
-                try FileManager.default.moveItem(at: trial, to: scriptURL)
-            }
+            if let backup { try FileManager.default.copyItem(at: scriptURL, to: backup) }
+            try source.write(to: scriptURL, atomically: true, encoding: .utf8)
         } catch {
             return fail(error.localizedDescription)
         }
         return nil
+    }
+
+    func trial(_ files: [String: String], matching expected: Config) -> String? {
+        let engine = engine ?? makeEngine()
+        self.engine = engine
+        guard let run = engine.run(timeout: Self.timeLimit, overlay: files) else {
+            _ = stuck(engine)
+            return "the new config didn't finish"
+        }
+        if let failure = run.failures.first { return failure.message }
+        var config = baseline
+        if let problem = run.value.map({ ConfigScript.read($0, into: &config, file: nil, embedded: embedded) })?.first {
+            return problem.message
+        }
+        let changes = config.changes(from: expected)
+        return changes.isEmpty ? nil : "the result differs in \(changes.sorted().joined(separator: ", "))"
     }
 
     private func writeTypes() {

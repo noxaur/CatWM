@@ -266,10 +266,55 @@ def catalog_violations(path, source):
     return failures
 
 
+def code_only(source):
+    out, i, n = list(source), 0, len(source)
+
+    def blank(start, stop):
+        for k in range(start, stop):
+            if out[k] != "\n":
+                out[k] = " "
+
+    while i < n:
+        if source.startswith("//", i):
+            stop = source.find("\n", i)
+            stop = n if stop < 0 else stop
+        elif source.startswith("/*", i):
+            stop = source.find("*/", i + 2)
+            stop = n if stop < 0 else stop + 2
+        elif source.startswith('"""', i):
+            stop = source.find('"""', i + 3)
+            stop = n if stop < 0 else stop + 3
+        elif source[i] == '"':
+            stop = i + 1
+            while stop < n and source[stop] not in '"\n':
+                stop += 2 if source[stop] == "\\" else 1
+            stop = min(stop + 1, n)
+        else:
+            i += 1
+            continue
+        blank(i, stop)
+        i = stop
+    return "".join(out)
+
+
 def layout_cases():
-    source = open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read()
-    body = source[source.index("enum Layout"):source.index("package var title")]
-    return set(re.findall(r"(?:\bcase\b|,)\s*(\w+)", body))
+    source = code_only(open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read())
+    body = source[source.index("{", source.index("enum Layout")) + 1:source.index("package var title")]
+    return {name for line in re.findall(r"^\s*case\b(.*)$", body, re.M)
+            for name in re.findall(r"(?:^|,)\s*(\w+)", line)}
+
+
+def case_label(code, start):
+    depth = 0
+    for index in range(start, len(code)):
+        char = code[index]
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == ":" and depth == 0:
+            return code[start:index]
+    return code[start:]
 
 
 def layout_violations(path, source, cases):
@@ -277,9 +322,10 @@ def layout_violations(path, source, cases):
         return []
     failures = []
     lines = source.splitlines()
-    for match in SWITCH.finditer(source):
+    code = code_only(source)
+    for match in SWITCH.finditer(code):
         depth, labels, default = 1, [], None
-        for inner in re.finditer(r"[{}]|^\s*case\b([^:\n]*)|^\s*default\s*:", source[match.end():], re.M):
+        for inner in re.finditer(r"[{}]|^\s*case\b|^\s*default\s*:", code[match.end():], re.M):
             text = inner.group(0)
             if text == "{":
                 depth += 1
@@ -290,14 +336,15 @@ def layout_violations(path, source, cases):
             elif depth == 1 and text.lstrip().startswith("default"):
                 default = match.end() + inner.start()
             elif depth == 1:
-                labels.extend(label.strip() for label in inner.group(1).split(","))
+                label = case_label(code, match.end() + inner.end())
+                labels.extend(part.strip() for part in label.split(","))
         names = [label[1:] for label in labels if re.fullmatch(r"\.\w+", label)]
         if default is not None and names and len(names) == len(labels) and set(names) <= cases:
-            number = source.count("\n", 0, default) + 1
+            number = code.count("\n", 0, default) + 1
             failures.append((path, number, "default in a switch over " + LAYOUT_FIX, lines[number - 1].strip()))
-    for match in CASE_LIST.finditer(source):
+    for match in CASE_LIST.finditer(code):
         if set(re.findall(r"\.(\w+)", match.group(1))) <= cases:
-            number = source.count("\n", 0, match.start()) + 1
+            number = code.count("\n", 0, match.start()) + 1
             failures.append((path, number, "list of Layout cases. Add a property on " + LAYOUT_FIX,
                              lines[number - 1].strip()))
     return failures

@@ -1,12 +1,25 @@
 import AppKit
 import QuartzCore
 
-@MainActor package final class WindowFrameClock: NSObject {
+extension Animator {
+    package typealias Tick = @MainActor (_ shown: CFTimeInterval, _ presentation: CFTimeInterval) -> Void
+    package typealias MakeClock = @MainActor (NSScreen?, @escaping Tick) -> (any FrameClock)?
+    package static let displayLink: MakeClock = { screen, tick in
+        screen.map { WindowFrameClock(screen: $0, update: tick) }
+    }
+}
+
+@MainActor package protocol FrameClock: AnyObject, Sendable {
+    var displayID: CGDirectDisplayID? { get }
+    func stop()
+}
+
+@MainActor package final class WindowFrameClock: NSObject, FrameClock {
     package let displayID: CGDirectDisplayID?
     private var link: CADisplayLink?
-    private let update: @MainActor (CFTimeInterval) -> Void
+    private let update: Animator.Tick
 
-    package init(screen: NSScreen, update: @escaping @MainActor (CFTimeInterval) -> Void) {
+    package init(screen: NSScreen, update: @escaping Animator.Tick) {
         displayID = screen.displayID
         self.update = update
         super.init()
@@ -22,5 +35,5 @@ import QuartzCore
         link = nil
     }
 
-    @objc private func frame(_ link: CADisplayLink) { update(link.targetTimestamp) }
+    @objc private func frame(_ link: CADisplayLink) { update(link.timestamp, link.targetTimestamp) }
 }

@@ -4,6 +4,8 @@ package struct ColorFillSizing {
     package let source: CGRect
     package let target: CGRect
 
+    package init(source: CGRect, target: CGRect) { (self.source, self.target) = (source, target) }
+
     package var releasesSpace: Bool { target.width < source.width || target.height < source.height }
 
     package func request(predicted: CGRect, viewport: CGRect) -> CGRect {

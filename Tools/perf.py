@@ -3,7 +3,8 @@
 
 The caps are for the device in budgets.json. A fixed benchmark (CatWMPerf calibrate) measures how fast
 this machine is next to that device, and each CPU time in ms is scaled to that device before the check,
-so a faster or slower runner needs no new caps.
+so a faster or slower runner needs no new caps. A row marked `virtual` counts time on the motion benchmark's
+simulated clock, so it is not scaled.
 
 Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
 slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
@@ -40,7 +41,7 @@ sys.path.insert(0, str(ROOT / "Clients/python"))
 PERF = ROOT / ".build/release/CatWMPerf"
 APP = ROOT / "build/CatWM.app/Contents/MacOS/CatWM"
 BUDGETS = ROOT / "Tools/Perf/budgets.json"
-ENGINE_SCENARIOS = ["engine-idle", "engine-tile", "engine-actions", "config-load"]
+ENGINE_SCENARIOS = ["engine-idle", "engine-tile", "engine-actions", "config-load", "motion"]
 APP_LAUNCH_SECONDS, APP_IDLE_SECONDS, APP_MEASURED_SECONDS = 5, 20, 20
 LAUNCH_MEASURED = ("ApplicationLaunchExtendedResponsive", "Bailing responsive launch check")
 
@@ -147,7 +148,7 @@ def profile_app(display, out):
     process = subprocess.Popen([str(APP), "--verbose"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(APP_LAUNCH_SECONDS)
-        subprocess.run(["sample", str(process.pid), "8", "1", "-mayDie", "-file", str(out)],
+        subprocess.run(["sample", str(process.pid), "8", "10", "-mayDie", "-file", str(out)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=60)
     finally:
         process.send_signal(signal.SIGTERM)
@@ -186,8 +187,9 @@ def report(shards, budgets):
         speed = device["calibrate"] / statistics.median(samples["calibrate.cpu"])
         runners.append(f"{speed:.2f}×")
         for metric, values in samples.items():
-            unit = budgets["rows"].get(metric, {}).get("unit")
-            merged.setdefault(metric, []).extend(value * speed if unit == "ms" else value for value in values)
+            row = budgets["rows"].get(metric, {})
+            scaled = row.get("unit") == "ms" and not row.get("virtual")
+            merged.setdefault(metric, []).extend(value * speed if scaled else value for value in values)
     tables, failed = {}, []
     for metric, budget in budgets["rows"].items():
         values = merged.get(metric)

@@ -192,6 +192,9 @@ extension WindowManager {
         order.insert(contentsOf: toMain.map(\.id), at: 0)
         let ids = Set(toMain.map(\.id))
         orderArrivals(arrivals.map(\.id).filter { !ids.contains($0) }, firstRun: firstRun)
+        if let front = frontmostPID(), reportedFocusedWindow() == nil, arrivals.contains(where: { $0.pid == front }) {
+            requestFocusObservation()
+        }
     }
 
     func orderArrivals(_ rest: [CGWindowID], firstRun: Bool) {

@@ -166,3 +166,12 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     let excused = wait + " // style-ok: no event exists for this"
     #expect(try styleFailures(path: "Sources/CatWMKit/Motion/Windows/Example.swift", source: excused).isEmpty)
 }
+
+@Test func styleSendsRealInputOnlyThroughRealInput() throws {
+    let posts = ["event.post(" + "tap: .cghidEventTap)", "CGWarpMouse" + "CursorPosition(point)"]
+    for post in posts {
+        let failures = try styleFailures(path: "Sources/CatWMKit/Tiling/Spaces/Example.swift", source: post)
+        #expect(failures.contains { $0.contains("RealInput.post") }, "\(post)")
+        #expect(try styleFailures(path: "Sources/CatWMKit/Tiling/Access/RealInput.swift", source: post).isEmpty)
+    }
+}

@@ -5,6 +5,8 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | Dispatcher | Args | Effect |
 |---|---|---|
 | `movefocus` | `l r u d` | focus the neighbouring window |
+| `focuswindow` | a window target | focus the window that matches, on any workspace or display. The focused window wins when several match, then the one focused most recently |
+| `focuslast` | | focus the window that had focus before the current one. Run it again to go back |
 | `movewindow` / `swapwindow` | `l r u d`, or `mon:l`, `mon:+1`, `mon:0` | move/swap a window in a direction, or to another display |
 | `movewindowtomonitor` | monitor spec | move the window to a display |
 | `cyclenext` / `swapnext` | none or `prev` | cycle focus / swap with the next window |
@@ -39,6 +41,8 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `switcher` | none or `prev` | window switcher: tap for the last window, hold the modifier to browse every window on every workspace (macOS Desktop) and full-screen Space, type to search. In the list: Tab / Shift+Tab move, Return opens, Esc cancels, `` ` `` shows one app, Cmd+W closes, Cmd+Q quits, Cmd+H hides, Cmd+1…9 opens a row |
 | `sethomespace` | | no effect: each macOS Desktop is a workspace. Old configs can keep it |
 | `exit` | | quit CatWM (parked windows are restored first) |
+
+**Window targets.** A window dispatcher acts on the focused window. Start its argument with `@<target>` to act on another window instead: `catwm dispatch setfloating "@app:com.apple.Safari"`, `catwm dispatch movetoworkspacesilent "@title:/^Inbox/i 3"`. A target is `field:value`. Fields: `app` (a bundle ID, a trailing `*`, or a regex), `title`, `workspace` and `display` (text or a regex), `id` (a window ID, also written `address`) and `pid`. Write a regex as `/source/flags` (`i`, `m`, `s`; `g`, `u`, `y` and `d` are ignored). Quote a value that has spaces: `@title:"My Doc"`. `focuswindow` takes the target without the `@`. A target that is wrong or matches no window does nothing. It never falls back to the focused window. These take a target: `togglefloating`, `setfloating`, `settiled`, `resizeactive`, `moveactive`, `centerwindow`, `fullscreen`, `nativefullscreen`, `minimize`, `killactive`, `movewindow`, `movewindowtomonitor`, `moveintogroup`, `moveoutofgroup`, `changegroupactive`, `movegroupwindow`, `movetoworkspace` and `movetoworkspacesilent`. `catwm windows` lists the window IDs.
 
 In a key bind, unknown dispatchers and bad args are ignored silently; check the log with `catwm dump` or `--verbose`. Over the socket, `catwm dispatch` refuses an unknown dispatcher.
 With `virtual-workspaces = false`, `workspace`/`movetoworkspace` use macOS Spaces and need "Switch to Desktop N" enabled on Ctrl+N in System Settings → Keyboard → Shortcuts → Mission Control.

@@ -23,7 +23,7 @@ extension WindowActions {
             ActionPicker("Move Window to Workspace \($0)", .spaces, "\($0)", "\($0).square.fill",
                          group: "Move Window to Workspace", short: "Workspace \($0)", focusRequired: true)
         }
-    ) { $0.manager.moveToWorkspaceCommand($0.arg, follow: true) }
+    ) { $0.manager.moveToWorkspaceCommand($0.arg, follow: true, window: $0.target) }
 
     package static let movetoworkspacesilent = WindowAction.text(
         "movetoworkspacesilent", "workspaces", "Move the focused window to a workspace and stay",

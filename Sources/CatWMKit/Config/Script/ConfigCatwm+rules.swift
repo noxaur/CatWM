@@ -113,14 +113,15 @@ extension ConfigCatwm {
           const copy = clone(saved);
           const before = new Map(leaves(setup.defaults, "")
             .filter((leaf) => !hidden.has(leaf) && Array.isArray(shapeAt(leaf)))
-            .map((leaf) => [leaf, JSON.stringify(readPath(leaf))]));
+            .map((leaf) => [leaf, JSON.stringify(encode(readPath(leaf)))]));
           state.data = copy;
           state.written = new Set();
           state.phase = "workspaceRule";
           try {
             set(state.root);
-            for (const [leaf, text] of before) if (JSON.stringify(readPath(leaf)) !== text) state.written.add(leaf);
-            for (const leaf of [...state.written].sort()) entry.set[leaf] = JSON.parse(JSON.stringify(readPath(leaf)));
+            const encoded = (leaf) => JSON.stringify(encode(readPath(leaf)));
+            for (const [leaf, text] of before) if (encoded(leaf) !== text) state.written.add(leaf);
+            for (const leaf of [...state.written].sort()) entry.set[leaf] = JSON.parse(encoded(leaf));
           } finally {
             state.phase = "load";
             state.written = null;

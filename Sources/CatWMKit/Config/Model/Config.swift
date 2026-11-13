@@ -147,8 +147,12 @@ package struct Config: Sendable {
     }
 
     package static func listItems(_ value: String) -> [String] {
+        unique(value.split(separator: ",").map(String.init))
+    }
+
+    package static func unique(_ values: [String]) -> [String] {
         var items: [String] = []
-        for item in value.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) })
+        for item in values.map({ $0.trimmingCharacters(in: .whitespaces) })
         where !item.isEmpty && !items.contains(item) {
             items.append(item)
         }
@@ -156,7 +160,7 @@ package struct Config: Sendable {
     }
 
     package static func lists(_ bundle: String, in patterns: [String]) -> Bool {
-        patterns.contains { $0.hasSuffix("*") ? bundle.hasPrefix(String($0.dropLast())) : bundle == $0 }
+        TextPattern.lists(bundle, in: patterns)
     }
 
     private mutating func parseBind(_ value: String, repeats: Bool) -> String? {

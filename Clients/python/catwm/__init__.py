@@ -19,6 +19,7 @@ class CatWMError(Exception):
 
 Direction = Literal["left", "right", "up", "down"]
 Step = Literal["next", "prev"]
+Mode = Literal["on", "off", "toggle"]
 Layout = Literal["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp", "3column-left", "3column-middle", "3column-right", "two-pane", "two-pane-right", "widescreen-tall", "widescreen-tall-right"]
 
 
@@ -68,6 +69,8 @@ class WindowsItem(TypedDict):
     minimized: bool
     fullscreen: bool
     visible: bool
+    pinned: bool
+    scratchpad: str | None
     workspace: str | None
     screen: str | None
     frame: Rect | None
@@ -143,6 +146,20 @@ class WindowAdded(TypedDict):
     data: WindowAddedData
 
 
+class WindowChangedData(TypedDict):
+    window: int
+    app: str | None
+    title: str | None
+    floating: bool
+    workspace: str | None
+    changed: list[str]
+
+
+class WindowChanged(TypedDict):
+    event: Literal["window.changed"]
+    data: WindowChangedData
+
+
 class WindowRemovedData(TypedDict):
     window: int
     app: str | None
@@ -161,6 +178,44 @@ class WorkspaceChangedData(TypedDict):
 class WorkspaceChanged(TypedDict):
     event: Literal["workspace.changed"]
     data: WorkspaceChangedData
+
+
+class WorkspaceCreatedData(TypedDict):
+    workspace: str
+
+
+class WorkspaceCreated(TypedDict):
+    event: Literal["workspace.created"]
+    data: WorkspaceCreatedData
+
+
+class WorkspaceRemovedData(TypedDict):
+    workspace: str
+
+
+class WorkspaceRemoved(TypedDict):
+    event: Literal["workspace.removed"]
+    data: WorkspaceRemovedData
+
+
+class DisplayAddedData(TypedDict):
+    display: str
+    name: str
+
+
+class DisplayAdded(TypedDict):
+    event: Literal["display.added"]
+    data: DisplayAddedData
+
+
+class DisplayRemovedData(TypedDict):
+    display: str
+    name: str
+
+
+class DisplayRemoved(TypedDict):
+    event: Literal["display.removed"]
+    data: DisplayRemovedData
 
 
 class LayoutChangedData(TypedDict):
@@ -233,8 +288,8 @@ class Invocation(TypedDict):
     arg: str
     window: PluginWindow | None
 
-Event = FocusChanged | WindowAdded | WindowRemoved | WorkspaceChanged | LayoutChanged | TilingChanged | ModeChanged | WindowNotifications | PermissionsChanged | ConfigReloaded
-EVENTS = ["focus.changed", "window.added", "window.removed", "workspace.changed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"]
+Event = FocusChanged | WindowAdded | WindowChanged | WindowRemoved | WorkspaceChanged | WorkspaceCreated | WorkspaceRemoved | DisplayAdded | DisplayRemoved | LayoutChanged | TilingChanged | ModeChanged | WindowNotifications | PermissionsChanged | ConfigReloaded
+EVENTS = ["focus.changed", "window.added", "window.changed", "window.removed", "workspace.changed", "workspace.created", "workspace.removed", "display.added", "display.removed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"]
 
 
 def default_path() -> str:
@@ -432,7 +487,7 @@ class CatWM:
         self.call("settiled", args)
 
     def resizeactive(self, size: str) -> None:
-        """Set the size of the focused floating window"""
+        """Resize the focused window"""
         args: dict[str, Any] = {}
         args["size"] = size
         self.call("resizeactive", args)
@@ -467,6 +522,27 @@ class CatWM:
         """Close the focused window"""
         args: dict[str, Any] = {}
         self.call("killactive", args)
+
+    def movetoscratchpad(self, name: str | None = None) -> None:
+        """Hide the focused window in a scratchpad and float it"""
+        args: dict[str, Any] = {}
+        if name is not None:
+            args["name"] = name
+        self.call("movetoscratchpad", args)
+
+    def togglescratchpad(self, name: str | None = None) -> None:
+        """Show a scratchpad window floating over this workspace, or hide it again"""
+        args: dict[str, Any] = {}
+        if name is not None:
+            args["name"] = name
+        self.call("togglescratchpad", args)
+
+    def pin(self, mode: Mode | None = None) -> None:
+        """Float the focused window and keep it on every workspace of its display"""
+        args: dict[str, Any] = {}
+        if mode is not None:
+            args["mode"] = mode
+        self.call("pin", args)
 
     def moveintogroup(self, direction: Direction) -> None:
         """Add the focused window to the tabs of its neighbour"""
@@ -551,6 +627,33 @@ class CatWM:
         args: dict[str, Any] = {}
         self.call("sethomespace", args)
 
+    def balance(self) -> None:
+        """Give every tiled window the same area, as far as the layout allows"""
+        args: dict[str, Any] = {}
+        self.call("balance", args)
+
+    def togglesplit(self) -> None:
+        """Flip the split direction: Tall and Wide swap, and so do Column and Row"""
+        args: dict[str, Any] = {}
+        self.call("togglesplit", args)
+
+    def unminimize(self) -> None:
+        """Bring back the minimized window of this workspace used last"""
+        args: dict[str, Any] = {}
+        self.call("unminimize", args)
+
+    def moveworkspacetomonitor(self, target: str) -> None:
+        """Move the windows of this workspace to the workspace another display shows"""
+        args: dict[str, Any] = {}
+        args["target"] = target
+        self.call("moveworkspacetomonitor", args)
+
+    def swapworkspaces(self, displays: str) -> None:
+        """Swap the workspaces two displays show"""
+        args: dict[str, Any] = {}
+        args["displays"] = displays
+        self.call("swapworkspaces", args)
+
     def sort(self) -> None:
         """Open or close the Overview"""
         args: dict[str, Any] = {}
@@ -567,6 +670,17 @@ class CatWM:
         if step is not None:
             args["step"] = step
         self.call("switcher", args)
+
+    def focuswindow(self, target: str) -> None:
+        """Focus the window that a target names, on any workspace or display"""
+        args: dict[str, Any] = {}
+        args["target"] = target
+        self.call("focuswindow", args)
+
+    def focuslast(self) -> None:
+        """Focus the window that had focus before this one"""
+        args: dict[str, Any] = {}
+        self.call("focuslast", args)
 
     def submap(self, name: str) -> None:
         """Enter a key mode, or leave it"""

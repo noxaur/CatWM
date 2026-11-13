@@ -78,12 +78,13 @@ package struct WindowScope: Equatable {
         "fullscreen", "minimize", "killactive",
         "moveintogroup", "moveoutofgroup", "changegroupactive", "movegroupwindow",
         "layoutmsg", "splitratio", "cyclelayout", "layout", "toggletiling", "retile",
+        "balance", "togglesplit", "unminimize", "moveworkspacetomonitor", "swapworkspaces",
         "reload", "exit"
     ]
 
     package static let refusedCommands: Set<String> = [
         "nativefullscreen", "focusmonitor", "workspace", "movetoworkspace", "movetoworkspacesilent", "sethomespace",
-        "sort", "sort-undo", "switcher", "exec", "launch", "toggledim", "toggleblur",
+        "sort", "sort-undo", "switcher", "exec", "launch", "sendshortcut", "toggledim", "toggleblur",
         "grabtest", "modefx", "panelfx", "intro", "introlab", "submap"
     ]
 }

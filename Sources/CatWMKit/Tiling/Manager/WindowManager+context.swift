@@ -158,6 +158,6 @@ extension WindowManager {
     }
 
     package func minimize(_ window: Window) {
-        scanner.run(window.pid) { window.element.set(kAXMinimizedAttribute, kCFBooleanTrue) }
+        scanner.run(window.pid) { window.backend.setMinimized(window, true) }
     }
 }

@@ -468,7 +468,7 @@ public final class CatWM: @unchecked Sendable {
         _ = try call("settiled", args)
     }
 
-    /// Set the size of the focused floating window
+    /// Resize the focused window
     public func resizeactive(size: String) throws {
         var args: [String: Any] = [:]
         args["size"] = size
@@ -604,6 +604,38 @@ public final class CatWM: @unchecked Sendable {
     public func sethomespace() throws {
         let args: [String: Any] = [:]
         _ = try call("sethomespace", args)
+    }
+
+    /// Give every tiled window the same area, as far as the layout allows
+    public func balance() throws {
+        let args: [String: Any] = [:]
+        _ = try call("balance", args)
+    }
+
+    /// Flip the split direction: Tall and Wide swap, and so do Column and Row
+    public func togglesplit() throws {
+        let args: [String: Any] = [:]
+        _ = try call("togglesplit", args)
+    }
+
+    /// Bring back the minimized window of this workspace used last
+    public func unminimize() throws {
+        let args: [String: Any] = [:]
+        _ = try call("unminimize", args)
+    }
+
+    /// Move the windows of this workspace to the workspace another display shows
+    public func moveworkspacetomonitor(target: String) throws {
+        var args: [String: Any] = [:]
+        args["target"] = target
+        _ = try call("moveworkspacetomonitor", args)
+    }
+
+    /// Swap the workspaces two displays show
+    public func swapworkspaces(displays: String) throws {
+        var args: [String: Any] = [:]
+        args["displays"] = displays
+        _ = try call("swapworkspaces", args)
     }
 
     /// Open or close the Overview

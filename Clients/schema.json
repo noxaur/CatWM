@@ -283,7 +283,7 @@
         {
           "name" : "size",
           "required" : true,
-          "summary" : "`exact W H`, the size in points. A tiled window keeps its size.",
+          "summary" : "`exact W H` in points, `50% 100%` of the display's visible area, or a change such as `+50 -20` or `+5% 0`. A floating window keeps its top-left corner. A tiled window moves the split it borders, so it takes only a change along the layout's split axis.",
           "type" : "string"
         }
       ],
@@ -292,14 +292,14 @@
       "result" : {
         "kind" : "none"
       },
-      "summary" : "Set the size of the focused floating window"
+      "summary" : "Resize the focused window"
     },
     {
       "args" : [
         {
           "name" : "position",
           "required" : true,
-          "summary" : "`exact X Y`, the top-left corner in points from the top-left of the display's visible area. A tiled window stays in its tile.",
+          "summary" : "`exact X Y` in points from the top-left of the display's visible area, `50% 10%` of that area, or a change such as `+50 -20`. A tiled window stays in its tile.",
           "type" : "string"
         }
       ],
@@ -600,6 +600,71 @@
         "kind" : "none"
       },
       "summary" : "Make the current Desktop the home Desktop"
+    },
+    {
+      "args" : [
+
+      ],
+      "group" : "layout",
+      "name" : "balance",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Give every tiled window the same area, as far as the layout allows"
+    },
+    {
+      "args" : [
+
+      ],
+      "group" : "layout",
+      "name" : "togglesplit",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Flip the split direction: Tall and Wide swap, and so do Column and Row"
+    },
+    {
+      "args" : [
+
+      ],
+      "group" : "window",
+      "name" : "unminimize",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Bring back the minimized window of this workspace used last"
+    },
+    {
+      "args" : [
+        {
+          "name" : "target",
+          "required" : true,
+          "summary" : "`+1`, `-1`, `left`, `right`, `up`, `down` or a display number counting from 0",
+          "type" : "string"
+        }
+      ],
+      "group" : "displays",
+      "name" : "moveworkspacetomonitor",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Move the windows of this workspace to the workspace another display shows"
+    },
+    {
+      "args" : [
+        {
+          "name" : "displays",
+          "required" : true,
+          "summary" : "Two display targets, such as `0 1` or `left right`, found from the focused display. Each is `+1`, `-1`, `left`, `right`, `up`, `down` or a display number counting from 0.",
+          "type" : "string"
+        }
+      ],
+      "group" : "displays",
+      "name" : "swapworkspaces",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Swap the workspaces two displays show"
     },
     {
       "args" : [

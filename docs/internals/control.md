@@ -8,7 +8,7 @@ One registry feeds every way to control CatWM from outside the app. Key binds, t
 
 - `public`: in the CLI, the schema and the libraries.
 - `dev`: works over the socket but stays out of the schema.
-- `keybindOnly`: refused over the socket (`exec`, `launch`). Any process of the user can connect, so a command that runs code must not be public.
+- `keybindOnly`: refused over the socket (`exec`, `launch`, `sendshortcut`). Any process of the user can connect, so a command that runs code or types into another app must not be public. A scoped instance refuses `sendshortcut` too, because it posts to any app, not just scoped pids.
 
 ## Instances
 

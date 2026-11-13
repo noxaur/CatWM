@@ -125,6 +125,24 @@ package enum Layout: String, CaseIterable {
         }
     }
 
+    package var transposed: Layout? {
+        switch self {
+        case .tall: .wide
+        case .wide: .tall
+        case .column: .row
+        case .row: .column
+        default: nil
+        }
+    }
+
+    package func balancedRatio(count: Int, mainCount: Int) -> CGFloat? {
+        guard hasMainPane, count > 1 else { return nil }
+        let mains = SplitDivider.mains(self, mainCount: mainCount, count: count)
+        guard count > mains else { return nil }
+        let even = self == .twoPane || self == .twoPaneRight ? 0.5 : CGFloat(mains) / CGFloat(count)
+        return min(SplitDivider.ratioRange.upperBound, max(SplitDivider.ratioRange.lowerBound, even))
+    }
+
     package var ratioAxis: (horizontal: Bool, fromStart: Bool)? {
         switch self {
         case .tall, .widescreenTall, .twoPane, .threeColumnLeft, .bsp: (true, true)

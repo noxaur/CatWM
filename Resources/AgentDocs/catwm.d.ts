@@ -119,7 +119,7 @@ export interface Actions {
   setfloating: [...args: (string | number)[]]
   /** Tile the focused window. */
   settiled: [...args: (string | number)[]]
-  /** Set the size of the focused floating window. */
+  /** Resize the focused window. */
   resizeactive: [size: string | number]
   /** Move the focused floating window. */
   moveactive: [position: string | number]
@@ -167,6 +167,18 @@ export interface Actions {
   movetoworkspacesilent: [workspace: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | (string & {})]
   /** Make the current Desktop the home Desktop. */
   sethomespace: [...args: (string | number)[]]
+  /** Give every tiled window the same area, as far as the layout allows. */
+  balance: [...args: (string | number)[]]
+  /** Flip the split direction: Tall and Wide swap, and so do Column and Row. */
+  togglesplit: [...args: (string | number)[]]
+  /** Bring back the minimized window of this workspace used last. */
+  unminimize: [...args: (string | number)[]]
+  /** Move the windows of this workspace to the workspace another display shows. */
+  moveworkspacetomonitor: [target: string | number]
+  /** Swap the workspaces two displays show. */
+  swapworkspaces: [displays: string | number]
+  /** Press a key in the focused window's app, or in another app. */
+  sendshortcut: [shortcut: string | number]
   /** Open or close the Overview. */
   sort: [...args: (string | number)[]]
   /** Undo the last Overview change. */

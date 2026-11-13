@@ -19,10 +19,12 @@ package protocol WindowBackend: Sendable {
     func focus(_ window: Window, ifCurrent: () -> Bool)
     func refreshCursor()
     func close(_ window: Window) -> String
+    func setMinimized(_ window: Window, _ minimized: Bool)
 
     @MainActor func pointerLocation() -> CGPoint
     @MainActor func warpPointer(to point: CGPoint)
     @MainActor func post(keyCode: UInt16, flags: CGEventFlags, style: Hotkeys.PostStyle)
+    @MainActor func post(keyCode: UInt16, flags: CGEventFlags, toPID pid: pid_t)
     @MainActor func postMouse(_ type: CGEventType, at point: CGPoint)
     @MainActor func serverFrame(of id: CGWindowID) -> CGRect?
     @MainActor func spaceList(display: String) -> Spaces.DisplaySpaces?
@@ -31,9 +33,15 @@ package protocol WindowBackend: Sendable {
 }
 
 extension WindowBackend {
+    package func setMinimized(_ window: Window, _ minimized: Bool) {
+        window.element.set(kAXMinimizedAttribute, minimized ? kCFBooleanTrue : kCFBooleanFalse)
+    }
     @MainActor package func pointerLocation() -> CGPoint { .zero }
     @MainActor package func warpPointer(to _: CGPoint) { assertionFailure("\(Self.self) has no input seam") }
     @MainActor package func post(keyCode _: UInt16, flags _: CGEventFlags, style _: Hotkeys.PostStyle) {
+        assertionFailure("\(Self.self) has no input seam")
+    }
+    @MainActor package func post(keyCode _: UInt16, flags _: CGEventFlags, toPID _: pid_t) {
         assertionFailure("\(Self.self) has no input seam")
     }
     @MainActor package func postMouse(_: CGEventType, at _: CGPoint) {
@@ -126,6 +134,16 @@ package final class AXBackend: WindowBackend, Sendable {
 
     @MainActor package func post(keyCode: UInt16, flags: CGEventFlags, style: Hotkeys.PostStyle) {
         Hotkeys.post(keyCode: keyCode, flags: flags, style: style)
+    }
+
+    @MainActor package func post(keyCode: UInt16, flags: CGEventFlags, toPID pid: pid_t) {
+        guard RealInput.allows("key \(keyCode) to \(pid)") else { return }
+        let source = CGEventSource(stateID: .privateState)
+        for down in [true, false] {
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: down) else { continue }
+            event.flags = flags
+            event.postToPid(pid)
+        }
     }
 
     @MainActor package func postMouse(_ type: CGEventType, at point: CGPoint) {

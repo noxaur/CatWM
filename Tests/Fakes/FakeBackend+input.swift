@@ -40,6 +40,10 @@ extension FakeBackend {
         }
     }
 
+    @MainActor package func post(keyCode: UInt16, flags: CGEventFlags, toPID pid: pid_t) {
+        state.withLockUnchecked { state in state.inputLog.append(.keyToApp(keyCode, flags: flags.rawValue, pid: pid)) }
+    }
+
     @MainActor package func postMouse(_ type: CGEventType, at point: CGPoint) {
         state.withLockUnchecked { state in
             state.inputLog.append(.mouse(type.rawValue, point))

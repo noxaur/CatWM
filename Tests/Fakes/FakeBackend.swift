@@ -29,6 +29,7 @@ package final class FakeBackend: WindowBackend, Sendable {
 
     package enum Input: Equatable {
         case key(UInt16, flags: UInt64)
+        case keyToApp(UInt16, flags: UInt64, pid: pid_t)
         case mouse(UInt32, CGPoint)
         case warp(CGPoint)
     }
@@ -106,6 +107,12 @@ package final class FakeBackend: WindowBackend, Sendable {
                 state.focusedIn[closed.pid] = state.stacking.first { state.windowList[$0]?.pid == closed.pid }
             }
         }
+    }
+
+    package func setMinimized(_ window: Window, _ minimized: Bool) { minimize(window.id, minimized) }
+
+    package func isMinimized(_ id: CGWindowID) -> Bool {
+        state.withLockUnchecked { $0.windowList[id]?.minimized ?? false }
     }
 
     package func close(_ window: Window) -> String {

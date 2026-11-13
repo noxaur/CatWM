@@ -369,7 +369,7 @@ export class CatWM {
     await this.call("settiled");
   }
 
-  /** Set the size of the focused floating window */
+  /** Resize the focused window */
   async resizeactive(size: string): Promise<void> {
     await this.call("resizeactive", { "size": size });
   }
@@ -472,6 +472,31 @@ export class CatWM {
   /** Make the current Desktop the home Desktop */
   async sethomespace(): Promise<void> {
     await this.call("sethomespace");
+  }
+
+  /** Give every tiled window the same area, as far as the layout allows */
+  async balance(): Promise<void> {
+    await this.call("balance");
+  }
+
+  /** Flip the split direction: Tall and Wide swap, and so do Column and Row */
+  async togglesplit(): Promise<void> {
+    await this.call("togglesplit");
+  }
+
+  /** Bring back the minimized window of this workspace used last */
+  async unminimize(): Promise<void> {
+    await this.call("unminimize");
+  }
+
+  /** Move the windows of this workspace to the workspace another display shows */
+  async moveworkspacetomonitor(target: string): Promise<void> {
+    await this.call("moveworkspacetomonitor", { "target": target });
+  }
+
+  /** Swap the workspaces two displays show */
+  async swapworkspaces(displays: string): Promise<void> {
+    await this.call("swapworkspaces", { "displays": displays });
   }
 
   /** Open or close the Overview */

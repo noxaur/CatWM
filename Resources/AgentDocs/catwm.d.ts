@@ -339,7 +339,7 @@ export interface KeyboardHelpOptions {
 }
 
 export interface LabOptions {
-  /** Resize animation. Color fills keep slow apps smooth. They need Screen Recording. Default: `live`. */
+  /** Resize animation. Color fills keep slow apps smooth. They're used only if Screen Recording is allowed. Default: `color-fill`. */
   get resizeAnimation(): "live" | "color-fill"
   set resizeAnimation(value: "live" | "color-fill" | undefined)
 }

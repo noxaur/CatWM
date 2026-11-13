@@ -31,6 +31,10 @@ struct AppSurface: TilingSurface {
         }
         manager.animator.motionRun.beginRun = { PerfMonitor.shared.begin($0).map { run in { run.end(apps: $0) } } }
         manager.animator.readFrame = WindowServerReads.currentFrame
+        PermissionWatcher.shared.subscribe { _, changed in
+            guard changed.contains(.screenRecording) else { return }
+            setResizeAnimation(WindowManager.shared.config.resizeAnimation)
+        }
         KeyHelp.shared.install()
         CursorActions.shared.install()
         Switcher.shared.install()
@@ -42,12 +46,12 @@ struct AppSurface: TilingSurface {
     private func setResizeAnimation(_ mode: ResizeAnimation) {
         let manager = WindowManager.shared
         let animator = manager.animator
-        guard mode == .colorFill else {
+        guard mode == .colorFill, PermissionWatcher.shared.granted.contains(.screenRecording) else {
             guard animator.windowPresentation != nil else { return }
             animator.windowPresentation = nil
             fills.refresh = nil
             fills.close()
-            return Log.info("window-fill: color-only tiling disabled")
+            return Log.info("window-fill: off (\(mode == .colorFill ? "no Screen Recording" : "live"))")
         }
         guard animator.windowPresentation == nil else { return }
         animator.windowPresentation = fills
@@ -56,7 +60,7 @@ struct AppSurface: TilingSurface {
             fills?.warm(manager.windows) { [weak manager] in manager?.animator.isAnimating($0) ?? true }
         }
         fills.refresh?()
-        Log.info("window-fill: color-only tiling enabled")
+        Log.info("window-fill: on")
     }
 
     private var features: Set<Feature> { WindowManager.shared.config.features }

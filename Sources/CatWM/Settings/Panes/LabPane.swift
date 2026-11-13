@@ -11,12 +11,6 @@ struct LabPane: View {
                 .textStyle(.caption).foregroundStyle(Theme.inkMuted)
             OGroup("Experiments") {
                 OptionRows(pane: .lab, section: "Experiments", doc: doc, settingsUI: settingsUI)
-                if doc.config.resizeAnimation != .live && !Permission.screenRecording.isGranted {
-                    ORow("Waiting for Screen Recording", description: "Windows resize live until you allow it",
-                         symbol: "exclamationmark.triangle.fill") {
-                        OButton("Allow…", size: .small) { Permission.screenRecording.request() }
-                    }
-                }
             }
             AdditionalOptionGroups(pane: .lab, doc: doc, settingsUI: settingsUI)
         }

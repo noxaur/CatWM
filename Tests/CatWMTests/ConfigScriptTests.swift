@@ -112,7 +112,7 @@ import Testing
         """)
 
         #expect(diagnostics.isEmpty)
-        #expect(config.resizeAnimation == .live)
+        #expect(config.resizeAnimation == .colorFill)
         #expect(config.windowMarginSize == 14)
     }
 

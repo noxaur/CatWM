@@ -232,13 +232,13 @@ package enum Options {
                      section: "Panels and window mode"),
 
         .choice("resize-animation", \.resizeAnimation, noun: "resize animation").script("lab.resizeAnimation")
-            .documented(nil, "experimental: `live` resizes the real windows each frame, `color-fill` paints the "
-                            + "window colors around a smaller real window and needs Screen Recording")
+            .documented(nil, "`color-fill` paints each window's edge colors where a slow app hasn't drawn yet, "
+                            + "if Screen Recording is already allowed; otherwise, or with `live`, windows resize live")
             .section("lab")
-            .note("Experimental: live resizes the real windows each frame. color-fill paints the window colors\n"
-                + "around them and needs Screen Recording.")
+            .note("color-fill paints each window's edge colors where a slow app hasn't drawn yet, if Screen\n"
+                + "Recording is already allowed. Otherwise, or with live, windows resize live.")
             .setting(.lab, "lab.resizeAnimation", "Resize animation",
-                     help: "Color fills keep slow apps smooth. They need Screen Recording",
+                     help: "Color fills keep slow apps smooth. They're used only if Screen Recording is allowed",
                      keywords: "experimental resize color fill smooth screen recording"),
         .bool("debug-logging", \.debugLogging).script("debugLogging")
             .documented("bool", "verbose log; `--verbose` turns it on for one launch").section("diagnostics")

@@ -38,7 +38,7 @@ package struct Config: Sendable {
     package var animationBounce: Double = 0.5
     package var debugLogging = false
     package var perfReports = false
-    package var resizeAnimation: ResizeAnimation = .live
+    package var resizeAnimation: ResizeAnimation = .colorFill
     package var virtualWorkspaces = true
     package var stayOnWorkspaceAfterClose = true
     package var removesEmptyWorkspaces = true

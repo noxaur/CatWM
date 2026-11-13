@@ -59,7 +59,7 @@ extension WindowManager {
                   !animator.isBusy(window.id), !desktops.movingToSpace, window.id != tabUI.drag.lifted else { return }
             let id = window.id
             observeFrame(window)
-            if NSEvent.pressedMouseButtons & 1 != 0 {
+            if primaryButtonDown() {
                 if drags.isEmpty { tabUI.drag.beginNative(id) }
                 drags[id] = (drags[id] ?? false) || notification == kAXWindowResizedNotification
             } else if !window.isFloating {

@@ -132,6 +132,7 @@ package enum Layout: String, CaseIterable {
         case .tall, .widescreenTall, .twoPane, .threeColumnLeft, .bsp: (true, true)
         case .tallRight, .widescreenTallRight, .twoPaneRight, .threeColumnRight: (true, false)
         case .wide: (false, true)
+        case .dwindle: nil
         default: nil
         }
     }

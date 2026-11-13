@@ -19,8 +19,10 @@ extension WindowManager {
         let ids = splitIDs(on: screen)
         let slots = ids.compactMap(splitSlot)
         guard slots.count == ids.count,
-              let divider = SplitDivider(layout: screenState.layout, slots: slots, mainCount: screenState.mainCount,
-                                         in: usableRect(screen)),
+              let divider = screenState.layout == .dwindle
+                ? dwindleDivider(on: screen, ids: ids, slots: slots)
+                : SplitDivider(layout: screenState.layout, slots: slots, mainCount: screenState.mainCount,
+                               in: usableRect(screen)),
               isOnHomeSpace(screen) else { return nil }
         return divider
     }
@@ -36,6 +38,7 @@ extension WindowManager {
         dividerState.dividerDrag = drag
         let screenState = state(for: screen), ids = splitIDs(on: screen)
         let wanted = divider.ratio(at: position, in: usableRect(screen), gap: windowGap(count: ids.count, on: screen))
+        if screenState.layout == .dwindle { return moveDwindleDivider(on: screen, to: wanted) }
         let ratio = allowedRatio(from: drag.startRatio, to: wanted, ids: ids, on: screen, screenState)
         guard abs(ratio - screenState.ratio) > 0.0005 else { return }
         screenState.ratio = ratio
@@ -69,8 +72,12 @@ extension WindowManager {
     package func swapSides(on screen: Screen) {
         let screenState = state(for: screen), ids = splitIDs(on: screen)
         let mains = SplitDivider.mains(screenState.layout, mainCount: screenState.mainCount, count: ids.count)
-        guard ids.count > mains, screenState.layout.ratioAxis != nil else { return }
-        if let mirrored = screenState.layout.mirrored {
+        if screenState.layout == .dwindle {
+            guard ids.count > 1 else { return }
+            screenState.dwindle.swapRoot()
+        } else if ids.count <= mains || screenState.layout.ratioAxis == nil {
+            return
+        } else if let mirrored = screenState.layout.mirrored {
             screenState.layout = mirrored
         } else {
             swapOrder(ids[0], ids[mains])

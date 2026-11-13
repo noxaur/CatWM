@@ -21,6 +21,7 @@ package protocol WindowBackend: Sendable {
     func close(_ window: Window) -> String
 
     @MainActor func pointerLocation() -> CGPoint
+    @MainActor func primaryButtonDown() -> Bool
     @MainActor func warpPointer(to point: CGPoint)
     @MainActor func post(keyCode: UInt16, flags: CGEventFlags, style: Hotkeys.PostStyle)
     @MainActor func postMouse(_ type: CGEventType, at point: CGPoint)
@@ -32,6 +33,7 @@ package protocol WindowBackend: Sendable {
 
 extension WindowBackend {
     @MainActor package func pointerLocation() -> CGPoint { .zero }
+    @MainActor package func primaryButtonDown() -> Bool { NSEvent.pressedMouseButtons & 1 != 0 }
     @MainActor package func warpPointer(to _: CGPoint) { assertionFailure("\(Self.self) has no input seam") }
     @MainActor package func post(keyCode _: UInt16, flags _: CGEventFlags, style _: Hotkeys.PostStyle) {
         assertionFailure("\(Self.self) has no input seam")

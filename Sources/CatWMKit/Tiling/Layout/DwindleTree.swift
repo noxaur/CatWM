@@ -32,9 +32,26 @@ package indirect enum DwindleNode: Equatable {
     }
 }
 
+package struct DwindleRoot {
+    package let sideBySide: Bool
+    package let swapped: Bool
+    package let firstCount: Int
+}
+
 package struct DwindleTree: Equatable {
-    private struct Step {
+    private struct Placement {
         let sideBySide: Bool
+        let ratio: CGFloat
+        let range: ClosedRange<CGFloat>
+        let first: CGRect
+        let second: CGRect
+        let firstMins: ArraySlice<CGSize>
+        let secondMins: ArraySlice<CGSize>
+    }
+
+    private struct Step {
+        let placement: Placement
+        let swapped: Bool
         let inFirst: Bool
         let rect: CGRect
     }
@@ -59,14 +76,15 @@ package struct DwindleTree: Equatable {
 
     package func frames(in rect: CGRect, minimums: [CGSize] = []) -> [CGRect] {
         guard let root else { return [] }
-        let mins = minimums.count == ids.count ? minimums : Array(repeating: .zero, count: root.leafCount)
-        return Self.frames(of: root, in: rect, mins: mins[...])
+        return Self.frames(of: root, in: rect, mins: mins(minimums))
     }
 
     package mutating func toggleSplit(at index: Int, in rect: CGRect) {
         let steps = steps(to: index, in: rect)
         guard let parent = steps.last else { return }
-        modify(depth: steps.count - 1, along: steps) { $0.direction = parent.sideBySide ? .stacked : .sideBySide }
+        modify(depth: steps.count - 1, along: steps) {
+            $0.direction = parent.placement.sideBySide ? .stacked : .sideBySide
+        }
     }
 
     package mutating func swapSplit(at index: Int, in rect: CGRect) {
@@ -90,28 +108,67 @@ package struct DwindleTree: Equatable {
     package mutating func resize(at index: Int, by delta: CGSize, in rect: CGRect) {
         let steps = steps(to: index, in: rect)
         for (sideBySide, amount) in [(true, delta.width), (false, delta.height)] where amount != 0 {
-            guard let depth = steps.lastIndex(where: { $0.sideBySide == sideBySide }) else { continue }
-            let step = steps[depth]
-            let length = sideBySide ? step.rect.width : step.rect.height
-            guard length > 0 else { continue }
-            let change = (step.inFirst ? 1 : -1) * amount / length
-            modify(depth: depth, along: steps) { $0.ratio = min(0.9, max(0.1, $0.ratio + change)) }
+            guard let depth = steps.lastIndex(where: { $0.placement.sideBySide == sideBySide }) else { continue }
+            move(depth, along: steps, by: (steps[depth].inFirst ? 1 : -1) * amount)
         }
     }
 
-    private func steps(to index: Int, in rect: CGRect) -> [Step] {
-        var steps: [Step] = [], node = root, rect = rect, index = index
+    package mutating func moveEdge(at index: Int, sideBySide: Bool, end: Bool, by amount: CGFloat, in rect: CGRect,
+                                   minimums: [CGSize] = []) {
+        let steps = steps(to: index, in: rect, minimums: minimums)
+        guard let depth = steps.lastIndex(where: {
+            $0.placement.sideBySide == sideBySide && ($0.inFirst != $0.swapped) == end
+        }) else { return }
+        move(depth, along: steps, by: steps[depth].swapped ? -amount : amount)
+    }
+
+    package func rootSplit(in rect: CGRect, minimums: [CGSize] = []) -> DwindleRoot? {
+        guard case .split(let split)? = root else { return nil }
+        let placement = Self.place(split, in: rect, mins: mins(minimums))
+        return DwindleRoot(sideBySide: placement.sideBySide, swapped: split.swapped, firstCount: split.first.leafCount)
+    }
+
+    package mutating func setRootRatio(_ ratio: CGFloat, in rect: CGRect, minimums: [CGSize] = []) -> Bool {
+        guard case .split(var split)? = root else { return false }
+        let range = Self.place(split, in: rect, mins: mins(minimums)).range
+        let clamped = min(max(ratio, range.lowerBound), range.upperBound)
+        guard abs(clamped - split.ratio) > 0.0005 else { return false }
+        split.ratio = clamped
+        root = .split(split)
+        return true
+    }
+
+    package mutating func swapRoot() {
+        guard case .split(var split)? = root else { return }
+        split.swapped.toggle()
+        root = .split(split)
+    }
+
+    private func mins(_ minimums: [CGSize]) -> ArraySlice<CGSize> {
+        (minimums.count == ids.count ? minimums : Array(repeating: .zero, count: root?.leafCount ?? 0))[...]
+    }
+
+    private func steps(to index: Int, in rect: CGRect, minimums: [CGSize] = []) -> [Step] {
+        var steps: [Step] = [], node = root, rect = rect, index = index, mins = mins(minimums)
         while case .split(let split)? = node {
-            let sideBySide = split.direction.sideBySide(in: rect)
-            let (first, second) = Self.divide(rect, split, sideBySide: sideBySide)
+            let placement = Self.place(split, in: rect, mins: mins)
             let count = split.first.leafCount
             let inFirst = index < count
-            steps.append(Step(sideBySide: sideBySide, inFirst: inFirst, rect: rect))
+            steps.append(Step(placement: placement, swapped: split.swapped, inFirst: inFirst, rect: rect))
             node = inFirst ? split.first : split.second
-            rect = inFirst ? first : second
+            rect = inFirst ? placement.first : placement.second
+            mins = inFirst ? placement.firstMins : placement.secondMins
             if !inFirst { index -= count }
         }
         return steps
+    }
+
+    private mutating func move(_ depth: Int, along steps: [Step], by amount: CGFloat) {
+        let step = steps[depth], placement = step.placement
+        let length = placement.sideBySide ? step.rect.width : step.rect.height
+        guard length > 0 else { return }
+        let ratio = min(max(placement.ratio + amount / length, placement.range.lowerBound), placement.range.upperBound)
+        modify(depth: depth, along: steps) { $0.ratio = ratio }
     }
 
     private mutating func modify(depth: Int, along steps: [Step], _ change: (inout DwindleSplit) -> Void) {
@@ -131,16 +188,7 @@ package struct DwindleTree: Equatable {
         return .split(split)
     }
 
-    private static func divide(_ rect: CGRect, _ split: DwindleSplit, sideBySide: Bool) -> (CGRect, CGRect) {
-        let length = (sideBySide ? rect.width : rect.height) * split.ratio
-        let edge: CGRectEdge = sideBySide ? (split.swapped ? .maxXEdge : .minXEdge)
-            : (split.swapped ? .maxYEdge : .minYEdge)
-        let (slice, remainder) = rect.divided(atDistance: length, from: edge)
-        return (slice, remainder)
-    }
-
-    private static func frames(of node: DwindleNode, in rect: CGRect, mins: ArraySlice<CGSize>) -> [CGRect] {
-        guard case .split(var split) = node else { return [rect] }
+    private static func place(_ split: DwindleSplit, in rect: CGRect, mins: ArraySlice<CGSize>) -> Placement {
         let count = split.first.leafCount
         let firstMins = mins.prefix(count), secondMins = mins.dropFirst(count)
         let first = need(split.first, firstMins), second = need(split.second, secondMins)
@@ -152,11 +200,24 @@ package struct DwindleTree: Equatable {
         }
         let length = sideBySide ? rect.width : rect.height
         let low = sideBySide ? first.width : first.height, high = length - (sideBySide ? second.width : second.height)
+        var ratio = split.ratio, range: ClosedRange<CGFloat> = 0.1...0.9
         if length > 0, low <= high {
-            split.ratio = min(max(split.ratio * length, low), high) / length
+            ratio = min(max(ratio * length, low), high) / length
+            let lower = max(0.1, low / length), upper = min(0.9, high / length)
+            range = lower <= upper ? lower...upper : ratio...ratio
         }
-        let (one, two) = divide(rect, split, sideBySide: sideBySide)
-        return frames(of: split.first, in: one, mins: firstMins) + frames(of: split.second, in: two, mins: secondMins)
+                let edge: CGRectEdge = sideBySide ? (split.swapped ? .maxXEdge : .minXEdge)
+            : (split.swapped ? .maxYEdge : .minYEdge)
+        let (one, two) = rect.divided(atDistance: length * ratio, from: edge)
+        return Placement(sideBySide: sideBySide, ratio: ratio, range: range, first: one, second: two,
+                         firstMins: firstMins, secondMins: secondMins)
+    }
+
+    private static func frames(of node: DwindleNode, in rect: CGRect, mins: ArraySlice<CGSize>) -> [CGRect] {
+        guard case .split(let split) = node else { return [rect] }
+        let placement = place(split, in: rect, mins: mins)
+        return frames(of: split.first, in: placement.first, mins: placement.firstMins)
+            + frames(of: split.second, in: placement.second, mins: placement.secondMins)
     }
 
     private static func need(_ node: DwindleNode, _ mins: ArraySlice<CGSize>) -> CGSize {

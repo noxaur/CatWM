@@ -327,7 +327,7 @@ extension WindowManager {
                                    onto: tabDropTarget(for: id, at: point) ?? settledTabHover(for: id, at: point))
         }
         guard let (id, resized) = drags.first, drags.count == 1, !resized,
-              let window = windows[id], NSEvent.pressedMouseButtons & 1 != 0 else {
+              let window = windows[id], primaryButtonDown() else {
             surface.hideTabDropHint()
             return
         }

@@ -14,9 +14,7 @@ extension WindowManager {
         let frames: [CGRect]?
         if screenState.layout == .dwindle {
             screenState.dwindle.sync(ids)
-            frames = screenState.dwindle.frames(in: area, minimums: ids.map { id in
-                minSizes[id].map { CGSize(width: $0.width + gap, height: $0.height + gap) } ?? .zero
-            })
+            frames = screenState.dwindle.frames(in: area, minimums: dwindleMinimums(ids, gap: gap))
         } else {
             frames = screenState.layout.frames(count: ids.count, in: area, ratio: ratio,
                                                mainCount: screenState.mainCount)

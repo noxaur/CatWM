@@ -45,7 +45,6 @@ struct Usage {
 @MainActor final class Scenario {
     var samples: [String: [Double]] = [:]
     let fake = FakeBackend()
-    let warm = CommandLine.arguments.contains("--warm")
 
     func record(_ metric: String, _ value: Double) { samples[metric, default: []].append(value) }
 
@@ -81,8 +80,7 @@ struct Usage {
         let manager = fake.makeManager()
         windows(20)
         await settled(manager)
-        if warm { return }
-        try await Task.sleep(for: .seconds(1))
+        try await Task.sleep(for: .seconds(2))
         try await idle(seconds: 10, metric: "engine.idle.cpu")
         record("engine.idle.footprint", Usage.now().footprint)
     }
@@ -114,10 +112,6 @@ struct Usage {
             await settled(manager)
             writes += fake.writes.count
             fake.clearWrites()
-        }
-        if warm {
-            for step in 0..<actions.count { await act(step) }
-            return
         }
         var chunks = 0
         var quiet = 0

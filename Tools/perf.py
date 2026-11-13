@@ -6,9 +6,10 @@ this machine is next to that device, and each CPU time in ms is scaled to that d
 so a faster or slower runner needs no new caps.
 
 Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
-slows another: a warm-up pass that only starts everything once and counts for nothing (the first start of a new
-build pays for the code signature check, the launch caches and a cold file cache), the calibration, then each run's
-engine scenarios and its app instance. CI gets its speed from three machines instead: each writes its samples with --json, and --merge scales each file by its own machine's speed
+slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
+check, the launch caches and a cold file cache), the calibration, then each run's engine scenarios and its app
+instance. CI gets its speed from
+three machines instead: each writes its samples with --json, and --merge scales each file by its own machine's speed
 and checks the merged rows. Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
 named instance `perf-<run>`, scoped to this process, so it manages no window. When a CatWM runs (a developer's
 Mac), the instances also go on a private agent display that it opens for this run, and they draw nothing on the
@@ -69,9 +70,8 @@ def usage(pid):
             "footprint": fields[7] / mb, "peak": fields[28] / mb}
 
 
-def run_engine(scenario, warm=False):
-    command = [str(PERF), scenario, *(["--warm"] if warm else [])]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+def run_engine(scenario):
+    result = subprocess.run([str(PERF), scenario], capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         sys.exit(f"perf: {scenario} failed\n{result.stderr}")
     return json.loads(result.stdout)
@@ -122,8 +122,6 @@ def run_app(run, display=None):
                       file=sys.stderr)
                 break
             time.sleep(0.5)
-        if run == "warm":
-            return samples
         last = usage(process.pid)
         for _ in range(APP_IDLE_SECONDS):
             time.sleep(1)
@@ -221,7 +219,7 @@ def measure(args):
             samples.setdefault(metric, []).extend(values)
     try:
         for scenario in ENGINE_SCENARIOS:
-            run_engine(scenario, warm=True)
+            run_engine(scenario)
         if not args.skip_app:
             run_app("warm", display)
         for _ in range(args.runs):

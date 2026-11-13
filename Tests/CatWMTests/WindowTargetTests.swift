@@ -138,6 +138,22 @@ import Testing
         #expect(data["window"]?["id"] == .int(Int(mail)))
     }
 
+    @Test func aFunctionsActionsHonourATarget() async throws {
+        let world = makeWorld()
+        let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")
+        let notes = world.fake.addWindow(pid: -101, bundleID: "test.notes", title: "Todo")
+        #expect(await world.fake.settle(world.manager))
+        try await focus(notes, world)
+        let pressed = try #require(world.manager.windows[notes])
+
+        world.manager.run(RuleAction(dispatcher: "setfloating", arg: "@app:test.mail"), on: pressed)
+        #expect(await world.fake.wait(world.manager) { world.manager.windows[mail]?.isFloating == true })
+        #expect(world.manager.windows[notes]?.isFloating == false)
+
+        world.manager.run(RuleAction(dispatcher: "focuswindow", arg: "app:test.mail"), on: pressed)
+        #expect(await world.fake.wait(world.manager) { world.manager.focusRequests.reportedFocus?.id == mail })
+    }
+
     @Test func aDispatcherActsOnTheTargetInsteadOfTheFocusedWindow() async throws {
         let world = makeWorld()
         let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")

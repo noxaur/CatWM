@@ -52,7 +52,7 @@ extension WindowManager {
         if hadFocus, let workspace { handOffFocus(from: workspace) }
     }
 
-    private func show(scratchpadWindow window: Window, on screen: Screen) {
+    func show(scratchpadWindow window: Window, on screen: Screen) {
         let id = window.id
         scratchpads.reveal(id)
         floats.floatFrames[id] = nil

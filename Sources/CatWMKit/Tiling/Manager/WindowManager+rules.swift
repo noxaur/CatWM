@@ -67,7 +67,10 @@ extension WindowManager {
             return
         }
         if action.dispatcher == WindowActions.fullscreen.name, let window, isZoomed(window) { return }
-        let arg = action.arg.trimmingCharacters(in: .whitespaces)
+        guard let (resolved, arg) = resolveTarget(of: action.dispatcher,
+                                                  in: action.arg.trimmingCharacters(in: .whitespaces))
+        else { return }
+        let window = resolved ?? window
         guard let command = WindowActions.named(action.dispatcher) else {
             if !plugins.invoke(action.dispatcher, arg: arg, window: window) {
                 Log.info("unknown dispatcher \(action.dispatcher)")

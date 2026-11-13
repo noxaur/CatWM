@@ -72,6 +72,30 @@ import Testing
         #expect(manager.focusedWindow()?.id == first)
     }
 
+    @Test func focuslastSkipsAHiddenWindowAndFocuswindowBringsItBack() async throws {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = fake.makeManager { $0.layouts = [.tall] }
+        let first = fake.addWindow()
+        let second = fake.addWindow()
+        #expect(await fake.settle(manager))
+        try await focus(first, in: fake, manager: manager)
+        try await focus(second, in: fake, manager: manager)
+        manager.dispatch("movetoscratchpad", "")
+        #expect(await fake.settle(manager))
+        #expect(manager.focusedWindow()?.id == first)
+
+        manager.dispatch("focuslast", "")
+        #expect(await fake.settle(manager))
+        #expect(manager.scratchpads.isHidden(second))
+
+        manager.dispatch("focuswindow", "id:\(second)")
+        #expect(await fake.settle(manager))
+        #expect(!manager.scratchpads.isHidden(second))
+        #expect(!manager.isParked(fake.frame(of: second), [screen]))
+        #expect(manager.focusedWindow()?.id == second)
+    }
+
     @Test func eachNameKeepsItsOwnWindowAndTheSizeOptionApplies() async throws {
         let fake = FakeBackend()
         let screen = fake.addScreen()

@@ -21,7 +21,7 @@ import QuartzCore
     package var windowPresentation: (any WindowPresentation)?
     private var resizeScene: WindowResizeScene?
     private var clock: (any FrameClock)?
-    private let makeClock: MakeClock, now: () -> CFTimeInterval
+    private let makeClock: MakeClock, now: () -> CFTimeInterval, delay: Delay
     package let motionRun: MotionRun
     package var onMinimumSize: ((CGWindowID, CGSize) -> Void)?
     package var onTopRefused: ((_ target: CGRect, _ actual: CGRect) -> Void)?
@@ -30,11 +30,12 @@ import QuartzCore
     package init(backend: any WindowBackend = AXBackend.shared, makeWriter: ((pid_t) -> AXWriter)? = nil,
                  applyFocus: @escaping @Sendable (Window, @Sendable () -> Bool) -> Void = { $0.focus(ifCurrent: $1) },
                  now: @escaping () -> CFTimeInterval = CACurrentMediaTime,
+                 delay: @escaping Delay = Animator.mainQueue,
                  makeClock: @escaping MakeClock = Animator.displayLink) {
         self.backend = backend
         self.makeWriter = makeWriter ?? { AXWriter(pid: $0, backend: backend) }
         self.applyFocus = applyFocus
-        (self.now, self.makeClock) = (now, makeClock)
+        (self.now, self.delay, self.makeClock) = (now, delay, makeClock)
         motionRun = MotionRun { backend.serverFrame(of: $0) }
     }
 
@@ -232,9 +233,7 @@ import QuartzCore
             self.finishResizeScene()
             if wrote { self.onLanded?() }
             self.quietUntil[id] = self.now() + 0.4
-            DispatchQueue.main.asyncAfter( // style-ok: an app that ignores a write sends no event
-                deadline: .now() + 0.12
-            ) { [weak self] in self?.verify(move, epoch: epoch) }
+            self.delay(0.12) { [weak self] in self?.verify(move, epoch: epoch) }
         }
     }
 

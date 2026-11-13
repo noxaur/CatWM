@@ -56,7 +56,8 @@ struct SortLayoutGlyph: View {
         case .fullscreen: 1
         case .bsp: 4
         case .twoPane, .twoPaneRight: 2
-        default: 3
+        case .tall, .tallRight, .wide, .middleWide, .column, .row, .floating, .threeColumnLeft, .threeColumnMiddle,
+             .threeColumnRight, .widescreenTall, .widescreenTallRight: 3
         }
     }
 }

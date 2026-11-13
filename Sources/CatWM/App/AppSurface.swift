@@ -69,9 +69,9 @@ struct AppSurface: TilingSurface {
                 guard moves.allSatisfy({ move in
                     screens.contains { $0.frame.contains(move.target) && $0.frame.contains(move.window.cachedFrame) }
                 }) else { return nil }
-                let frames = Dictionary(moves.map { ($0.window.id, $0.from ?? $0.window.cachedFrame) },
+                let frames = Dictionary(moves.map { ($0.window.id, $0.window.cachedFrame) },
                                         uniquingKeysWith: { _, latest in latest })
-                let regions = moves.map { ($0.from ?? $0.window.cachedFrame).union($0.target) }
+                let regions = moves.map { ($0.window.cachedFrame).union($0.target) }
                 let excluded = SplitHandle.shared.windowIDs
                 guard WindowSceneCapture.canPresent(regions, participants: Set(frames.keys),
                                                     excluding: excluded) else { return nil }

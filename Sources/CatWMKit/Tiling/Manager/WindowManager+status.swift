@@ -71,10 +71,6 @@ extension WindowManager {
         return lines
     }
 
-    package func dumpState() {
-        dumpLines().forEach { Log.info($0) }
-    }
-
     package func swapOrder(_ first: CGWindowID, _ second: CGWindowID) {
         guard let i = order.firstIndex(of: first), let j = order.firstIndex(of: second) else { return }
         order.swapAt(i, j)

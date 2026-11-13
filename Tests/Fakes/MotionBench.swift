@@ -222,7 +222,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
         func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
             for move in moves {
                 let id = move.window.id
-                guard spec.duration >= 0.08, appearances[id]?.canFill(from: move.from ?? move.window.cachedFrame,
+                guard spec.duration >= 0.08, appearances[id]?.canFill(from: move.window.cachedFrame,
                                                                       to: move.target) == true else {
                     cancel(id); continue
                 }

@@ -86,7 +86,7 @@ extension WindowManager {
         }
         releaseEmptyWorkspaces()
         let visible = present.filter { model.isShown(workspaceOf[$0]) }
-        return .init(model: model, homeSpace: [:], displayOf: displayOf, visible: visible, park: [])
+        return .init(model: model, displayOf: displayOf, visible: visible)
     }
 
     package var sharesSpaces: Bool { config.virtualWorkspaces && desktops.nativeCatalog.sharedSpaces }

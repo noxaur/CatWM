@@ -32,8 +32,6 @@ package struct SavedTabs: Equatable {
         guard members.count > 1 else { return nil }
         self.init(members: members, active: active)
     }
-
-    package var line: String { members.map { "\($0.id)@\($0.pid)" }.joined(separator: " ") + " > \(active)" }
 }
 
 extension WindowManager {

@@ -75,13 +75,3 @@ package func rows(_ rect: CGRect, _ count: Int) -> [CGRect] {
         CGRect(x: rect.minX, y: rect.minY + CGFloat($0) * height, width: rect.width, height: height)
     }
 }
-
-extension Layout {
-    package var hasMainPane: Bool {
-        switch self {
-        case .fullscreen, .column, .row, .floating: false
-        case .tall, .tallRight, .wide, .middleWide, .bsp, .threeColumnLeft, .threeColumnMiddle, .threeColumnRight,
-             .twoPane, .twoPaneRight, .widescreenTall, .widescreenTallRight: true
-        }
-    }
-}

@@ -267,11 +267,7 @@ extension WindowManager {
             return
         }
         if isParked(current, screens) {
-            if let from = slideStart(id, to: target, on: screen) {
-                planned.moves.append(.init(window: window, to: target, bounds: screen.visible, from: from))
-            } else {
-                planned.instant.append(.init(window: window, to: target, bounds: screen.visible))
-            }
+            planned.instant.append(.init(window: window, to: target, bounds: screen.visible))
             return
         }
         if animator.isMoving(id, to: target) { return }

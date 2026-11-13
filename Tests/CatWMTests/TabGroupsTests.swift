@@ -76,7 +76,7 @@ import Testing
 
     @Test func savedTabsComeBackInTheirOrderWithTheirActiveTab() throws {
         let saved = SavedTabs(members: [.init(id: 4, pid: 10), .init(id: 2, pid: 10), .init(id: 7, pid: 11)], active: 2)
-        #expect(SavedTabs(saved.line) == saved)
+        #expect(SavedTabs("4@10 2@10 7@11 > 2") == saved)
         #expect(SavedTabs("4@10 > 4") == nil)
         #expect(SavedTabs("nonsense") == nil)
         var model = WorkspaceModel()

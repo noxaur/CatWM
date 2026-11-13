@@ -137,11 +137,11 @@ import QuartzCore
             from = running.frame(at: now, aligned: resizeScene?.visible != true)
             velocity = running.velocity(at: now)
         } else if let landed = landing.removeValue(forKey: id) {
-            from = move.from ?? landed.move.target
+            from = landed.move.target
         } else if let followed = following[id] {
-            from = move.from ?? followed.target
+            from = followed.target
         } else {
-            from = move.from ?? move.window.cachedFrame
+            from = move.window.cachedFrame
         }
         cancel(id, keepingScene: true)
         owners[id] = move.window.pid
@@ -314,7 +314,7 @@ extension Animator {
         }
         guard resizeScene == nil, items.isEmpty, landing.isEmpty,
               moves.contains(where: { move in
-                  let frame = move.from ?? move.window.cachedFrame
+                  let frame = move.window.cachedFrame
                   return !frame.isNull && (abs(frame.width - move.target.width) > 2
                       || abs(frame.height - move.target.height) > 2)
               }) else { return }

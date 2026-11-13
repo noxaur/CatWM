@@ -21,7 +21,7 @@ package final class CursorRefresh {
 
     package static func post(at here: CGPoint?) {
         guard RealInput.allows("cursor refresh", traps: false), let event = event(at: here) else { return }
-        event.post(tap: .cghidEventTap)
+        RealInput.post(event, to: .cghidEventTap, "cursor refresh")
     }
 
     package static func event(at here: CGPoint?) -> CGEvent? {

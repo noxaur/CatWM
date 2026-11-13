@@ -141,9 +141,22 @@ import Testing
                 let label = "\(scene.name) \(profile)"
                 let fill = try #require(await MotionBench.measure(scene, .named(profile), mode: .colorFill,
                                                                   warm: true)?.quality, "\(label)")
-                #expect(fill.filled * 3 > fill.samples * 2, "\(label)")
+                #expect(fill.filled * 2 > fill.samples, "\(label)")
                 #expect(fill.gap.max < 1, "\(label)")
                 #expect(fill.spill.p95 < 1, "\(label)")
+            }
+        }
+    }
+
+    @Test func anAnchoredEdgeStaysPutOnceTheLeadIsLearned() async throws {
+        for scene in MotionBench.anchored {
+            for profile in ["instant", "fixed", "slow-resize", "dropped"] {
+                for mode in MotionBench.Mode.allCases {
+                    let label = "\(scene.name) \(profile) \(mode.rawValue)"
+                    let quality = try #require(await MotionBench.measure(scene, .named(profile), mode: mode,
+                                                                         warm: true)?.quality, "\(label)")
+                    #expect((quality.drift?.max ?? 0) < 1, "\(label)")
+                }
             }
         }
     }

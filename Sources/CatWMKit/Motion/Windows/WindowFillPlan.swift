@@ -41,10 +41,12 @@ package struct WindowFillPlan: Sendable {
     }
 
     package func hole(desired: CGRect, actual: CGRect, expected: CGRect?) -> CGRect? {
+        let anchor = WindowAnchor(from: source, to: target)
         let holes = expected.map { next in
             let left = max(actual.minX, next.minX), top = max(actual.minY, next.minY)
-            let right = min(actual.minX, next.minX) + min(actual.width, next.width)
-            let bottom = min(actual.minY, next.minY) + min(actual.height, next.height)
+            let right = anchor?.maxX == nil ? min(actual.minX, next.minX) + min(actual.width, next.width) : actual.maxX
+            let bottom = anchor?.maxY == nil ? min(actual.minY, next.minY) + min(actual.height, next.height)
+                : actual.maxY
             return [CGRect(x: left, y: top, width: max(0, right - left), height: max(0, bottom - top)),
                     actual.intersection(next)]
         } ?? [actual]

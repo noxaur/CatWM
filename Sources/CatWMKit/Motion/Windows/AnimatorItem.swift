@@ -30,6 +30,7 @@ extension Animator {
         let duration: Double
         let tracks: [Trajectory]
         var fill: WindowFillPlan?
+        var settles: CFTimeInterval?
 
         package init(move: Move, from: CGRect, start: CFTimeInterval?, spec: MotionSpec, velocity: [Double]? = nil) {
             self.move = move
@@ -54,6 +55,11 @@ extension Animator {
 
 extension Animator.Item {
     package var end: CFTimeInterval? { start.map { $0 + duration } }
+
+    package var anchor: WindowAnchor? {
+        WindowAnchor(from: CGRect(x: tracks[0].origin, y: tracks[1].origin, width: tracks[2].origin,
+                                  height: tracks[3].origin), to: move.target)
+    }
 
     package func request(at times: WindowLead.Times) -> CGRect {
         guard let fill else { return frame(position: times.position, size: times.size) }

@@ -22,6 +22,7 @@ package struct WindowLead: Sendable {
     private struct Write: Sendable {
         let number: Int
         let calls: [Call?]
+        let sizeShows: CFTimeInterval
     }
     private struct Axis: Sendable {
         var cost = WindowWriteCost()
@@ -53,7 +54,7 @@ package struct WindowLead: Sendable {
 
     package func delays(at now: CFTimeInterval) -> [Double?] { axes.map { $0.delay(at: now) } }
 
-    package mutating func wrote(position: Call?, size: Call?, learns: Bool) {
+    package mutating func wrote(position: Call?, size: Call?, learns: Bool, sizeShows: CFTimeInterval? = nil) {
         let calls = [position, size]
         if learns {
             for (axis, call) in zip(axes.indices, calls) {
@@ -62,7 +63,11 @@ package struct WindowLead: Sendable {
         }
         guard position != nil || size != nil else { return }
         written += 1
-        writes.append(Write(number: written, calls: calls))
+        writes.append(Write(number: written, calls: calls,
+                            sizeShows: sizeShows ?? size.map { call in
+                                let delays = delays(at: call.finished)
+                                return call.finished + min(MotionTiming.leadLimit, delays[1] ?? delays[0] ?? 0)
+                            } ?? 0))
         if writes.count > MotionTiming.leadHistory { writes.removeFirst(writes.count - MotionTiming.leadHistory) }
     }
 
@@ -115,6 +120,16 @@ package struct WindowLead: Sendable {
         return Plan(times: Times(position: presentation + Double(frames[0]) * period,
                                  size: presentation + Double(frames[1]) * period),
                     order: order, frames: frames)
+    }
+
+    package func pinned(_ frame: CGRect, to anchor: WindowAnchor?, times: Times, period: Double,
+                        resizes: Bool) -> CGRect {
+        let shows = times.position + period / 2
+        guard let anchor else { return frame }
+        if resizes && times.size <= shows { return anchor.pinned(frame, showing: frame.size) }
+        guard let size = writes.last(where: { $0.calls[1] != nil && $0.sizeShows <= shows })?.calls[1]?.value
+            ?? axes[1].visible else { return frame }
+        return anchor.pinned(frame, showing: CGSize(width: size.x, height: size.y))
     }
 
     package mutating func commit(_ plan: Plan) {

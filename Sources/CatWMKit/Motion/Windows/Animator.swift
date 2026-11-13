@@ -157,7 +157,7 @@ import QuartzCore
             .init(shown: shown, presentation: presentation, observed: observed)
         }
         for (id, item) in items where item.start == nil {
-            let step = timing(), frames = writer(item.move.window.pid).leadFrames(id, at: now(), step)
+            let step = timing(), frames = writer(item.move.window.pid).leadFrames(id, at: now(), step).max() ?? 0
             items[id]?.start = shown + Double(frames) * step.period
         }
         let observed = items.keys.reduce(into: [CGWindowID: CGRect]()) { $0[$1] = readFrame($1) }
@@ -170,15 +170,14 @@ import QuartzCore
             return left == right ? $0.key < $1.key : left
         }
         for (id, item) in ordered {
-            if let end = item.end, presentation >= end {
+            if let end = item.end, presentation >= end, presentation >= settled(item, after: end, timing()) {
                 items[id] = nil
                 motionRun.finished(item)
                 land(item.move)
             } else {
                 writer(item.move.window.pid).step(item.move.window, timing(observed: observed[id]),
-                                                  releasesSpace: item.fill?.releasesSpace == true) {
-                    item.request(at: $0)
-                }
+                                                  releasesSpace: item.fill?.releasesSpace == true,
+                                                  anchor: item.anchor) { item.request(at: $0) }
             }
         }
         updateWindowPresentation(at: presentation, observed: observed, period: presentation - shown)
@@ -187,6 +186,15 @@ import QuartzCore
             clock?.stop(); clock = nil
             motionRun.end(writers.map { ($0.key, $0.value.takeStats()) })
         }
+    }
+
+    private func settled(_ item: Item, after end: CFTimeInterval, _ step: AXWriter.Step) -> CFTimeInterval {
+        if let settles = item.settles { return settles }
+        let id = item.move.window.id
+        let frames = item.anchor == nil ? [0, 0] : writer(item.move.window.pid).leadFrames(id, at: now(), step)
+        let settles = end + Double(max(0, frames[1] - frames[0])) * step.period
+        items[id]?.settles = settles
+        return settles
     }
 
     private func land(_ move: Move) {

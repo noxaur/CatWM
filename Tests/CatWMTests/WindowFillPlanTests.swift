@@ -122,11 +122,23 @@ struct WindowFillPlanTests {
 
     @Test func theHoleFitsTheWindowWhicheverOfItsOriginAndSizeShowFirst() throws {
         let plan = try #require(plan(CGRect(x: 720, y: 0, width: 720, height: 900),
-                                     CGRect(x: 864, y: 0, width: 576, height: 900)))
+                                     CGRect(x: 864, y: 0, width: 560, height: 900)))
         let desired = CGRect(x: 780, y: 0, width: 660, height: 900)
         let hole = plan.hole(desired: desired, actual: CGRect(x: 790, y: 0, width: 650, height: 900),
                              expected: CGRect(x: 820, y: 0, width: 620, height: 900))
         #expect(hole == CGRect(x: 820, y: 0, width: 590, height: 900))
+    }
+
+    @Test func theHoleKeepsAnAnchoredEdgeWhereTheWindowShowsIt() throws {
+        let plan = try #require(plan(CGRect(x: 720, y: 0, width: 720, height: 900),
+                                     CGRect(x: 864, y: 0, width: 576, height: 900)))
+        let desired = CGRect(x: 780, y: 0, width: 660, height: 900)
+        let hole = plan.hole(desired: desired, actual: CGRect(x: 790, y: 0, width: 650, height: 900),
+                             expected: CGRect(x: 820, y: 0, width: 620, height: 900))
+        #expect(hole == CGRect(x: 820, y: 0, width: 620, height: 900))
+        let short = plan.hole(desired: desired, actual: CGRect(x: 790, y: 0, width: 630, height: 900),
+                              expected: CGRect(x: 820, y: 0, width: 620, height: 900))
+        #expect(short?.maxX == 1420)
     }
 
     @Test func aRetargetKeepsItsFillWhenTheTopEdgeChanges() throws {

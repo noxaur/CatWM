@@ -149,13 +149,13 @@
       "group": "Motion",
       "label": "Live anchored-edge drift p95 per move and app profile",
       "unit": "px",
-      "cap": 240
+      "cap": 170
     },
     "motion.fill.drift": {
       "group": "Motion",
       "label": "Color-fill anchored-edge drift p95 per move and app profile",
       "unit": "px",
-      "cap": 240
+      "cap": 210
     },
     "motion.fill.gap": {
       "group": "Motion",

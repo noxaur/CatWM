@@ -159,7 +159,7 @@ extension WindowManager {
         }
         let screens = backend.screens()
         for (id, key) in waiting {
-            let display = String(key.dropFirst(Self.pendingPrefix.count))
+            let display = String(key.dropFirst(WorkspaceKey.pendingPrefix.count))
             model.assign(id, to: virtualShown[display]
                 ?? screens.first.flatMap { virtualShown[$0.uuid] }
                 ?? screens.first.flatMap { shown[$0.uuid] })

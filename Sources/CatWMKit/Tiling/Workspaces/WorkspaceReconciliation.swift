@@ -16,7 +16,7 @@ package struct WorkspaceReconciliation {
         for uuid in model.shown.keys where !uuids.contains(uuid) { model.shown[uuid] = nil }
         for uuid in model.virtualShown.keys where !uuids.contains(uuid) { model.virtualShown[uuid] = nil }
         for display in displays {
-            model.show(WindowManager.spaceWorkspace(display: display.id, space: display.space), on: display.id)
+            model.show(WorkspaceKey.space(display: display.id, space: display.space), on: display.id)
             if let workspace = model.shown[display.id] { model.monitorOf[workspace] = display.id }
         }
         hostMaximised(observation, in: &model)
@@ -35,7 +35,7 @@ package struct WorkspaceReconciliation {
         model.maximisedHost = [:]
         for (id, space) in observation.maximised.sorted(by: { $0.key < $1.key }) {
             guard let owner = observation.displays.first(where: { $0.spaces.contains(space) }) else { continue }
-            let workspace = WindowManager.spaceWorkspace(display: owner.id, space: space)
+            let workspace = WorkspaceKey.space(display: owner.id, space: space)
             model.hostMaximised(id, in: workspace)
             model.monitorOf[workspace] = owner.id
             model.maximisedHost[workspace] = id
@@ -69,13 +69,4 @@ package struct WorkspaceReconciliation {
     }
 
     private static func area(_ frame: CGRect) -> CGFloat { frame.isNull ? 0 : frame.width * frame.height }
-
-    package static func workspaceSort(_ first: String, _ second: String) -> Bool {
-        switch (Int(WorkspaceKey.number(first)), Int(WorkspaceKey.number(second))) {
-        case let (x?, y?): return x < y
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: return first < second
-        }
-    }
 }

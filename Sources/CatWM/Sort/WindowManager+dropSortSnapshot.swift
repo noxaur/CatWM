@@ -50,7 +50,7 @@ extension WindowManager {
         names.formUnion(desktops.nativeCatalog.entries.filter { $0.display == display }.map(\.name))
         if let active { names.insert(active) }
         names.subtract(desktops.nativeDroppedWorkspaces)
-        return names.sorted(by: workspaceSort).map { name in
+        return names.sorted(by: WorkspaceKey.precedes).map { name in
             SortWorkspace(name: name, label: labels[name] ?? "",
                           layout: states[name]?.layout ?? config.layouts.first ?? .tall,
                           ratio: states[name]?.ratio ?? 0.5, mainCount: states[name]?.mainCount ?? 1,
@@ -158,7 +158,7 @@ extension WindowManager {
             for id in lane.ids where windows[id] != nil && !maximised.contains(id) { moves[id] = lane.name }
         }
         for name in gone { labels[name] = nil }
-        let hidden = Self.pendingPrefix + apply.display
+        let hidden = WorkspaceKey.pendingPrefix + apply.display
         monitorOf[hidden] = apply.display
         for id in apply.close where windows[id] != nil { moves[id] = hidden }
         model.assign(moves)

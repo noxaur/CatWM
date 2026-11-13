@@ -15,7 +15,7 @@ extension SortPlan {
         } else {
             return nil
         }
-        let position = lanes.firstIndex { Self.order(name, $0.workspace) } ?? lanes.count
+        let position = lanes.firstIndex { WorkspaceKey.precedes(name, $0.workspace) } ?? lanes.count
         lanes.insert(SortLane(workspace: name, name: "", layout: layout, ids: []), at: position)
         return position
     }
@@ -58,7 +58,7 @@ extension SortPlan {
         for id in closed.ids { origin[id] = nil }
         closedLanes.removeAll { $0.id == group }
         lanes.insert(SortLane(workspace: workspace, name: closed.name, layout: closed.layout, ids: closed.ids),
-                     at: lanes.firstIndex { Self.order(workspace, $0.workspace) } ?? lanes.count)
+                     at: lanes.firstIndex { WorkspaceKey.precedes(workspace, $0.workspace) } ?? lanes.count)
     }
 
     mutating func followDesktopOrder() {
@@ -81,7 +81,7 @@ extension SortPlan {
         lanes.removeAll { $0.workspace == workspace && $0.id != id }
         guard let position = lanes.firstIndex(where: { $0.id == id }) else { return }
         lanes[position].workspace = workspace
-        lanes.sort { Self.order($0.workspace, $1.workspace) }
+        lanes.sort { WorkspaceKey.precedes($0.workspace, $1.workspace) }
         for (key, from) in origin where from.workspace == old { origin[key] = (workspace, from.at) }
     }
 

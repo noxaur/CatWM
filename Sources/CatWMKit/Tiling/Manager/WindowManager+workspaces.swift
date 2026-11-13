@@ -3,15 +3,6 @@ import AppKit
 extension WindowManager {
     package func isShown(_ workspace: String?) -> Bool { model.isShown(workspace) }
 
-    package func workspaceSort(_ first: String, _ second: String) -> Bool {
-        switch (Int(WorkspaceKey.number(first)), Int(WorkspaceKey.number(second))) {
-        case let (x?, y?): return x < y
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: return first < second
-        }
-    }
-
     package var currentWorkspace: String? {
         guard let screen = currentScreen() else { return nil }
         if let request = nativeDesktop.requested, request.display == screen.uuid, isVirtual(request.workspace) {
@@ -39,8 +30,8 @@ extension WindowManager {
            let delta = Int(lower.dropFirst(1).replacingOccurrences(of: "+", with: "")) {
             let occupied = Set(workspaceOf.values).union(virtualShown.values)
                 .filter { isVirtual($0) && !isPending($0) }
-                .sorted(by: workspaceSort)
-            return Self.step(occupied, from: cur, by: delta, sortedBy: workspaceSort)
+                .sorted(by: WorkspaceKey.precedes)
+            return Self.step(occupied, from: cur, by: delta, sortedBy: WorkspaceKey.precedes)
         }
         if config.workspacesPerDisplay, let number = Int(trimmed), number >= 1, let display = currentScreen()?.uuid {
             return WorkspaceKey.make(String(number), on: display, perDisplay: true)
@@ -61,7 +52,7 @@ extension WindowManager {
 
     package func workspaceKey(for screen: Screen) -> String {
         shown[screen.uuid]
-            ?? Self.spaceWorkspace(display: screen.uuid, space: backend.currentSpace(display: screen.uuid))
+            ?? WorkspaceKey.space(display: screen.uuid, space: backend.currentSpace(display: screen.uuid))
     }
 
     package func workspaceNumber(_ workspace: String) -> String { WorkspaceKey.number(workspace) }
@@ -70,17 +61,11 @@ extension WindowManager {
         if let workspace = resolveWorkspace(number) { showWorkspace(workspace) }
     }
 
-    package func isVirtual(_ workspace: String?) -> Bool { workspace.map { !$0.hasPrefix(Self.spacePrefix) } ?? false }
-
-    package nonisolated static let spacePrefix = "space:"
-
-    package nonisolated static func spaceWorkspace(display uuid: String, space: UInt64) -> String {
-        "\(spacePrefix)\(uuid):\(space)"
+    package func isVirtual(_ workspace: String?) -> Bool {
+        workspace.map { !$0.hasPrefix(WorkspaceKey.spacePrefix) } ?? false
     }
 
-    package nonisolated static let pendingPrefix = "sort-close:"
-
-    package func isPending(_ workspace: String?) -> Bool { workspace?.hasPrefix(Self.pendingPrefix) == true }
+    package func isPending(_ workspace: String?) -> Bool { workspace?.hasPrefix(WorkspaceKey.pendingPrefix) == true }
 
     @discardableResult
     package func syncWorkspaces(screens: [Screen], present: Set<CGWindowID>) -> WorkspaceReconciliation {

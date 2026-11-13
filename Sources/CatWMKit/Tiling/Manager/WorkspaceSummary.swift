@@ -25,7 +25,7 @@ extension WindowManager {
             counts[workspace, default: 0] += 1
         }
         var names = Set(counts.keys).union(desktops.nativeCatalog.entries.map(\.name))
-            .union(virtualShown.values).sorted(by: workspaceSort)
+            .union(virtualShown.values).sorted(by: WorkspaceKey.precedes)
         if config.workspacesPerDisplay, let display = currentScreen()?.uuid {
             names = desktops.nativeCatalog.entries(on: display).map(\.name)
         }

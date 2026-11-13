@@ -62,7 +62,7 @@ extension WindowManager {
             guard let screen = screens.first(where: {
                 Spaces.list(display: $0.uuid)?.ids.contains(space) == true
             }) else { return nil }
-            let key = Self.spaceWorkspace(display: screen.uuid, space: space)
+            let key = WorkspaceKey.space(display: screen.uuid, space: space)
             model.hostMaximised(id, in: key)
             monitorOf[key] = screen.uuid
             return key
@@ -99,7 +99,7 @@ extension WindowManager {
         let names = desktops.nativeCatalog.shown(current)
         for (display, space) in current {
             let name = names[display]
-            model.show(name ?? Self.spaceWorkspace(display: display, space: space), on: display)
+            model.show(name ?? WorkspaceKey.space(display: display, space: space), on: display)
             guard let name else { continue }
             if let old = virtualShown[display], old != name,
                !closeAndSort.sortSession { previousWorkspace[display] = old }
@@ -172,7 +172,7 @@ extension WindowManager {
               !scanner.desktop.allWindows.isEmpty else { return }
         let empty = emptyNativeEntries()
         if config.workspacesPerDisplay {
-            func number(_ entry: NativeWorkspaceCatalog.Entry) -> Int { Int(WorkspaceKey.number(entry.name)) ?? 0 }
+            func number(_ entry: NativeWorkspaceCatalog.Entry) -> Int { WorkspaceKey.ordinal(entry.name) }
             let kept = desktops.nativeCatalog.entries.filter { entry in !empty.contains(entry) }
             return removeDesktops(empty.filter { entry in
                 !kept.contains { $0.display == entry.display && number($0) > number(entry) }
@@ -186,7 +186,7 @@ extension WindowManager {
         let targets = empty.filter {
             desktops.desktopRemovalFailures[$0.space].map { now.timeIntervalSince($0) > 30 } ?? true
         }
-            .sorted { (Int(WorkspaceKey.number($0.name)) ?? 0) > (Int(WorkspaceKey.number($1.name)) ?? 0) }
+            .sorted { (WorkspaceKey.ordinal($0.name)) > (WorkspaceKey.ordinal($1.name)) }
         guard !targets.isEmpty, !desktops.desktopRemovalScheduled else { return }
         desktops.desktopRemovalScheduled = true
         Task { @MainActor in
@@ -238,9 +238,9 @@ extension WindowManager {
     }
 
     package func closeGap(after removed: NativeWorkspaceCatalog.Entry) {
-        guard let gone = Int(WorkspaceKey.number(removed.name)) else { return }
+        guard let gone = WorkspaceKey.numeric(removed.name) else { return }
         func shifted(_ key: String) -> String {
-            guard WorkspaceKey.display(key) == removed.display, let number = Int(WorkspaceKey.number(key)),
+            guard WorkspaceKey.display(key) == removed.display, let number = WorkspaceKey.numeric(key),
                   number > gone else { return key }
             return WorkspaceKey.make(String(number - 1), on: removed.display, perDisplay: true)
         }
@@ -287,7 +287,7 @@ extension WindowManager {
         nativeDesktop.isForward = { [weak self] source, target, desktopOrder in
             guard let self, let from = self.desktops.nativeCatalog.entry(space: source)?.name,
                   let into = self.desktops.nativeCatalog.entry(space: target)?.name else { return desktopOrder }
-            return self.workspaceSort(from, into)
+            return WorkspaceKey.precedes(from, into)
         }
         nativeDesktop.onIdle = { [weak self] in
             self?.nativeMoves.desktopBecameIdle()

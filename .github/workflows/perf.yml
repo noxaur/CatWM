@@ -54,7 +54,7 @@ jobs:
           name: perf-build
       - run: tar -xf perf-build.tar && rm perf-build.tar
       # Each machine runs its share one at a time; the report job merges the three.
-      - run: python3 Tools/perf.py --runs 2 --json perf.json --no-check ${{ matrix.shard == 1 && '--profile app-sample.txt' || '' }}
+      - run: python3 Tools/perf.py --runs 2 --json perf.json --no-check ${{ matrix.shard == 1 && github.event_name != 'pull_request' && '--profile app-sample.txt' || '' }}
       - if: always()
         uses: actions/upload-artifact@v5
         with:

@@ -3,6 +3,7 @@ package enum DefaultsKey {
     package static let grabHints = "grabHints"
     package static let migratedLegacyDefaults = "migratedLegacyDefaults"
     package static let migratedConfigToTypeScript = "migratedConfigToTypeScript"
+    package static let migratedOverridesToConfig = "migratedOverridesToConfig"
     package static let perfBackoffUntil = "perf.backoffUntil"
     package static let perfCounts = "perf.counts"
     package static let perfSentAt = "perf.sentAt"

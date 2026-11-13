@@ -261,17 +261,8 @@ extension MigrationReader {
            let mod = variables.last(where: { $0.name == first.name && $0.mods != nil }) {
             out.append("catwm.mod = \(mod.identifier)")
         }
-        let split = paths.contains { $0.path.hasPrefix("padding.") }
-        for (path, comments) in paths {
-            if path == "padding", split {
-                let sides = ["left", "right", "top", "bottom"]
-                for side in sides where !paths.contains(where: { $0.path == "padding." + side }) {
-                    out += setter("padding." + side, comments: side == "left" ? comments : [])
-                }
-            } else {
-                out += setter(path, comments: comments)
-            }
-        }
+        out += options
+        if !binds.isEmpty { out.append("") }
         for submap in [""] + submapNames {
             for bind in binds.filter({ $0.submap == submap }) { out += bind.comments + bind.calls }
         }
@@ -279,8 +270,67 @@ extension MigrationReader {
         return out.joined(separator: "\n") + "\n"
     }
 
+    private var options: [String] {
+        var out: [String] = []
+        let split = paths.contains { $0.path.hasPrefix("padding.") }
+        var entries: [(path: String, comments: [String])] = []
+        for (path, comments) in paths {
+            if path == "padding", split {
+                let sides = ["left", "right", "top", "bottom"]
+                for side in sides where !paths.contains(where: { $0.path == "padding." + side }) {
+                    entries.append(("padding." + side, side == "left" ? comments : []))
+                }
+            } else {
+                entries.append((path, comments))
+            }
+        }
+        var groups: [(name: String, entries: [(path: String, comments: [String])])] = []
+        for entry in entries {
+            let name = String(entry.path.prefix { $0 != "." })
+            if let index = groups.firstIndex(where: { $0.name == name }) {
+                groups[index].entries.append(entry)
+            } else {
+                groups.append((name, [entry]))
+            }
+        }
+        var afterBlock = false
+        for group in groups {
+            let sides = Set(group.entries.map { ConfigScript.literal(value($0.path)) })
+            if group.name == "padding", group.entries.count == 4, sides.count == 1, let side = sides.first {
+                out += (afterBlock ? [""] : []) + group.entries.flatMap(\.comments) + ["catwm.padding = " + side]
+                afterBlock = false
+            } else if group.entries.count == 1, let entry = group.entries.first {
+                out += (afterBlock ? [""] : []) + setter(entry.path, comments: entry.comments)
+                afterBlock = false
+            } else {
+                out += ["", "catwm.\(group.name) = " + object(group.entries, prefix: group.name, indent: 0)]
+                afterBlock = true
+            }
+        }
+        return out
+    }
+
     private func setter(_ path: String, comments: [String]) -> [String] {
         comments + ["catwm.\(path) = " + ConfigScript.literal(value(path))]
+    }
+
+    private func object(_ entries: [(path: String, comments: [String])], prefix: String, indent: Int) -> String {
+        let pad = String(repeating: " ", count: indent + 2), end = String(repeating: " ", count: indent)
+        var keys: [String] = [], children: [String: [(path: String, comments: [String])]] = [:]
+        for entry in entries {
+            let key = String(entry.path.dropFirst(prefix.count + 1).prefix { $0 != "." })
+            if children[key] == nil { keys.append(key) }
+            children[key, default: []].append(entry)
+        }
+        let rows = keys.flatMap { key -> [String] in
+            let path = prefix + "." + key, items = children[key] ?? []
+            if items.count == 1, let leaf = items.first, leaf.path == path {
+                let row = ConfigScript.property(key) + ": " + ConfigScript.literal(value(path), indent: indent + 2)
+                return (leaf.comments + [row + ","]).map { pad + $0 }
+            }
+            return [pad + ConfigScript.property(key) + ": " + object(items, prefix: path, indent: indent + 2) + ","]
+        }
+        return "{\n" + rows.joined(separator: "\n") + "\n" + end + "}"
     }
 
     private var submapNames: [String] {

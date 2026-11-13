@@ -80,7 +80,8 @@ struct ConfigFolder {
             "catwm.focus.followsMouse = false",
             "catwm.focus.followsMouse = undefined",
             "catwm.gaps.smart = false",
-            "catwm.gaps = { smart: undefined }"
+            "catwm.gaps = { smart: undefined }",
+            "catwm.features = { input: { gestures: false } }"
         )
 
         #expect(run.failures.isEmpty)
@@ -90,6 +91,8 @@ struct ConfigFolder {
         #expect(run.value?["layouts"] == .array([.string("bsp")]))
         #expect(run.value?["padding"]?["left"] == .int(3) && run.value?["padding"]?["right"] == .int(10))
         #expect(run.value?["focus"]?["followsMouse"] == .bool(true))
+        #expect(run.value?["features"]?["input"]?["gestures"] == .bool(false))
+        #expect(run.value?["features"]?["input"]?["keys"] == .bool(true))
     }
 
     @Test func aDefaultListExtendsAndShrinks() throws {

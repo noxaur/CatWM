@@ -25,7 +25,7 @@ package final class CursorRefresh {
               let event = CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: .mouseMoved,
                                   mouseCursorPosition: here, mouseButton: .left) else { return }
         event.setIntegerValueField(.eventSourceUserData, value: Hotkeys.syntheticMarker)
-        event.post(tap: .cghidEventTap)
+        RealInput.post(event, to: .cghidEventTap, "cursor refresh")
     }
 
     package static func isOurs(_ event: NSEvent) -> Bool {

@@ -1,6 +1,11 @@
 # Configure CatWM
 
-CatWM works with no setup. To change how it behaves, edit `~/.config/catwm/catwm.config.ts`. It's a TypeScript file, and CatWM applies it as soon as you save. You don't need to restart or run a reload command.
+CatWM works with no setup. You can change it in two places:
+
+- **The Settings window.** Open it from the CatWM menu bar icon → **Settings…**. It covers the common options, keys and motion styles.
+- **The config file**, `~/.config/catwm/catwm.config.ts`. It's a TypeScript file that can do everything Settings can, plus rules, functions and loops. CatWM applies it as soon as you save, with no restart or reload command.
+
+Use whichever you like, or both. The rest of this guide is about the config file. [Settings and your file](#settings-and-your-file) explains how the two work together.
 
 CatWM writes `catwm.d.ts` and `tsconfig.json` next to the file. Open the folder in an editor that knows TypeScript, such as VS Code or Zed. The editor then completes every option, key and action, shows each option's default, and underlines a typo before you save.
 
@@ -184,6 +189,3 @@ The Settings window never edits `catwm.config.ts`. A change in Settings goes to 
 
 The order is: CatWM's defaults, then your config file, then the Settings overrides.
 
-## Coming from `catwm.conf`
-
-If you used CatWM's older `catwm.conf` file, CatWM converts it to `catwm.config.ts` the first time it starts. It checks that the new file gives exactly the same settings, and keeps `catwm.conf` as a backup that it doesn't read. If the conversion fails, CatWM keeps using `catwm.conf` and the menu bar menu says why.

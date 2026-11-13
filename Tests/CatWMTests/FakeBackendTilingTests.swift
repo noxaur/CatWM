@@ -225,12 +225,12 @@ import Testing
         #expect(Set(manager.windows.keys) == Set(ids))
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
         let before = ids.map(fake.frame(of:))
-        let start = CACurrentMediaTime()
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
         manager.setLayout(.wide, on: screen)
-        let elapsed = CACurrentMediaTime() - start
+        let elapsed = Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start) / 1e9
         await fake.settle(manager)
         #expect(ids.map(fake.frame(of:)) != before)
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
-        #expect(elapsed < 0.05, "The main thread took \(elapsed) s to tile 200 windows again")
+        #expect(elapsed < 0.05, "The main thread spent \(elapsed) s of CPU to tile 200 windows again")
     }
 }

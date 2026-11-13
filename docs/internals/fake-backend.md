@@ -26,4 +26,4 @@ These parts aren't behind `WindowBackend`, so a fake test can't drive them:
 - Some direct window-server reads, such as `CGWindowInfo.onScreen()` in `focus(on:)` and the Overview.
 - Template capture and restore.
 
-On an Apple M4 debug build, 200 windows on 20 apps settle in about 0.07 s, and a relayout of them takes about 2 ms of main thread. `twoHundredWindowsRetileInLessThan50Milliseconds` guards that and measures only main-thread work, because other suites can hold the main actor during `settle`.
+On an Apple M4 debug build, 200 windows on 20 apps settle in about 0.07 s, and a relayout of them takes about 2 ms of main thread. `twoHundredWindowsRetileInLessThan50Milliseconds` guards that with the main thread's CPU time for the relayout call. Wall time was rejected because, at load 90, it counts the time the thread waits to be scheduled.

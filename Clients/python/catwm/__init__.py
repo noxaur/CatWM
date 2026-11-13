@@ -524,6 +524,17 @@ class CatWM:
             args["step"] = step
         self.call("switcher", args)
 
+    def focuswindow(self, target: str) -> None:
+        """Focus the window that a target names, on any workspace or display"""
+        args: dict[str, Any] = {}
+        args["target"] = target
+        self.call("focuswindow", args)
+
+    def focuslast(self) -> None:
+        """Focus the window that had focus before this one"""
+        args: dict[str, Any] = {}
+        self.call("focuslast", args)
+
     def submap(self, name: str) -> None:
         """Enter a key mode, or leave it"""
         args: dict[str, Any] = {}

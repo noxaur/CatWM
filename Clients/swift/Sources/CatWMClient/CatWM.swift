@@ -625,6 +625,19 @@ public final class CatWM: @unchecked Sendable {
         _ = try call("switcher", args)
     }
 
+    /// Focus the window that a target names, on any workspace or display
+    public func focuswindow(target: String) throws {
+        var args: [String: Any] = [:]
+        args["target"] = target
+        _ = try call("focuswindow", args)
+    }
+
+    /// Focus the window that had focus before this one
+    public func focuslast() throws {
+        let args: [String: Any] = [:]
+        _ = try call("focuslast", args)
+    }
+
     /// Enter a key mode, or leave it
     public func submap(name: String) throws {
         var args: [String: Any] = [:]

@@ -37,11 +37,11 @@ extension ConfigScript {
 
 extension ConfigScript.Reader {
     private enum Field {
-        case glob, text, textOrRegex, number, bool, count, layout
+        case glob, text, number, bool, count, layout
     }
 
     private static let windowFields: [String: (Fact, Field)] = [
-        "app": (.app, .glob), "title": (.title, .textOrRegex), "pid": (.pid, .number),
+        "app": (.app, .glob), "title": (.title, .text), "pid": (.pid, .number),
         "workspace": (.workspace, .text), "display": (.display, .text), "floating": (.floating, .bool),
         "minimized": (.minimized, .bool), "fullscreen": (.fullscreen, .bool)
     ]
@@ -123,10 +123,12 @@ extension ConfigScript.Reader {
     }
 
     private mutating func condition(_ fact: Fact, _ field: Field, _ value: JSON, label: String) -> Condition? {
+        if case .object(let regex) = value, field == .glob || field == .text {
+            return regexCondition(fact, regex, label: label)
+        }
         switch (field, value) {
         case (.glob, .string): return .compare(fact, .glob, value)
         case (.text, .string), (.bool, .bool): return .compare(fact, .equal, value)
-        case (.textOrRegex, .string): return .compare(fact, .equal, value)
         case (.number, .int), (.number, .number): return .compare(fact, .equal, value)
         case (.layout, .string(let name)) where Layout(rawValue: name) != nil: return .compare(fact, .equal, value)
         case (.count, .int), (.count, .number): return .compare(fact, .equal, value)
@@ -138,10 +140,9 @@ extension ConfigScript.Reader {
                 return nil
             }
             return .all(found.map { .compare(fact, $0.1, $0.2) })
-        case (.textOrRegex, .object(let regex)): return regexCondition(fact, regex, label: label)
         default:
             let noun = switch field {
-            case .glob, .text, .textOrRegex: "a string"
+            case .glob, .text: "a string or a regular expression"
             case .number: "a number"
             case .bool: "true or false"
             case .count: "a number or { atLeast, atMost }"
@@ -157,23 +158,12 @@ extension ConfigScript.Reader {
             fail("", "\(label) must be a string or a regular expression")
             return nil
         }
-        var options: NSRegularExpression.Options = []
-        for flag in flags {
-            switch flag {
-            case "i": options.insert(.caseInsensitive)
-            case "m": options.insert(.anchorsMatchLines)
-            case "s": options.insert(.dotMatchesLineSeparators)
-            case "g", "u", "y", "d": continue
-            default:
-                fail("", "\(label) uses the regular expression flag `\(flag)`, which CatWM can't match")
-                return nil
-            }
-        }
         do {
-            return .matches(fact, try NSRegularExpression(pattern: pattern, options: options))
+            return .matches(fact, try TextPattern.regex(pattern, flags: flags))
+        } catch let failure as TextPattern.Failure {
+            fail("", "\(label) \(failure.message)")
+            return nil
         } catch {
-            fail("", "\(label) is the regular expression /\(pattern)/, which CatWM can't match: "
-                + "\(error.localizedDescription)")
             return nil
         }
     }

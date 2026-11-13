@@ -72,8 +72,8 @@ extension WindowManager {
         refresh()
     }
 
-    package func toggleFloating() {
-        guard let window = focusedWindow() else { return }
+    package func toggleFloating(window target: Window? = nil) {
+        guard let window = target ?? focusedWindow() else { return }
         setFloating(!window.isFloating, for: window)
     }
 
@@ -104,10 +104,11 @@ extension WindowManager {
         focus(window, warp: false)
     }
 
-    package func toggleNativeFullscreen() {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return }
+    package func toggleNativeFullscreen(of target: Window? = nil) {
+        guard let app = target.flatMap({ NSRunningApplication(processIdentifier: $0.pid) })
+            ?? NSWorkspace.shared.frontmostApplication else { return }
         let pid = app.processIdentifier
-        let known = focusedWindow().map { AXReference($0.element) }
+        let known = (target ?? focusedWindow()).map { AXReference($0.element) }
         scanner.run(pid) { [weak self] in
             guard let element = known?.object ?? axApp(pid).element(kAXFocusedWindowAttribute) else { return }
             let isOn = element.flag("AXFullScreen")

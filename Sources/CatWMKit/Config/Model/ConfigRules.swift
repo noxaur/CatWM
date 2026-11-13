@@ -8,7 +8,7 @@ package struct RuleAction: Equatable, Sendable {
 }
 
 package enum Fact: String, CaseIterable, Sendable {
-    case app, title, pid, workspace, display, floating, minimized, fullscreen
+    case app, title, pid, id, workspace, display, floating, minimized, fullscreen
     case windows, sameApp, apps, layout, name, focused
 }
 
@@ -40,11 +40,13 @@ package indirect enum Condition: Equatable, @unchecked Sendable { // style-ok: N
         case .compare(let fact, let comparison, let expected):
             return Self.values(facts[fact]).contains { Self.compare($0, comparison, expected) }
         case .matches(let fact, let regex):
-            return Self.values(facts[fact]).contains { value in
-                guard let text = value.string else { return false }
-                return regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
-            }
+            return Self.values(facts[fact]).contains { value in value.string.map(regex.hasMatch(in:)) ?? false }
         }
+    }
+
+    package static func text(_ fact: Fact, _ value: String) throws -> Condition {
+        if let regex = try TextPattern.regex(written: value) { return .matches(fact, regex) }
+        return .compare(fact, fact == .app ? .glob : .equal, .string(value))
     }
 
     private static func values(_ value: ConfigValue?) -> [ConfigValue] {
@@ -60,7 +62,7 @@ package indirect enum Condition: Equatable, @unchecked Sendable { // style-ok: N
         case .atLeast: return actual.double.flatMap { left in expected.double.map { left >= $0 } } ?? false
         case .atMost: return actual.double.flatMap { left in expected.double.map { left <= $0 } } ?? false
         case .glob:
-            return actual.string.flatMap { text in expected.string.map { Config.lists(text, in: [$0]) } } ?? false
+            return actual.string.flatMap { text in expected.string.map { TextPattern.glob(text, $0) } } ?? false
         }
     }
 }

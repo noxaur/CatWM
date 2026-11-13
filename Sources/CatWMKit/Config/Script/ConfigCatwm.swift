@@ -15,6 +15,15 @@ package enum ConfigCatwm {
       const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
       const isPlain = (value) => isObject(value) && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
+      const regexText = (regex) => `/${regex.source}/${regex.flags}`;
+
+      function encode(value) {
+        if (value instanceof RegExp) return regexText(value);
+        if (Array.isArray(value)) value.forEach((item, index) => { value[index] = encode(item); });
+        else if (isPlain(value)) for (const key of Object.keys(value)) value[key] = encode(value[key]);
+        return value;
+      }
+
       function usage(message) {
         const error = new Error(message);
         error.catwmUsage = true;
@@ -202,7 +211,7 @@ package enum ConfigCatwm {
           hosts.add(this.exports);
         },
         begin,
-        finish() { state.phase = "idle"; return state.data; },
+        finish() { state.phase = "idle"; return encode(state.data); },
         functions() { return state.functions; },
         sources() { return state.sources; },
         takeLate() {

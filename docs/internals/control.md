@@ -4,6 +4,12 @@ One registry feeds every way to control CatWM from outside the app. Key binds, t
 
 `ControlServer` reads on a background queue and runs each command on the main queue, in order. It refuses a socket path longer than `sun_path` (104 bytes) instead of cutting it. A client that falls 1 MB behind is dropped. A command made with `Command.later` waits for something (an app, the window server) and replies from a task on the main actor instead of blocking the queue. When a connection closes, `ControlServer` tells the manager on the main queue after every line it had already read, and `EventBus` and the agent display sessions drop it (`agent-display.md`). `EventBus` diffs a state snapshot against the last one only while someone subscribes, so events cost nothing with no subscriber.
 
+## Window targets
+
+A window dispatcher acts on the focused window, unless its argument starts with `@field:value`. `WindowTarget` (`Actions/`) is the one parser. It builds a `Condition` over the same facts as a window rule (`ruleFacts`), so a target and a rule match alike, and `id` is one more fact. `WindowManager.dispatch` resolves the target before it runs the action and passes the window as `ActionContext.target`, the way a rule does. So no dispatcher parses a target, and a dispatcher takes one by reading `context.window` instead of `focusedWindow()`. `WindowActions.targetable` lists those that do, and any other dispatcher refuses a target, because it would otherwise act on the focus that the caller meant to avoid. A target that matches nothing does nothing and never falls back to the focused window. Of several matches the focused window wins, then the most recently focused (`WorkspaceModel.focusOrder`), then the lowest ID, so the result is stable.
+
+`focuswindow` takes the target without the `@`, and shows a window's workspace first when it isn't shown. `focuslast` reads the second entry of `focusOrder`, the same history that the focus stamps keep, so there is no second history to drift.
+
 ## Access
 
 - `public`: in the CLI, the schema and the libraries.

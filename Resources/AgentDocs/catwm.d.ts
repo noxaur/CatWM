@@ -173,6 +173,10 @@ export interface Actions {
   "sort-undo": [...args: (string | number)[]]
   /** Open the window switcher. */
   switcher: [step?: "next" | "prev" | (string & {})]
+  /** Focus the window that a target names, on any workspace or display. */
+  focuswindow: [target: string | number]
+  /** Focus the window that had focus before this one. */
+  focuslast: [...args: (string | number)[]]
   /** Enter a key mode, or leave it. */
   submap: [name: "window" | "reset" | (string & {})]
   /** Read the config file again. */
@@ -276,9 +280,9 @@ export interface FeaturesOptions {
 }
 
 export interface FloatingOptions {
-  /** Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app. */
-  get apps(): List<string>
-  set apps(value: readonly string[] | undefined)
+  /** Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app, and a RegExp matches the bundle IDs it fits. */
+  get apps(): List<string | RegExp>
+  set apps(value: readonly (string | RegExp)[] | undefined)
   /** Apps in the list. True: listed apps float. false: only listed apps are tiled. Default: `true`. */
   get listedAppsFloat(): boolean
   set listedAppsFloat(value: boolean | undefined)
@@ -406,8 +410,8 @@ export interface PaddingOptions {
 
 export interface SwitcherOptions {
   /** Apps the switcher hides. Apps the window switcher never shows; wildcards like com.adobe.* work. Default: `[]`. */
-  get exclude(): List<string>
-  set exclude(value: readonly string[] | undefined)
+  get exclude(): List<string | RegExp>
+  set exclude(value: readonly (string | RegExp)[] | undefined)
   /** Instant jump. A search with one prefix match opens by itself. Default: `true`. */
   get instantJump(): boolean
   set instantJump(value: boolean | undefined)
@@ -591,13 +595,13 @@ export type Display = "builtin" | "external" | (string & {})
 
 /** Which windows a rule matches. Every field you give has to match. */
 export interface WindowMatch {
-  /** A bundle ID. `com.adobe.*` matches every Adobe app. */
-  app?: string
+  /** A bundle ID, a bundle ID ending in `*` such as `com.adobe.*`, or a regular expression. */
+  app?: string | RegExp
   /** The exact title, or a regular expression. */
   title?: string | RegExp
   pid?: number
-  workspace?: string
-  display?: Display
+  workspace?: string | RegExp
+  display?: Display | RegExp
   floating?: boolean
   minimized?: boolean
   fullscreen?: boolean
@@ -609,11 +613,11 @@ export interface WorkspaceMatch {
   windows?: Count
   /** The most windows any one app has on the workspace. */
   sameApp?: Count
-  /** At least one window of this bundle ID. */
-  app?: string
+  /** At least one window of this bundle ID (`*` at the end works), or of a bundle ID a RegExp matches. */
+  app?: string | RegExp
   layout?: Layout
-  name?: string
-  display?: Display
+  name?: string | RegExp
+  display?: Display | RegExp
   /** The workspace with the focused window. */
   focused?: boolean
 }

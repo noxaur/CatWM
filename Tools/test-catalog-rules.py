@@ -39,8 +39,8 @@ class CatalogRules(unittest.TestCase):
             ("Config/Document/Actions.swift", 'for (dir, name, arrow) in [("l", "Left", "left")] {}'),
             ("Keys/Keyboard/KeyHint.swift", 'let arrows = ["l": "←"]'),
             ("Config/Document/Actions.swift", 'static let dispatchers = ["toggledim"]'),
-            ("Tiling/Manager/WindowManager+status.swift", 'switch dispatcher {\ncase "minimize": break\n}'),
-            ("Tiling/Manager/WindowManager+status.swift", 'static let minimize = WindowAction(name: "minimize")'),
+            ("Tiling/Manager/WindowManager+dispatch.swift", 'switch dispatcher {\ncase "minimize": break\n}'),
+            ("Tiling/Manager/WindowManager+dispatch.swift", 'static let minimize = WindowAction(name: "minimize")'),
             ("Config/Document/Actions.swift", 'add(ActionPicker("Minimize", .window, "", "minus"))'),
         ]
         for path, source in cases:
@@ -83,7 +83,7 @@ class CatalogRules(unittest.TestCase):
 
 
 class TilingRules(unittest.TestCase):
-    engine = "Sources/CatWMKit/Tiling/Manager/WindowManager+start.swift"
+    engine = "Sources/CatWMKit/Tiling/Manager/WindowManager+lifecycle.swift"
 
     def test_rejects_ui_in_tiling(self):
         cases = [
@@ -132,7 +132,7 @@ class SessionRules(unittest.TestCase):
 
 
 class FailureRules(unittest.TestCase):
-    source = "Sources/CatWMKit/Tiling/Manager/WindowManager+start.swift"
+    source = "Sources/CatWMKit/Tiling/Manager/WindowManager+lifecycle.swift"
 
     def test_rejects_discarded_run_errors(self):
         for code in ("try? process.run()", "    _ = try? child.run ()", "try? worker.run(arguments)"):

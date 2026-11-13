@@ -1,6 +1,10 @@
 import AppKit
 
 extension WindowManager {
+    package static let maxAnimatedMoves = 6
+
+    package static let restoreHold: TimeInterval = 1.5
+
     private struct ObservedWindows {
         package var present = Set<CGWindowID>()
         package var fresh: [Window] = []

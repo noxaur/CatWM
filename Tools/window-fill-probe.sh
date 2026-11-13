@@ -14,11 +14,13 @@ swiftc -package-name CatWM -D CATWM_FILL_PROBE \
   Sources/CatWMKit/Motion/Windows/WindowFillPlan.swift \
   Sources/CatWMKit/Motion/Windows/WindowServerReads.swift \
   Sources/CatWMKit/Motion/Windows/MotionTiming.swift \
+  Sources/CatWMKit/Motion/Windows/FrameTolerance.swift \
   Sources/CatWMKit/Chrome/CatWMPanel.swift \
   Sources/CatWMKit/App/MainThread.swift \
   Sources/CatWMKit/Tiling/Access/Screen.swift \
+  Sources/CatWMKit/Tiling/Access/CGRect+frame.swift \
   Sources/CatWMKit/Tiling/Scan/WindowServerList.swift \
-  Sources/CatWMKit/Tiling/Access/PrivateSymbols.swift \
+  Sources/CatWMKit/Tiling/Access/SymbolLookup.swift \
   -o "$PROBE_DIR/probe"
 if [ "${1:-}" = "--demo" ]; then
   "$PROBE_DIR/probe" "$@"

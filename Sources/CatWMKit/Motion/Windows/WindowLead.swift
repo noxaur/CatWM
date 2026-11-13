@@ -1,36 +1,6 @@
 import CoreGraphics
 import QuartzCore
 
-package struct StepCost: Sendable {
-    private static let rise = 0.8, fall = 0.4
-
-    package private(set) var seconds: Double?
-
-    package var lead: Double { seconds ?? 0 }
-
-    package mutating func add(_ cost: Double) {
-        let cost = min(cost, MotionTiming.writeCostLimit)
-        guard let seconds else { self.seconds = cost; return }
-        self.seconds = seconds + (cost > seconds ? Self.rise : Self.fall) * (cost - seconds)
-    }
-}
-
-package struct WindowWriteCost: Sendable {
-    private var cost = StepCost()
-    private var sampledAt: CFTimeInterval?
-
-    package func lead(at now: CFTimeInterval) -> Double {
-        guard let sampledAt, (0...MotionTiming.writeCostMemory).contains(now - sampledAt) else { return 0 }
-        return cost.lead
-    }
-
-    package mutating func add(_ seconds: Double, at now: CFTimeInterval) {
-        if let sampledAt, !(0...MotionTiming.writeCostMemory).contains(now - sampledAt) { cost = StepCost() }
-        cost.add(seconds)
-        sampledAt = now
-    }
-}
-
 package struct WindowLead: Sendable {
     package enum Order: Sendable { case positionOnly, positionFirst, sizeFirst }
     package struct Times: Equatable, Sendable {

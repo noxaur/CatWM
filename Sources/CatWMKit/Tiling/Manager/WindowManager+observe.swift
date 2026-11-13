@@ -93,34 +93,52 @@ extension WindowManager {
         }
     }
 
-    package func learnMenuBar(_ target: CGRect, _ actual: CGRect) {
-        guard let screen = screen(containing: target) else { return }
-        let height = actual.minY - screen.frame.minY
-        guard height > 0, height <= 60,
-              height > menuBarHeights[screen.uuid]?.height(on: screen.visible) ?? 0 else { return }
-        menuBarHeights[screen.uuid] = MenuBarFloor(height: height, visible: screen.visible)
-        Log.info("\(screen.name) keeps windows \(Int(height)) pt below its top; tiling below it")
-        corrections = [:]
-        refresh()
+    package func readFrames(_ windows: [Window], completion: @escaping () -> Void) {
+        let group = DispatchGroup()
+        for window in windows {
+            let revision = window.frameRevision
+            group.enter()
+            scanner.run(window.pid) { [weak self] in
+                let readAt = Date()
+                let frame = window.backend.frame(of: window)
+                DispatchQueue.main.async {
+                    if let self, self.windows[window.id] === window, !self.animator.isBusy(window.id) {
+                        window.remember(frame, ifRevision: revision, readAt: readAt)
+                    }
+                    group.leave()
+                }
+            }
+        }
+        group.notify(queue: .main, execute: completion)
     }
 
-    package func learnMinimum(_ id: CGWindowID, _ size: CGSize) {
-        guard size.width.isFinite, size.height.isFinite, abs(size.width) < 1e5, abs(size.height) < 1e5 else { return }
-        let old = minSizes[id] ?? .zero
-        let new = CGSize(width: max(old.width, size.width.rounded()), height: max(old.height, size.height.rounded()))
-        guard new != old else { return }
-        minSizes[id] = new
-        corrections[id] = nil
-        Log.info("window \(id) has a minimum size of \(Int(new.width))×\(Int(new.height)); re-tiling around it")
-        if let change = dividerState.ratioChange, Date() < change.until {
-            dividerState.ratioChange = nil
-            warnTooSmall(id, on: backend.screens().first { $0.uuid == change.screen })
+    package func observeFrame(_ window: Window) {
+        guard frameReads[window.id] == nil else { dirtyFrames.insert(window.id); return }
+        let token = UUID()
+        frameReads[window.id] = token
+        let revision = window.frameRevision
+        scanner.run(window.pid) { [weak self] in
+            let readAt = Date()
+            let frame = window.backend.frame(of: window)
+            DispatchQueue.main.async {
+                guard let self, self.frameReads[window.id] == token else { return }
+                self.frameReads[window.id] = nil
+                guard self.windows[window.id] === window else { return }
+                if !self.animator.isBusy(window.id) { window.remember(frame, ifRevision: revision, readAt: readAt) }
+                if self.drags[window.id] == false { self.dragTabGroup(window) }
+                if self.dirtyFrames.remove(window.id) != nil { self.observeFrame(window) }
+            }
         }
-        if let drag = dividerState.dividerDrag, let position = drag.position,
-           let screen = backend.screens().first(where: { $0.uuid == drag.screen }) {
-            moveDivider(on: screen, to: position)
+    }
+
+    package func observeFocus(_ element: AXUIElement) {
+        focusRequests.invalidateObservation()
+        if let window = windows.values.first(where: { CFEqual($0.element, element) }),
+           frontmostPID() == window.pid {
+            acceptFocus(pid: window.pid, id: window.id)
+        } else {
+            requestFocusObservation()
         }
-        scheduleRefresh()
     }
 
     package func forget(_ id: CGWindowID, keepRecovery: Bool = false) {
@@ -145,91 +163,6 @@ extension WindowManager {
         closeAndSort.closingNow.remove(id)
         visible.remove(id)
     }
-
-    private static let alwaysFloatingApps: Set<String> = [
-        "com.apple.installer",
-        "com.apple.PackageKit.Install-Progress",
-        "com.apple.DiskImageMounter",
-        "com.apple.archiveutility",
-        "com.apple.MigrateAssistant",
-        "com.apple.SoftwareUpdate",
-        "com.apple.Stickies",
-        "com.apple.PhotoBooth",
-        "com.apple.Chess",
-        "com.apple.DigitalColorMeter",
-        "com.apple.printcenter",
-        "com.apple.BluetoothFileExchange",
-        "com.apple.ColorSyncUtility",
-        "com.apple.Magnifier",
-        "com.yourcompany.installerbase",
-        "io.balena.etcher",
-        "com.wireguard.macos",
-        "io.tailscale.ipn.macsys",
-        "io.tailscale.ipn.macos",
-        "com.jetbrains.toolbox",
-        "com.lujjjh.LinearMouse",
-        "com.amethyst.Amethyst",
-        "org.sparkle-project.Sparkle.Autoupdate",
-        "com.microsoft.autoupdate2"
-    ]
-
-    package static func isSignInTitle(_ title: String) -> Bool {
-        var rest = Substring(title.lowercased())
-        guard rest.removePrefix("sign") || rest.removePrefix("log") else { return false }
-        if let separator = rest.first, separator == " " || separator == "-" { rest.removeFirst() }
-        guard rest.removePrefix("in") else { return false }
-        guard let next = rest.first else { return true }
-        return next.isWhitespace || "-–—|:,".contains(next)
-    }
-
-    private func isUtilityWindow(_ window: Window, title: String?) -> Bool {
-        guard let title, !title.isEmpty else { return false }
-        if title == "Picture in Picture" || title == "Picture-in-Picture" { return true }
-        if window.bundleID == "com.apple.finder" { return title.hasSuffix(" Info") }
-        if Self.isSignInTitle(title) { return true }
-        let settings = ["Settings", "Preferences", "Settings…", "Preferences…"]
-        if settings.contains(title) { return true }
-        guard settings.contains(where: { title.hasSuffix(" \($0)") }),
-              let app = NSRunningApplication(processIdentifier: window.pid)?.localizedName else { return false }
-        return settings.contains { title == "\(app) \($0)" }
-    }
-
-    private func isMountedImageWindow(title: String?) -> Bool {
-        guard let title, !title.isEmpty else { return false }
-        let keys: [URLResourceKey] = [.volumeNameKey, .volumeIsEjectableKey, .volumeIsInternalKey]
-        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys,
-                                                            options: [.skipHiddenVolumes]) ?? []
-        return volumes.contains { url in
-            guard url.path != "/", let values = try? url.resourceValues(forKeys: Set(keys)) else { return false }
-            return values.volumeName == title && (values.volumeIsEjectable == true || values.volumeIsInternal == false)
-        }
-    }
-
-    package func shouldFloat(_ window: Window) -> Bool {
-        shouldFloat(window, title: window.title, resizable: window.resizable)
-    }
-
-    package func shouldFloat(_ window: Window, title: String?, resizable: Bool) -> Bool {
-        if let practice, window.pid == practice.pid { return false }
-        if let bundle = window.bundleID,
-           bundle == Bundle.main.bundleIdentifier || bundle.hasPrefix("local.catwm")
-            || Legacy.isBundle(bundle) {
-            return true
-        }
-        if let bundle = window.bundleID, Self.alwaysFloatingApps.contains(bundle) { return true }
-        if window.bundleID == "com.apple.finder", isMountedImageWindow(title: title) { return true }
-        if isUtilityWindow(window, title: title) { return true }
-        if let bundle = window.bundleID {
-            let listed = Config.lists(bundle, in: config.floating)
-            if config.floatingIsDenylist ? listed : !listed { return true }
-        } else if !config.floatingIsDenylist {
-            return true
-        }
-        if !resizable { return true }
-        let frame = window.naturalFrame
-        if config.floatSmallWindows, !frame.isNull, frame.width < 500, frame.height < 500 { return true }
-        return false
-    }
 }
 
 package func axCallback(_: AXObserver, _ element: AXUIElement, _ notification: CFString,
@@ -240,17 +173,6 @@ package func axCallback(_: AXObserver, _ element: AXUIElement, _ notification: C
 }
 
 extension WindowManager {
-    package static let restoreHold: TimeInterval = 1.5
-
-    package func claimForCurrentWorkspace(_ ids: [CGWindowID]) {
-        guard config.virtualWorkspaces, !restoringTemplate, let here = currentWorkspace else { return }
-        for id in ids where workspaceOf[id] != here {
-            guard let target = desktops.nativeCatalog.entry(here),
-                  Spaces.of(window: id).contains(target.space) else { continue }
-            model.assign(id, to: here)
-        }
-    }
-
     package func windowMinimizeChanged(_ element: AXUIElement, minimized: Bool) {
         guard let window = windows.values.first(where: { CFEqual($0.element, element) }),
               window.minimized != minimized else {
@@ -270,13 +192,5 @@ extension WindowManager {
     package func prewarm() {
         guard !isStarted else { return }
         scanner.observeDesktop(known: []) {}
-    }
-}
-
-private extension Substring {
-    mutating func removePrefix(_ prefix: String) -> Bool {
-        guard hasPrefix(prefix) else { return false }
-        removeFirst(prefix.count)
-        return true
     }
 }

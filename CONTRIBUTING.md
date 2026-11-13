@@ -84,7 +84,7 @@ After a crash, a small watchdog opens CatWM again when macOS has written the cra
 
 ## Performance budgets
 
-The `perf` workflow measures CPU and memory on each push to `main`, and on a pull request whose title starts with `perf` or that has the `performance` label. Other pull requests skip it, so their CI finishes in about 3 minutes. It runs the engine scenarios in `CatWMPerf` against `FakeBackend`. It also starts the app idle as a scoped named instance, so the app manages no window. It posts one table as a comment on the pull request.
+The `perf` workflow measures CPU and memory on each pull request and each push to `main`, so a regression nobody expected shows before the merge. It runs the engine scenarios in `CatWMPerf` against `FakeBackend`. It also starts the app idle as a scoped named instance, so the app manages no window. It posts one table as a comment on the pull request.
 
 Run it on your Mac:
 

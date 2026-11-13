@@ -14,12 +14,14 @@
       "group": "CPU",
       "label": "App idle CPU time /s",
       "unit": "ms",
+      "gate": "mean",
       "cap": 5
     },
     "app.idle.wakeups": {
       "group": "CPU",
       "label": "App idle wakeups /s",
       "unit": "wakeups",
+      "gate": "mean",
       "cap": 5
     },
     "engine.idle.cpu": {

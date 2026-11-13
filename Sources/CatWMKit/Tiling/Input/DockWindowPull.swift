@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor package final class DockWindowPull {
     package var prepare: ((CGPoint) -> (@MainActor @Sendable () -> Void)?)?
-    package var post: (CGEvent) -> Void = { $0.post(tap: .cgSessionEventTap) }
+    package var post: (CGEvent) -> Void = { RealInput.post($0, to: .cgSessionEventTap, "Dock click replay") }
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private var pending: (down: CGEvent, action: @MainActor @Sendable () -> Void)?

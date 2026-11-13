@@ -50,8 +50,10 @@ extension WindowManager {
         if screenState.layout == .bsp { axis?.horizontal = rect.width >= rect.height }
         let mains = SplitDivider.mains(screenState.layout, mainCount: screenState.mainCount, count: ids.count)
         guard let horizontal = axis?.horizontal, let index = ids.firstIndex(of: window.id), ids.count > mains,
-              case let measure = horizontal ? width : height, measure.relative else {
-            return Log.info("resizeactive: a tiled window changes with a relative size on its layout's split axis")
+              case let measure = horizontal ? width : height, measure.relative,
+              ratioSplit(of: window, on: screen) != nil else {
+            return Log.info("resizeactive: a tiled window changes with a relative size on its layout's split axis, "
+                + "and only when it borders the main split")
         }
         let extent = horizontal ? rect.width : rect.height
         let change = measure.amount(of: extent) / extent

@@ -186,6 +186,22 @@ import Testing
         return World(fake: fake, manager: manager, ids: ids, screens: [left, right])
     }
 
+    @Test func aTiledResizeLeavesTheSplitAloneForAWindowThatDoesNotBorderIt() async throws {
+        let setup = await world(windows: 3, layout: .threeColumnLeft)
+        let (fake, manager) = (setup.fake, setup.manager)
+        let screen = try #require(fake.screens().first)
+        let tiled = manager.tiled(on: screen)
+        let ratio = manager.state(for: screen).ratio
+        try await focus(tiled[2], in: fake, manager: manager)
+        manager.dispatch("resizeactive", "+10% 0")
+        #expect(await fake.settle(manager))
+        #expect(manager.state(for: screen).ratio == ratio)
+        try await focus(tiled[0], in: fake, manager: manager)
+        manager.dispatch("resizeactive", "+10% 0")
+        #expect(await fake.settle(manager))
+        #expect(abs(manager.state(for: screen).ratio - (ratio + 0.1)) < 0.001)
+    }
+
     @Test func aTargetedTiledResizeMovesTheSplitOfItsOwnDisplay() async throws {
         let setup = await twoDisplays()
         let (fake, manager, ids, screens) = (setup.fake, setup.manager, setup.ids, setup.screens)

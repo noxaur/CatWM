@@ -11,13 +11,17 @@ extension WindowManager {
     ) -> ([CGRect], CGFloat)? {
         let gap = windowGap(count: ids.count, on: screen, workspace: workspace)
         let area = usableRect(screen, workspace: workspace).insetBy(dx: -gap / 2, dy: -gap / 2)
-        if screenState.layout == .dwindle { screenState.dwindle.sync(ids) }
-        let mins = ids.map { id in
-            minSizes[id].map { CGSize(width: $0.width + gap, height: $0.height + gap) } ?? .zero
+        let frames: [CGRect]?
+        if screenState.layout == .dwindle {
+            screenState.dwindle.sync(ids)
+            frames = screenState.dwindle.frames(in: area, minimums: ids.map { id in
+                minSizes[id].map { CGSize(width: $0.width + gap, height: $0.height + gap) } ?? .zero
+            })
+        } else {
+            frames = screenState.layout.frames(count: ids.count, in: area, ratio: ratio,
+                                               mainCount: screenState.mainCount)
         }
-        guard let raw = screenState.layout == .dwindle ? screenState.dwindle.frames(in: area, minimums: mins)
-            : screenState.layout.frames(count: ids.count, in: area, ratio: ratio, mainCount: screenState.mainCount)
-        else { return nil }
+        guard let raw = frames else { return nil }
         let slots = raw.map { $0.insetBy(dx: gap / 2, dy: gap / 2).pixelAligned }
         guard slots.allSatisfy({ [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) }) else { return nil }
         return (slots, gap)

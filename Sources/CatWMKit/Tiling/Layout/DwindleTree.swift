@@ -1,7 +1,19 @@
 import CoreGraphics
 
+package enum DwindleDirection: Equatable {
+    case automatic, sideBySide, stacked
+
+    func sideBySide(in rect: CGRect) -> Bool {
+        switch self {
+        case .automatic: rect.width >= rect.height
+        case .sideBySide: true
+        case .stacked: false
+        }
+    }
+}
+
 package struct DwindleSplit: Equatable {
-    package var sideBySide: Bool?
+    package var direction = DwindleDirection.automatic
     package var ratio: CGFloat = 0.5
     package var swapped = false
     package var first: DwindleNode
@@ -54,7 +66,7 @@ package struct DwindleTree: Equatable {
     package mutating func toggleSplit(at index: Int, in rect: CGRect) {
         let steps = steps(to: index, in: rect)
         guard let parent = steps.last else { return }
-        modify(depth: steps.count - 1, along: steps) { $0.sideBySide = !parent.sideBySide }
+        modify(depth: steps.count - 1, along: steps) { $0.direction = parent.sideBySide ? .stacked : .sideBySide }
     }
 
     package mutating func swapSplit(at index: Int, in rect: CGRect) {
@@ -90,7 +102,7 @@ package struct DwindleTree: Equatable {
     private func steps(to index: Int, in rect: CGRect) -> [Step] {
         var steps: [Step] = [], node = root, rect = rect, index = index
         while case .split(let split)? = node {
-            let sideBySide = split.sideBySide ?? (rect.width >= rect.height)
+            let sideBySide = split.direction.sideBySide(in: rect)
             let (first, second) = Self.divide(rect, split, sideBySide: sideBySide)
             let count = split.first.leafCount
             let inFirst = index < count
@@ -134,8 +146,8 @@ package struct DwindleTree: Equatable {
         let first = need(split.first, firstMins), second = need(split.second, secondMins)
         let fitsSide = first.width + second.width <= rect.width
         let fitsStack = first.height + second.height <= rect.height
-        var sideBySide = split.sideBySide ?? (rect.width >= rect.height)
-        if split.sideBySide == nil, sideBySide ? !fitsSide && fitsStack : !fitsStack && fitsSide {
+        var sideBySide = split.direction.sideBySide(in: rect)
+        if split.direction == .automatic, sideBySide ? !fitsSide && fitsStack : !fitsStack && fitsSide {
             sideBySide.toggle()
         }
         let length = sideBySide ? rect.width : rect.height
@@ -153,10 +165,10 @@ package struct DwindleTree: Equatable {
         let first = need(split.first, mins.prefix(count)), second = need(split.second, mins.dropFirst(count))
         let side = CGSize(width: first.width + second.width, height: max(first.height, second.height))
         let stack = CGSize(width: max(first.width, second.width), height: first.height + second.height)
-        switch split.sideBySide {
-        case true?: return side
-        case false?: return stack
-        case nil: return CGSize(width: min(side.width, stack.width), height: min(side.height, stack.height))
+        switch split.direction {
+        case .sideBySide: return side
+        case .stacked: return stack
+        case .automatic: return CGSize(width: min(side.width, stack.width), height: min(side.height, stack.height))
         }
     }
 
@@ -175,7 +187,7 @@ package struct DwindleTree: Equatable {
 
     private static func splitting(_ index: Int, in node: DwindleNode) -> DwindleNode {
         guard case .split(var split) = node else {
-            return .split(DwindleSplit(sideBySide: nil, first: .leaf, second: .leaf))
+            return .split(DwindleSplit(first: .leaf, second: .leaf))
         }
         let count = split.first.leafCount
         if index < count {

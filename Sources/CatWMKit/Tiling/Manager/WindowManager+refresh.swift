@@ -194,9 +194,9 @@ extension WindowManager {
         let rest = arrivals.map(\.id).filter { !ids.contains($0) }
         let focusedID = [focusRequests.reportedFocus?.id, focusedWindow()?.id].compactMap(\.self)
             .first { order.contains($0) }
-        if !firstRun, let focused = focusedID.flatMap({ windows[$0] }), let at = order.firstIndex(of: focused.id),
+        if !firstRun, let focused = focusedID.flatMap({ windows[$0] }), let index = order.firstIndex(of: focused.id),
            let screen = screen(of: focused), state(for: screen).layout == .dwindle {
-            order.insert(contentsOf: rest, at: at + 1)
+            order.insert(contentsOf: rest, at: index + 1)
         } else {
             order.append(contentsOf: rest)
         }

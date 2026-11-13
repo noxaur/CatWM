@@ -57,7 +57,8 @@ extension WindowManager {
         if current.state.layout == .dwindle {
             current.state.ratio = min(0.9, max(0.1, exact ?? current.state.ratio + delta))
             changeDwindle(of: current.window) { tree, index, area in
-                if let ratio = tree.setRatio(at: index, in: area, { exact ?? $0 + delta }) { current.state.ratio = ratio }
+                guard let ratio = tree.setRatio(at: index, in: area, { exact ?? $0 + delta }) else { return }
+                current.state.ratio = ratio
             }
             return
         }

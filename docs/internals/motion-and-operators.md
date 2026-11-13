@@ -13,13 +13,14 @@ CatWM copies Vim's split between motion and operator, not its key sequence (`d` 
 `resolve` stops at the first match:
 
 1. **CatWM fullscreen.** A fullscreen window has no spatial neighbor, so the resolver cycles through the tiled windows on its screen.
-2. **Neighbor.** The nearest window in that direction on any screen. Windows that overlap on the other axis rank first, then the most recently focused.
-3. **Monitor.** The next monitor in that direction. It acts only on an empty monitor, because rule 2 already finds a visible window there.
-4. **Wrap.** The far end of the row or column. A stack cycles.
+2. **Own screen.** The nearest window in that direction on the window's own screen. Windows that overlap on the other axis rank first, then the most recently focused.
+3. **Adjacent display.** The display that starts at or past the edge and overlaps on the other axis. The nearest window there wins, and an empty display is the target itself.
+4. **Any screen.** The nearest window in that direction on any screen, for a layout with no adjacent display.
+5. **Wrap.** The far end of the row or column. A stack cycles.
 
 Wrap comes last so that a window at the bottom of the upper monitor can reach the monitor below instead of wrapping in place.
 
-The monitor rule doesn't use the old `screen(from:spec:in:)`. That compares only screen centers, so a side monitor at a different height counted as "below" and broke vertical wrap on a laptop with an external display. The new rule needs the monitor to start at or past the edge and to overlap on the other axis. `focusmonitor` and `movewindowtomonitor` keep the old function, because they take a named monitor, not a direction.
+The adjacent-display rule doesn't use `screen(from:spec:in:)`. That compares only screen centers, so a side monitor at a different height counted as "below" and broke vertical wrap on a laptop with an external display. The new rule needs the monitor to start at or past the edge and to overlap on the other axis. `focusmonitor`, `movewindowtomonitor` and the window context menu still use the center comparison, because they take a monitor spec (a direction, an offset or an index) and no window motion.
 
 Move uses `swapOrder`, so at an edge the moved window and the far window swap places instead of rotating.
 

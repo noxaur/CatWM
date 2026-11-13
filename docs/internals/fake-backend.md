@@ -1,6 +1,6 @@
 # Fake backend
 
-`WindowBackend` (`Tiling/Access/WindowBackend.swift`) is the boundary between the tiling engine and macOS. `AXBackend.shared` sends each call to AX, the window server and `NSWorkspace`. `FakeBackend` (`Tests/CatWMTests/Support/FakeBackend.swift`) runs the real engine on in-memory windows and screens, so tests need no permissions, GUI or real apps. Change the fake, run the engine and examine the result. Don't copy engine logic into a test.
+`WindowBackend` (`Tiling/Access/WindowBackend.swift`) is the boundary between the tiling engine and macOS. `AXBackend.shared` sends each call to AX, the window server and `NSWorkspace`. `FakeBackend` (`Tests/Fakes/FakeBackend.swift`) runs the real engine on in-memory windows and screens, so tests need no permissions, GUI or real apps. Change the fake, run the engine and examine the result. Don't copy engine logic into a test.
 
 Fake pids are negative, so no AX call can reach a real app. `fake.makeManager()` uses the default config text with animation, gaps, warps and Desktops off. `Config.load()` would read and can write the user's config.
 
@@ -16,10 +16,12 @@ The alternative was an `isFake` check at each call site. It was rejected because
 
 These parts aren't behind `WindowBackend`, so a fake test can't drive them:
 
-- Native Desktop machinery (`NativeDesktopController`, `Spaces.move`, the Desktop bridge). Use `virtualWorkspaces = false`. It still posts nothing in a blocked process, but it does nothing.
+- Native Desktop machinery (`NativeDesktopController`, `Spaces.move`, the Desktop bridge). Leave it off in a fake test. In a blocked process it posts nothing and does nothing.
 - AX observers. `AXObserverCreate` fails for a negative pid, so send a notification with `manager.handle(_:_:)`.
 - The focus sink window, which `parkFocus` shows when focus moves to an empty display or workspace.
-- Some direct window-server reads, such as `CGWindowInfo.onScreen()` in `focus(on:)` and the Overview.
+- Direct window-server reads, such as `CGWindowInfo.onScreen()` in the Overview and the split handles, and direct `Spaces.list`, `Spaces.of` and `Spaces.current` reads.
+- `Window.isValid` and the other `Window` reads that go straight to the AX element.
+- The Dock click tap (`DockWindowPull`), which posts events itself.
 - Template capture and restore.
 
-On an Apple M4 debug build, 200 windows on 20 apps settle in about 0.07 s, and a relayout of them takes about 2 ms of main thread. `twoHundredWindowsRetileInLessThan50Milliseconds` guards that and measures only main-thread work, because other suites can hold the main actor during `settle`.
+`twoHundredWindowsRetileInLessThan50Milliseconds` guards the cost of a relayout. It measures only main-thread work, because other suites can hold the main actor during `settle`.

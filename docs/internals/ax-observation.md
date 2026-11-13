@@ -12,10 +12,10 @@ Frame notifications share one pending read per window. Mouse release asks for a 
 
 ## Reconciliation
 
-`WorkspaceReconciliation` takes display facts, cached frames and the workspace model, and returns a new model, the visible windows and the windows to park. It makes no AX calls, so a test can replay an observation. Pending destinations let a quick workspace switch cancel a park before its write lands. Parking changes position only, because the resize check could clamp a parked window to the visible screen. Quit waits for restoring writes, with a 2 s limit per unresponsive app.
+`WorkspaceReconciliation` takes display facts, cached frames and the workspace model, and returns a new model and the visible windows. It makes no AX calls, so a test can replay an observation. Each Desktop a display shows is its own workspace, and a window whose workspace isn't shown joins the workspace of the display that holds most of its frame. Quit waits for restoring writes, with a 2 s limit per unresponsive app.
 
 A few explicit actions still read AX for the selected window: native full screen, close, Desktop import, Dock import and the grab diagnostic. They're outside refresh, workspace staging and focus navigation (issue #135).
 
-Verbose logs time `scan`, `refresh`, `reconcile`, `workspace` and `stage-home`, and flag main-thread groups over 16.7 ms. Scan durations include AX time on the app queue, so they don't measure a main-thread stall.
+Verbose logs time `scan`, `refresh`, `reconcile`, `switcher` and each `command`, and flag main-thread groups over 16.7 ms. Scan durations include AX time on the app queue, so they don't measure a main-thread stall.
 
 The reconcile step reads the Desktop list through `Spaces.recentList`, which reuses the parsed list of a read up to 100 ms old. One action runs about three refreshes in a row (the dispatch, then two scan-and-refresh rounds), and the window server round trip was a large share of the two that change nothing. We rejected invalidating on `activeSpaceDidChangeNotification` because adding or removing a Desktop in Mission Control sends nothing when the current Desktop stays put. The age limit stays under the 0.15 s delay of the refresh that a Desktop change schedules, so that refresh always reads a fresh list.

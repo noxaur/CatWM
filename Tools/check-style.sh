@@ -59,6 +59,7 @@ AX_APP_OWNER = "Sources/CatWMKit/Session/AX/AXRead.swift"
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
 SYSTEM_LOG_ALLOW = ("Sources/CatWM/main.swift",)
 INTERNALS = "docs/internals"
+DOC_PATH = re.compile(r"`([\w./+-]+\.(?:swift|md|sh|py))`")
 RECIPE_HEADING = re.compile(r"^#+ +(?:Add|How to|Write|Repeat|Check|Run|Verify|Test)s?\b", re.I)
 IGNORED_WRITE = re.compile(r"^\s*try\? .*\.(?:write|moveItem|copyItem|replaceItem)\(")
 IGNORED_WRITE_ALLOW = ("Sources/CatWMKit/App/Log.swift",)
@@ -302,8 +303,29 @@ def line_failures(path, source):
     return failures
 
 
-def main():
+def repo_files():
+    found = []
+    for folder, names, files in os.walk(ROOT):
+        names[:] = [name for name in names if name not in (".git", ".build", "node_modules")]
+        found.extend(os.path.relpath(os.path.join(folder, name), ROOT) for name in files)
+    return found
+
+
+def doc_path_failures(files):
     failures = []
+    documents = ["CLAUDE.md"] + [INTERNALS + "/" + name for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS)))]
+    for path in documents:
+        with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
+            for number, line in enumerate(handle, 1):
+                for match in DOC_PATH.finditer(line):
+                    named = match[1].removeprefix("./")
+                    if not any(file == named or file.endswith("/" + named) for file in files):
+                        failures.append((path, number, "docs: `" + named + "` is not a file in the repo. Fix the path or delete the mention", line.strip()))
+    return failures
+
+
+def main():
+    failures = doc_path_failures(repo_files())
     for path in sorted(swift_files()):
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
             failures.extend(catalog_violations(path, handle.read()))

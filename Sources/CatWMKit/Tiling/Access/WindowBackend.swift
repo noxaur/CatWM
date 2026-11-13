@@ -124,7 +124,7 @@ package final class AXBackend: WindowBackend, Sendable {
         CursorRefresh.post(at: hardwarePointerLocation())
     }
 
-    @MainActor package func pointerLocation() -> CGPoint { hardwarePointerLocation() }
+    @MainActor package func pointerLocation() -> CGPoint { hardwarePointerLocation() ?? .zero }
 
     @MainActor package func primaryButtonDown() -> Bool { NSEvent.pressedMouseButtons & 1 != 0 }
 
@@ -160,4 +160,4 @@ package final class AXBackend: WindowBackend, Sendable {
     @MainActor package func stepShortcut(right: Bool) -> SystemShortcut.Combo? { SystemShortcut.step(right: right) }
 }
 
-private func hardwarePointerLocation() -> CGPoint { CGEvent(source: nil)?.location ?? .zero }
+private func hardwarePointerLocation() -> CGPoint? { CGEvent(source: nil)?.location }

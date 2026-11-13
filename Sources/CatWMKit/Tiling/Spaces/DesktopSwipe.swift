@@ -14,7 +14,7 @@ package enum DesktopSwipe {
     package static func post(right: Bool) -> Bool {
         guard RealInput.allows("Desktop swipe"),
               let sequence = events(right: right, augmented: augmented, natural: naturalScroll()) else { return false }
-        sequence.forEach { $0.post(tap: .cgSessionEventTap) }
+        sequence.forEach { RealInput.post($0, to: .cgSessionEventTap, "Desktop swipe") }
         return true
     }
 

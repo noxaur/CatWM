@@ -17,3 +17,5 @@ One engine runs per process. A first config that fails starts nothing. A later b
 The library never sets the activation policy or main menu, terminates the app, installs signal handlers, stops other instances or asks for a permission. The Desktop slide needs a guard process, which is a second run of the executable, so embedded mode switches Desktops with the macOS swipe instead (`NativeDesktopController.guarded`).
 
 With a `scope`, the engine writes the same scope claim as a scoped instance, so the user's CatWM leaves those pids alone.
+
+`CatWMEngine.register(_:handler:)` adds a namespaced dispatcher that runs a closure, with the same rules as the socket `register` (`control.md`). The engine owns the table, not the manager, because `start` makes a new manager and a host registers its handlers at launch.

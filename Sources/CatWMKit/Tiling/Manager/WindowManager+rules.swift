@@ -67,11 +67,14 @@ extension WindowManager {
             return
         }
         if action.dispatcher == WindowActions.fullscreen.name, let window, isZoomed(window) { return }
+        let arg = action.arg.trimmingCharacters(in: .whitespaces)
         guard let command = WindowActions.named(action.dispatcher) else {
-            Log.info("unknown dispatcher \(action.dispatcher)")
+            if !plugins.invoke(action.dispatcher, arg: arg, window: window) {
+                Log.info("unknown dispatcher \(action.dispatcher)")
+            }
             return
         }
-        command.run(ActionContext(manager: self, arg: action.arg.trimmingCharacters(in: .whitespaces), target: window))
+        command.run(ActionContext(manager: self, arg: arg, target: window))
         switch action.dispatcher {
         case WindowActions.setfloating.name: window?.userFloating = .chosen(true)
         case WindowActions.settiled.name: window?.userFloating = .chosen(false)

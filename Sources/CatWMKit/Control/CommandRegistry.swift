@@ -43,11 +43,24 @@ package enum CommandRegistry {
                 args: [.text("dispatcher", "Dispatcher name"),
                        .text("arg", "Dispatcher argument", required: false)]) { call in
             let name = call.text("dispatcher").lowercased()
-            guard dispatcherNames.contains(name) else {
+            guard dispatcherNames.contains(name) || PluginDispatchers.isNamespaced(name) else {
                 throw ControlError(code: "unknown_command", message: "Unknown dispatcher `\(name)`")
             }
             guard !keybindOnly.contains(name) else { throw ControlError.forbidden(name) }
             call.manager.dispatch(name, call.text("arg"))
+            return .null
+        },
+        Command(name: "register", group: "plugins",
+                summary: "Register a namespaced dispatcher that CatWM sends to this connection",
+                args: [.text("name", "Dispatcher name with a namespace, such as `myapp.toggle-notes`")],
+                result: .object([Field(name: "name", type: "string", summary: "The registered name")])) { call in
+            guard let client = call.client else { throw ControlError.failed("`register` needs a connection") }
+            return ["name": .string(try call.manager.plugins.register(call.text("name"), for: client))]
+        },
+        Command(name: "unregister", group: "plugins", summary: "Remove a dispatcher that this connection registered",
+                args: [.text("name", "Dispatcher name")]) { call in
+            guard let client = call.client else { throw ControlError.failed("`unregister` needs a connection") }
+            try call.manager.plugins.unregister(call.text("name"), for: client)
             return .null
         },
         Command(name: "subscribe", group: "events", summary: "Receive events on this connection",

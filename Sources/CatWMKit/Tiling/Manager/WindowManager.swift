@@ -26,6 +26,7 @@ import AppKit
     package lazy var store = ConfigStore.shared
     package var socketPath = ControlServer.socketPath
     package let agents = AgentSessions()
+    package var plugins = PluginDispatchers()
     package var tilingEnabled = true
     package var restoringTemplate = false {
         didSet {

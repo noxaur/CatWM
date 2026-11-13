@@ -47,6 +47,21 @@ import Testing
         await cleanUp(engine)
     }
 
+    @Test func aHostHandlerRegisteredBeforeStartRunsFromDispatch() async throws {
+        let engine = try makeEngine()
+        _ = fake.addScreen()
+        var args: [String] = []
+        try engine.register("host.ping") { args.append($0.arg) }
+        try engine.start(config: .text(""))
+        try engine.perform("dispatch", ["dispatcher": "host.ping", "arg": "hi"])
+        #expect(args == ["hi"])
+        #expect(throws: CatWMEngine.EngineError.self) { try engine.register("movefocus") { _ in } }
+        engine.unregister("host.ping")
+        try engine.perform("dispatch", ["dispatcher": "host.ping", "arg": "again"])
+        #expect(args == ["hi"])
+        await cleanUp(engine)
+    }
+
     @Test func tilingTilesTheWindows() async throws {
         let engine = try makeEngine()
         let screen = fake.addScreen()

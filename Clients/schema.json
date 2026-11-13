@@ -64,6 +64,45 @@
     {
       "args" : [
         {
+          "name" : "name",
+          "required" : true,
+          "summary" : "Dispatcher name with a namespace, such as `myapp.toggle-notes`",
+          "type" : "string"
+        }
+      ],
+      "group" : "plugins",
+      "name" : "register",
+      "result" : {
+        "fields" : [
+          {
+            "name" : "name",
+            "summary" : "The registered name",
+            "type" : "string"
+          }
+        ],
+        "kind" : "object"
+      },
+      "summary" : "Register a namespaced dispatcher that CatWM sends to this connection"
+    },
+    {
+      "args" : [
+        {
+          "name" : "name",
+          "required" : true,
+          "summary" : "Dispatcher name",
+          "type" : "string"
+        }
+      ],
+      "group" : "plugins",
+      "name" : "unregister",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Remove a dispatcher that this connection registered"
+    },
+    {
+      "args" : [
+        {
           "name" : "events",
           "required" : false,
           "summary" : "Event names. An empty list means every event.",

@@ -327,7 +327,8 @@ extension ConfigScript {
                 fail(path, "must name an action, such as \"sort\" or [\"workspace\", \"2\"]")
                 return nil
             }
-            guard Actions.dispatchers.contains(name.lowercased()) else {
+            guard Actions.dispatchers.contains(name.lowercased()) || PluginDispatchers.isNamespaced(name.lowercased())
+            else {
                 fail(path, "is an unknown action `\(name)`")
                 return nil
             }

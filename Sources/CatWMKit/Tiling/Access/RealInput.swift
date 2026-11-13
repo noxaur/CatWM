@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import os
 
@@ -29,5 +30,15 @@ package enum RealInput {
         Log.info(message)
         if traps { assertionFailure(message) }
         return false
+    }
+
+    package static func post(_ event: CGEvent, to tap: CGEventTapLocation, _ action: @autoclosure () -> String) {
+        guard allows(action()) else { return }
+        event.post(tap: tap)
+    }
+
+    package static func warpPointer(to point: CGPoint) {
+        guard allows("pointer warp") else { return }
+        CGWarpMouseCursorPosition(point)
     }
 }

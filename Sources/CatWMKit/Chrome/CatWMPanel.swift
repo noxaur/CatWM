@@ -143,7 +143,9 @@ package final class CatWMPanel: NSPanel {
         return true
     }
 
-    package static func pointerScreen() -> NSScreen? { screen(at: NSEvent.mouseLocation) }
+    package static func pointerScreen() -> NSScreen? {
+        screen(at: NSEvent.mouseLocation) // style-ok: panels open on the real pointer's NSScreen, in AppKit points
+    }
 
     package static func screen(at point: NSPoint) -> NSScreen? {
         NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main ?? NSScreen.screens.first

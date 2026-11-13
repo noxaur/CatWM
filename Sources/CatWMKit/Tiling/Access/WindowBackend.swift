@@ -22,6 +22,7 @@ package protocol WindowBackend: Sendable {
 
     @MainActor func pointerLocation() -> CGPoint
     @MainActor func primaryButtonDown() -> Bool
+    @MainActor func anyButtonDown() -> Bool
     @MainActor func warpPointer(to point: CGPoint)
     @MainActor func post(keyCode: UInt16, flags: CGEventFlags, style: Hotkeys.PostStyle)
     @MainActor func postMouse(_ type: CGEventType, at point: CGPoint)
@@ -33,7 +34,8 @@ package protocol WindowBackend: Sendable {
 
 extension WindowBackend {
     @MainActor package func pointerLocation() -> CGPoint { .zero }
-    @MainActor package func primaryButtonDown() -> Bool { NSEvent.pressedMouseButtons & 1 != 0 }
+    @MainActor package func primaryButtonDown() -> Bool { false }
+    @MainActor package func anyButtonDown() -> Bool { false }
     @MainActor package func warpPointer(to _: CGPoint) { assertionFailure("\(Self.self) has no input seam") }
     @MainActor package func post(keyCode _: UInt16, flags _: CGEventFlags, style _: Hotkeys.PostStyle) {
         assertionFailure("\(Self.self) has no input seam")
@@ -117,9 +119,16 @@ package final class AXBackend: WindowBackend, Sendable {
         return result == .success ? "pressed" : "press failed (AX error \(result.rawValue))"
     }
 
-    package func refreshCursor() { CursorRefresh.post() }
+    package func refreshCursor() {
+        guard NSEvent.pressedMouseButtons == 0 else { return }
+        CursorRefresh.post(at: hardwarePointerLocation())
+    }
 
-    @MainActor package func pointerLocation() -> CGPoint { mouseLocation() }
+    @MainActor package func pointerLocation() -> CGPoint { hardwarePointerLocation() }
+
+    @MainActor package func primaryButtonDown() -> Bool { NSEvent.pressedMouseButtons & 1 != 0 }
+
+    @MainActor package func anyButtonDown() -> Bool { NSEvent.pressedMouseButtons != 0 }
 
     @MainActor package func warpPointer(to point: CGPoint) {
         guard RealInput.allows("pointer warp") else { return }
@@ -150,3 +159,5 @@ package final class AXBackend: WindowBackend, Sendable {
 
     @MainActor package func stepShortcut(right: Bool) -> SystemShortcut.Combo? { SystemShortcut.step(right: right) }
 }
+
+private func hardwarePointerLocation() -> CGPoint { CGEvent(source: nil)?.location ?? .zero }

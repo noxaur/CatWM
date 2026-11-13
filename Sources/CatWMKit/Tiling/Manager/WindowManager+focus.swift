@@ -29,7 +29,7 @@ extension WindowManager {
 
     private func focusUnderMouse() {
         guard focusFollowsMouseNow, !closeAndSort.sortSession, Date() > ignoreMouseUntil,
-              NSEvent.pressedMouseButtons == 0, !desktops.movingToSpace else { return }
+              !anyButtonDown(), !desktops.movingToSpace else { return }
         let point = mouseLocation()
         guard let hit = CGWindowInfo.normalWindow(at: point), let window = windows[hit.id], visible.contains(window.id),
               focusedWindow()?.id != window.id else { return }

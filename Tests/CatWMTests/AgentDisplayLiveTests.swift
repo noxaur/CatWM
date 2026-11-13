@@ -28,7 +28,7 @@ import Testing
 
     func snapshot() -> Snapshot {
         Snapshot(app: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-                 space: Spaces.current(display: mainUUID), cursor: mouseLocation())
+                 space: Spaces.current(display: mainUUID), cursor: AXBackend.shared.pointerLocation())
     }
 
     func poll() {

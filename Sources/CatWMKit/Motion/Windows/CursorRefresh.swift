@@ -19,9 +19,8 @@ package final class CursorRefresh {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item) // style-ok: debounce of cursor updates
     }
 
-    package static func post() {
-        guard RealInput.allows("cursor refresh", traps: false), NSEvent.pressedMouseButtons == 0,
-              let here = CGEvent(source: nil)?.location,
+    package static func post(at here: CGPoint) {
+        guard RealInput.allows("cursor refresh", traps: false),
               let event = CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: .mouseMoved,
                                   mouseCursorPosition: here, mouseButton: .left) else { return }
         event.setIntegerValueField(.eventSourceUserData, value: Hotkeys.syntheticMarker)

@@ -21,5 +21,3 @@ A tiled window's edge drag maps to the split that edge belongs to, not to one la
 A drag starts from the ratio the split shows, not the one it stores, and stops at the bounds that the 0.1 to 0.9 limits and both halves' minimums allow. If a drag started from the stored ratio, a split held off its ratio by a minimum would ignore the first part of a drag back. Each placement computes that shown ratio and those bounds in one place, so the layout, the edge lookup and the drag can't disagree.
 
 The split handle is the root split's divider, which is what bsp's handle moves too. Dragging it sets the root ratio within the same bounds, and the handle's swap flips the root split's sides. A handle on every split was rejected, because `SplitHandle` draws one divider per screen, and many handles over nested tiles would crowd the screen. Edge drags already reach the inner splits.
-
-The mouse-up path reads the primary button through `WindowBackend.primaryButtonDown()`, like `pointerLocation()`, so FakeBackend tests don't depend on the real mouse.

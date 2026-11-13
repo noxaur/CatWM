@@ -156,14 +156,14 @@ private final class SplitHandleView: NSView {
 
     override func mouseDown(with _: NSEvent) {
         guard let divider else { return }
-        let point = mouseLocation()
+        let point = WindowManager.shared.mouseLocation()
         start = point
         grab = along(point, divider) - divider.position
     }
 
     override func mouseDragged(with _: NSEvent) {
         guard let start, let divider else { return }
-        let point = mouseLocation()
+        let point = WindowManager.shared.mouseLocation()
         if !model.dragging {
             guard hypot(point.x - start.x, point.y - start.y) >= Self.dragThreshold,
                   let screen = currentScreen() else { return }

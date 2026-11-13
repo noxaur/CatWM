@@ -162,7 +162,7 @@ struct TabStripStack {
     private var monitors: [Any] = []
 
     func follow(_ group: Int, at offset: CGVector, lowest: CGFloat) {
-        anchor = Anchor(group: group, offset: offset, cursor: mouseLocation(), lowest: lowest)
+        anchor = Anchor(group: group, offset: offset, cursor: WindowManager.shared.mouseLocation(), lowest: lowest)
         TabStrips.shared.shift(group, by: offset)
         guard monitors.isEmpty else { return }
         let events: NSEvent.EventTypeMask = [.leftMouseDragged]
@@ -182,7 +182,7 @@ struct TabStripStack {
 
     private func moved() {
         guard let anchor else { return }
-        let cursor = mouseLocation()
+        let cursor = WindowManager.shared.mouseLocation()
         let dy = max(anchor.lowest, anchor.offset.dy + cursor.y - anchor.cursor.y)
         TabStrips.shared.shift(anchor.group, by: CGVector(dx: anchor.offset.dx + cursor.x - anchor.cursor.x, dy: dy))
     }

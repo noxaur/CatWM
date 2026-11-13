@@ -56,6 +56,10 @@ TILING_UI = re.compile(
 SESSION_APP = re.compile(r"\b(?:WindowManager|WorkspaceModel|Layout|Theme|HUD)\b")
 AX_APP = re.compile(r"\bAXUIElementCreateApplication\(")
 AX_APP_OWNER = "Sources/CatWMKit/Session/AX/AXRead.swift"
+HARDWARE_INPUT = re.compile(
+    r"\bNSEvent\.(?:pressedMouseButtons|mouseLocation)\b|\bCGEvent\(source: *nil\)\?\.location\b"
+)
+HARDWARE_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/WindowBackend.swift"
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
 SYSTEM_LOG_ALLOW = ("Sources/CatWM/main.swift",)
 INTERNALS = "docs/internals"
@@ -171,6 +175,9 @@ def banned(path, code, uses_defaults=False):
         hits.append("CatWM type in Session. Put it in Templates")
     if path.startswith(SOURCES) and path != AX_APP_OWNER and AX_APP.search(code):
         hits.append("AXUIElementCreateApplication. Use axApp(pid), which sets the AX timeout")
+    if path.startswith("Sources/CatWMKit/") and path != HARDWARE_INPUT_OWNER and HARDWARE_INPUT.search(code):
+        hits.append("hardware mouse read in CatWMKit. Read it through WindowBackend (pointerLocation, primaryButtonDown, "
+                    "anyButtonDown), so FakeBackend and embed hosts control it")
     if path.startswith(SOURCES) and path not in SYSTEM_LOG_ALLOW and SYSTEM_LOG.search(code):
         hits.append("NSLog or print. Use Log, which Send Feedback reads")
     if path.startswith(SOURCES) and path not in IGNORED_WRITE_ALLOW and IGNORED_WRITE.search(code):

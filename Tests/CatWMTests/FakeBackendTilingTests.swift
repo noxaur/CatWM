@@ -29,6 +29,38 @@ import Testing
         #expect(await fake.wait(manager) { fake.cursorRefreshes > 0 })
     }
 
+    @Test func aResizeFinishesOnlyOnceTheBackendReportsTheButtonUp() async throws {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let clock = FakeClock()
+        let manager = fake.makeManager(clock: clock)
+        fake.addWindow(); fake.addWindow()
+        func settlePastQuietTime() async {
+            for _ in 0..<2 {
+                #expect(await fake.settle(manager))
+                clock.advance(by: 1)
+            }
+        }
+        await settlePastQuietTime()
+        let main = try #require(manager.tiled(on: screen).first), ratio = manager.state(for: screen).ratio
+        var grown = fake.frame(of: main)
+        grown.size.width += 100
+        func release() async {
+            fake.userMoves(main, to: grown)
+            manager.drags[main] = true
+            manager.mouseUp()
+            await settlePastQuietTime()
+        }
+
+        fake.postMouse(.leftMouseDown, at: CGPoint(x: grown.midX, y: grown.midY))
+        await release()
+        #expect(manager.state(for: screen).ratio == ratio)
+
+        fake.postMouse(.leftMouseUp, at: CGPoint(x: grown.midX, y: grown.midY))
+        await release()
+        #expect(manager.state(for: screen).ratio > ratio)
+    }
+
     @Test func closingAWindowGivesItsSlotBack() async {
         let fake = FakeBackend()
         let screen = fake.addScreen()

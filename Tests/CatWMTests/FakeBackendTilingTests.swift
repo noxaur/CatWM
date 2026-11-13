@@ -225,12 +225,17 @@ import Testing
         #expect(Set(manager.windows.keys) == Set(ids))
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
         let before = ids.map(fake.frame(of:))
-        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), wallStart = CACurrentMediaTime()
         manager.setLayout(.wide, on: screen)
         let elapsed = Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start) / 1e9
+        let wall = CACurrentMediaTime() - wallStart
         await fake.settle(manager)
         #expect(ids.map(fake.frame(of:)) != before)
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
         #expect(elapsed < 0.05, "The main thread spent \(elapsed) s of CPU to tile 200 windows again")
+        #expect(wall < 1, """
+            The relayout held the main thread for \(wall) s. CPU time misses a thread blocked on a lock, \
+            a sync or the window server, so wall time has its own bound, 20 times the CPU one.
+            """)
     }
 }

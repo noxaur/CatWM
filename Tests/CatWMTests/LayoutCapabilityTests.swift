@@ -28,7 +28,7 @@ import Testing
         clock.advance(by: 1)
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
-        let tree = manager.state(for: screen).dwindle
+        let tree = manager.dwindle(on: screen)
         let axis: (horizontal: Bool, fromStart: Bool) = Self.resizesItsOwnSplits.contains(layout)
             ? (true, true) : try #require(layout.ratioAxis)
         var grown = before[0]
@@ -44,7 +44,7 @@ import Testing
         manager.mouseUp()
 
         #expect(await fake.wait(manager) {
-            manager.state(for: screen).ratio != ratio || manager.state(for: screen).dwindle != tree
+            manager.state(for: screen).ratio != ratio || manager.dwindle(on: screen) != tree
         })
         #expect(await fake.settle(manager))
         let after = ids.map(fake.frame(of:))

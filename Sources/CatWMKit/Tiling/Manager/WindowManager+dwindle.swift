@@ -4,7 +4,6 @@ extension WindowManager {
     private struct DwindleInput {
         let ids: [CGWindowID]
         let area: CGRect
-        let minimums: [CGSize]
     }
 
     @discardableResult
@@ -12,10 +11,21 @@ extension WindowManager {
                                _ change: (inout DwindleTree, _ index: Int, _ area: CGRect) -> Void) -> Bool {
         guard let window = target ?? focusedWindow(), let screen = screen(of: window),
               let tree = dwindleTree(on: screen), let index = tree.ids.firstIndex(of: window.id) else { return false }
-        change(&state(for: screen).dwindle, index, tree.area)
+        withDwindle(on: screen) { change(&$0, index, tree.area) }
         refresh()
         return true
     }
+
+    package func dwindle(on screen: Screen) -> DwindleTree {
+        state(for: screen).dwindles[dwindleDisplay(screen)] ?? DwindleTree()
+    }
+
+    @discardableResult
+    package func withDwindle<Result>(on screen: Screen, _ body: (inout DwindleTree) -> Result) -> Result {
+        state(for: screen).withDwindle(on: dwindleDisplay(screen), body)
+    }
+
+    func dwindleDisplay(_ screen: Screen) -> String { sharesSpaces ? screen.uuid : "" }
 
     package func resizeWindow(_ window: Window, by delta: CGSize) {
         if changeDwindle(of: window, { $0.resize(at: $1, by: delta, in: $2) }) { return }
@@ -33,15 +43,16 @@ extension WindowManager {
                      (false, frame.minY - slot.minY, frame.maxY - slot.maxY)]
         for (sideBySide, start, end) in edges {
             for (atEnd, amount) in [(false, start), (true, end)] where abs(amount) > 1 {
-                screenState.dwindle.moveEdge(at: index, sideBySide: sideBySide, end: atEnd, by: amount,
-                                             in: tree.area, minimums: tree.minimums)
+                withDwindle(on: screen) {
+                    $0.moveEdge(at: index, sideBySide: sideBySide, end: atEnd, by: amount, in: tree.area)
+                }
             }
         }
     }
 
     func dwindleDivider(on screen: Screen, ids: [CGWindowID], slots: [CGRect]) -> SplitDivider? {
         guard let tree = dwindleTree(on: screen), tree.ids == ids,
-              let root = state(for: screen).dwindle.rootSplit(in: tree.area, minimums: tree.minimums) else {
+              let root = dwindle(on: screen).rootSplit(in: tree.area) else {
             return nil
         }
         return SplitDivider(vertical: root.sideBySide, fromStart: !root.swapped, mains: root.firstCount,
@@ -50,7 +61,9 @@ extension WindowManager {
 
     func moveDwindleDivider(on screen: Screen, to ratio: CGFloat) {
         guard let tree = dwindleTree(on: screen),
-              state(for: screen).dwindle.setRootRatio(ratio, in: tree.area, minimums: tree.minimums) else { return }
+              withDwindle(on: screen, { $0.setRootRatio(ratio, in: tree.area) }) else {
+            return
+        }
         corrections = [:]
         refresh()
     }
@@ -63,8 +76,7 @@ extension WindowManager {
         let screenState = state(for: screen)
         guard screenState.layout == .dwindle else { return nil }
         let ids = tiled(on: screen), gap = windowGap(count: ids.count, on: screen)
-        screenState.dwindle.sync(ids)
-        return DwindleInput(ids: ids, area: usableRect(screen).insetBy(dx: -gap / 2, dy: -gap / 2),
-                            minimums: dwindleMinimums(ids, gap: gap))
+        screenState.withDwindle(on: dwindleDisplay(screen)) { $0.sync(ids, minimums: dwindleMinimums(ids, gap: gap)) }
+        return DwindleInput(ids: ids, area: usableRect(screen).insetBy(dx: -gap / 2, dy: -gap / 2))
     }
 }

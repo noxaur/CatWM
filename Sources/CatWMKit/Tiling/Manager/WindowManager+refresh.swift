@@ -196,7 +196,9 @@ extension WindowManager {
             .first { order.contains($0) }
         if !firstRun, let focused = focusedID.flatMap({ windows[$0] }), let index = order.firstIndex(of: focused.id),
            let screen = screen(of: focused), state(for: screen).layout == .dwindle {
-            order.insert(contentsOf: rest, at: index + 1)
+            let here = rest.filter { workspaceOf[$0] == workspaceOf[focused.id] }
+            order.insert(contentsOf: here, at: index + 1)
+            order.append(contentsOf: rest.filter { workspaceOf[$0] != workspaceOf[focused.id] })
         } else {
             order.append(contentsOf: rest)
         }

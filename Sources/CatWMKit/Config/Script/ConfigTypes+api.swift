@@ -1,6 +1,29 @@
 import Foundation
 
 extension ConfigTypes {
+    static func eventTypes() -> [String] {
+        func type(_ text: String) -> String {
+            var base = text, optional = false, array = false
+            if base.hasSuffix("?") { optional = true; base.removeLast() }
+            if base.hasSuffix("[]") { array = true; base.removeLast(2) }
+            let mapped = ["int": "number", "bool": "boolean", "string": "string",
+                          "object": "Record<string, unknown>"][base] ?? "unknown"
+            return (array ? mapped + "[]" : mapped) + (optional ? " | null" : "")
+        }
+        var out = ["/** The data of each event that `catwm.on` handles. Socket subscribers get the same events. */",
+                   "export interface Events {"]
+        for spec in EventBus.specs {
+            out.append("  /** \(spec.summary). */")
+            out.append("  \(ConfigScript.property(spec.name)): {")
+            for field in spec.data {
+                out.append("    /** \(field.summary). */")
+                out.append("    readonly \(field.name): \(type(field.type))")
+            }
+            out.append("  }")
+        }
+        return out + ["}", ""]
+    }
+
     static let apiTypes: [String] = [
         "/** A count of windows: an exact number, or a range. */",
         "export type Count = number | { atLeast?: number; atMost?: number }",
@@ -71,6 +94,36 @@ extension ConfigTypes {
         " */",
         "export type WorkspaceRuleCall = (match: WorkspaceMatch, set: (scoped: ScopedOptions) => void) => void",
         "",
+        "/** A window as `catwm.state` lists it. */",
+        "export interface WindowState {",
+        "  readonly id: number",
+        "  /** The bundle ID. */",
+        "  readonly app: string | null",
+        "  readonly title: string | null",
+        "  readonly floating: boolean",
+        "  readonly workspace: string | null",
+        "}",
+        "",
+        "/** What CatWM knew when your function was called. It doesn't change while the function runs. */",
+        "export interface State {",
+        "  /** The ID of the focused window, or null. */",
+        "  readonly focused: number | null",
+        "  readonly windows: readonly WindowState[]",
+        "  readonly workspaces: readonly {",
+        "    readonly name: string",
+        "    readonly label: string | null",
+        "    /** A display shows it. */",
+        "    readonly shown: boolean",
+        "  }[]",
+        "  readonly displays: readonly {",
+        "    readonly id: string",
+        "    readonly name: string",
+        "    /** The workspace the display shows. */",
+        "    readonly workspace: string | null",
+        "    readonly layout: string | null",
+        "  }[]",
+        "}",
+        "",
         "export interface Catwm extends Options {",
         "  /**",
         "   * Binds a key to an action, or to a function that runs when you press it. The function can only change",
@@ -84,6 +137,16 @@ extension ConfigTypes {
         "  ): void",
         "  /** Runs `set` once, while the config loads. It records what to do to each window that starts matching. */",
         "  windows(match: WindowMatch, set: (win: WindowRule) => void): void",
+        "  /**",
+        "   * Runs `handle` each time the event happens, with the event's data. It runs after the event, so it can't",
+        "   * decide where a new window goes: use `catwm.windows` for that. Its actions apply to the event's window,",
+        "   * if the event has one. Call it while the config loads.",
+        "   */",
+        "  on<E extends keyof Events>(event: E, handle: (event: Events[E]) => void): void",
+        "  /** Runs an action, like a bind does. It works inside a bind function or an event handler. */",
+        "  dispatch<A extends keyof Actions>(action: A, ...args: Actions[A]): void",
+        "  /** What CatWM knows now. It works inside a bind function or an event handler. */",
+        "  readonly state: State",
         "  readonly window: {",
         "    /** The focused window. It works only inside a function you pass to `catwm.bind`. */",
         "    readonly focused: WindowHandle",

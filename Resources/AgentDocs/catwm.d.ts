@@ -583,6 +583,121 @@ export interface ScopedOptions {
   set padding(value: number | Input<ScopedPaddingOptions> | undefined)
 }
 
+/** The data of each event that `catwm.on` handles. Socket subscribers get the same events. */
+export interface Events {
+  /** The focused window changed. */
+  "focus.changed": {
+    /** Window ID, or null when no window has focus. */
+    readonly window: number | null
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+  }
+  /** CatWM found a new window. */
+  "window.added": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+  }
+  /** A window's title, floating state or workspace changed. */
+  "window.changed": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+    /** The window floats. */
+    readonly floating: boolean
+    /** Workspace name. */
+    readonly workspace: string | null
+    /** What changed: title, floating or workspace. */
+    readonly changed: string[]
+  }
+  /** A window is gone. */
+  "window.removed": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+  }
+  /** A display shows another workspace. */
+  "workspace.changed": {
+    /** Display ID. */
+    readonly screen: string
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A workspace came into being. */
+  "workspace.created": {
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A workspace is gone. */
+  "workspace.removed": {
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A display was connected. */
+  "display.added": {
+    /** Display ID. */
+    readonly display: string
+    /** Display name. */
+    readonly name: string
+  }
+  /** A display was disconnected. */
+  "display.removed": {
+    /** Display ID. */
+    readonly display: string
+    /** Display name. */
+    readonly name: string
+  }
+  /** A display uses another layout. */
+  "layout.changed": {
+    /** Display ID. */
+    readonly screen: string
+    /** Layout name. */
+    readonly layout: string
+  }
+  /** Tiling went on or off. */
+  "tiling.changed": {
+    /** Tiling is on. */
+    readonly enabled: boolean
+  }
+  /** The key mode changed. */
+  "mode.changed": {
+    /** Key mode, empty for none. */
+    readonly mode: string
+  }
+  /** The unread badge of a window changed. */
+  "window.notifications": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Unread count, or null for a dot or no badge. */
+    readonly count: number | null
+    /** The app shows unread items with no number. */
+    readonly dot: boolean
+    /** dock, banner or database, or null. */
+    readonly source: string | null
+  }
+  /** A permission was granted or revoked. */
+  "permissions.changed": {
+    /** The permissions that are granted now. */
+    readonly granted: string[]
+  }
+  /** CatWM applied the config again. */
+  "config.reloaded": {
+    /** Problems in the config: file, line, phase and message. A failed save keeps the last good config. */
+    readonly errors: Record<string, unknown>[]
+  }
+}
+
 /** A count of windows: an exact number, or a range. */
 export type Count = number | { atLeast?: number; atMost?: number }
 
@@ -652,6 +767,36 @@ export interface WindowHandle {
  */
 export type WorkspaceRuleCall = (match: WorkspaceMatch, set: (scoped: ScopedOptions) => void) => void
 
+/** A window as `catwm.state` lists it. */
+export interface WindowState {
+  readonly id: number
+  /** The bundle ID. */
+  readonly app: string | null
+  readonly title: string | null
+  readonly floating: boolean
+  readonly workspace: string | null
+}
+
+/** What CatWM knew when your function was called. It doesn't change while the function runs. */
+export interface State {
+  /** The ID of the focused window, or null. */
+  readonly focused: number | null
+  readonly windows: readonly WindowState[]
+  readonly workspaces: readonly {
+    readonly name: string
+    readonly label: string | null
+    /** A display shows it. */
+    readonly shown: boolean
+  }[]
+  readonly displays: readonly {
+    readonly id: string
+    readonly name: string
+    /** The workspace the display shows. */
+    readonly workspace: string | null
+    readonly layout: string | null
+  }[]
+}
+
 export interface Catwm extends Options {
   /**
    * Binds a key to an action, or to a function that runs when you press it. The function can only change
@@ -665,6 +810,16 @@ export interface Catwm extends Options {
   ): void
   /** Runs `set` once, while the config loads. It records what to do to each window that starts matching. */
   windows(match: WindowMatch, set: (win: WindowRule) => void): void
+  /**
+   * Runs `handle` each time the event happens, with the event's data. It runs after the event, so it can't
+   * decide where a new window goes: use `catwm.windows` for that. Its actions apply to the event's window,
+   * if the event has one. Call it while the config loads.
+   */
+  on<E extends keyof Events>(event: E, handle: (event: Events[E]) => void): void
+  /** Runs an action, like a bind does. It works inside a bind function or an event handler. */
+  dispatch<A extends keyof Actions>(action: A, ...args: Actions[A]): void
+  /** What CatWM knows now. It works inside a bind function or an event handler. */
+  readonly state: State
   readonly window: {
     /** The focused window. It works only inside a function you pass to `catwm.bind`. */
     readonly focused: WindowHandle

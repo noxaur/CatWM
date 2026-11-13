@@ -63,6 +63,7 @@ package struct Config: Sendable {
     package var bindRows: [BindRow] = []
     package var windowRules: [WindowRule] = []
     package var workspaceRules: [WorkspaceRule] = []
+    package var eventHandlers: [EventHandler] = []
     package var features = Set(Feature.allCases)
     package var currentSubmap = ""
     package var errors: [String] = []
@@ -196,6 +197,7 @@ extension Config {
         if features != other.features { changed.insert("features") }
         if windowRules != other.windowRules { changed.insert("windowRules") }
         if workspaceRules != other.workspaceRules { changed.insert("workspaceRules") }
+        if eventHandlers != other.eventHandlers { changed.insert("eventHandlers") }
         return changed
     }
 }

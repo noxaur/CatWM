@@ -120,6 +120,15 @@ export interface WindowAddedData {
   title: string | null;
 }
 
+export interface WindowChangedData {
+  window: number;
+  app: string | null;
+  title: string | null;
+  floating: boolean;
+  workspace: string | null;
+  changed: string[];
+}
+
 export interface WindowRemovedData {
   window: number;
   app: string | null;
@@ -128,6 +137,24 @@ export interface WindowRemovedData {
 export interface WorkspaceChangedData {
   screen: string;
   workspace: string;
+}
+
+export interface WorkspaceCreatedData {
+  workspace: string;
+}
+
+export interface WorkspaceRemovedData {
+  workspace: string;
+}
+
+export interface DisplayAddedData {
+  display: string;
+  name: string;
+}
+
+export interface DisplayRemovedData {
+  display: string;
+  name: string;
 }
 
 export interface LayoutChangedData {
@@ -162,15 +189,20 @@ export interface ConfigReloadedData {
 export type CatWMEvent =
   | { event: "focus.changed"; data: FocusChangedData }
   | { event: "window.added"; data: WindowAddedData }
+  | { event: "window.changed"; data: WindowChangedData }
   | { event: "window.removed"; data: WindowRemovedData }
   | { event: "workspace.changed"; data: WorkspaceChangedData }
+  | { event: "workspace.created"; data: WorkspaceCreatedData }
+  | { event: "workspace.removed"; data: WorkspaceRemovedData }
+  | { event: "display.added"; data: DisplayAddedData }
+  | { event: "display.removed"; data: DisplayRemovedData }
   | { event: "layout.changed"; data: LayoutChangedData }
   | { event: "tiling.changed"; data: TilingChangedData }
   | { event: "mode.changed"; data: ModeChangedData }
   | { event: "window.notifications"; data: WindowNotificationsData }
   | { event: "permissions.changed"; data: PermissionsChangedData }
   | { event: "config.reloaded"; data: ConfigReloadedData };
-export const EVENTS = ["focus.changed", "window.added", "window.removed", "workspace.changed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"] as const;
+export const EVENTS = ["focus.changed", "window.added", "window.changed", "window.removed", "workspace.changed", "workspace.created", "workspace.removed", "display.added", "display.removed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"] as const;
 
 export class CatWMError extends Error {
   constructor(readonly code: string, message: string) {

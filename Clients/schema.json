@@ -1288,6 +1288,42 @@
           "name" : "app",
           "summary" : "Bundle ID",
           "type" : "string?"
+        },
+        {
+          "name" : "title",
+          "summary" : "Window title",
+          "type" : "string?"
+        },
+        {
+          "name" : "floating",
+          "summary" : "The window floats",
+          "type" : "bool"
+        },
+        {
+          "name" : "workspace",
+          "summary" : "Workspace name",
+          "type" : "string?"
+        },
+        {
+          "name" : "changed",
+          "summary" : "What changed: title, floating or workspace",
+          "type" : "string[]"
+        }
+      ],
+      "name" : "window.changed",
+      "summary" : "A window's title, floating state or workspace changed"
+    },
+    {
+      "data" : [
+        {
+          "name" : "window",
+          "summary" : "Window ID",
+          "type" : "int"
+        },
+        {
+          "name" : "app",
+          "summary" : "Bundle ID",
+          "type" : "string?"
         }
       ],
       "name" : "window.removed",
@@ -1308,6 +1344,60 @@
       ],
       "name" : "workspace.changed",
       "summary" : "A display shows another workspace"
+    },
+    {
+      "data" : [
+        {
+          "name" : "workspace",
+          "summary" : "Workspace name",
+          "type" : "string"
+        }
+      ],
+      "name" : "workspace.created",
+      "summary" : "A workspace came into being"
+    },
+    {
+      "data" : [
+        {
+          "name" : "workspace",
+          "summary" : "Workspace name",
+          "type" : "string"
+        }
+      ],
+      "name" : "workspace.removed",
+      "summary" : "A workspace is gone"
+    },
+    {
+      "data" : [
+        {
+          "name" : "display",
+          "summary" : "Display ID",
+          "type" : "string"
+        },
+        {
+          "name" : "name",
+          "summary" : "Display name",
+          "type" : "string"
+        }
+      ],
+      "name" : "display.added",
+      "summary" : "A display was connected"
+    },
+    {
+      "data" : [
+        {
+          "name" : "display",
+          "summary" : "Display ID",
+          "type" : "string"
+        },
+        {
+          "name" : "name",
+          "summary" : "Display name",
+          "type" : "string"
+        }
+      ],
+      "name" : "display.removed",
+      "summary" : "A display was disconnected"
     },
     {
       "data" : [

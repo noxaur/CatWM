@@ -7,6 +7,11 @@ package struct RuleAction: Equatable, Sendable {
     package let arg: String
 }
 
+package struct EventHandler: Equatable, Sendable {
+    package let event: String
+    package let function: Int
+}
+
 package enum Fact: String, CaseIterable, Sendable {
     case app, title, pid, workspace, display, floating, minimized, fullscreen
     case windows, sameApp, apps, layout, name, focused

@@ -86,6 +86,7 @@ import AppKit
     package var closeAndSort = CloseAndSortState()
     package var floats = FloatState()
     package var windowsToMatch: [CGWindowID] = []
+    package var eventHandlerToken: UUID?
     package var previousWorkspace: [String: String] = [:]
     package var labels: [String: String] = [:]
     package struct Slide {

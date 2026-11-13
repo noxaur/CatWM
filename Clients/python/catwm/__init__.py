@@ -143,6 +143,20 @@ class WindowAdded(TypedDict):
     data: WindowAddedData
 
 
+class WindowChangedData(TypedDict):
+    window: int
+    app: str | None
+    title: str | None
+    floating: bool
+    workspace: str | None
+    changed: list[str]
+
+
+class WindowChanged(TypedDict):
+    event: Literal["window.changed"]
+    data: WindowChangedData
+
+
 class WindowRemovedData(TypedDict):
     window: int
     app: str | None
@@ -161,6 +175,44 @@ class WorkspaceChangedData(TypedDict):
 class WorkspaceChanged(TypedDict):
     event: Literal["workspace.changed"]
     data: WorkspaceChangedData
+
+
+class WorkspaceCreatedData(TypedDict):
+    workspace: str
+
+
+class WorkspaceCreated(TypedDict):
+    event: Literal["workspace.created"]
+    data: WorkspaceCreatedData
+
+
+class WorkspaceRemovedData(TypedDict):
+    workspace: str
+
+
+class WorkspaceRemoved(TypedDict):
+    event: Literal["workspace.removed"]
+    data: WorkspaceRemovedData
+
+
+class DisplayAddedData(TypedDict):
+    display: str
+    name: str
+
+
+class DisplayAdded(TypedDict):
+    event: Literal["display.added"]
+    data: DisplayAddedData
+
+
+class DisplayRemovedData(TypedDict):
+    display: str
+    name: str
+
+
+class DisplayRemoved(TypedDict):
+    event: Literal["display.removed"]
+    data: DisplayRemovedData
 
 
 class LayoutChangedData(TypedDict):
@@ -222,8 +274,8 @@ class ConfigReloaded(TypedDict):
     data: ConfigReloadedData
 
 
-Event = FocusChanged | WindowAdded | WindowRemoved | WorkspaceChanged | LayoutChanged | TilingChanged | ModeChanged | WindowNotifications | PermissionsChanged | ConfigReloaded
-EVENTS = ["focus.changed", "window.added", "window.removed", "workspace.changed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"]
+Event = FocusChanged | WindowAdded | WindowChanged | WindowRemoved | WorkspaceChanged | WorkspaceCreated | WorkspaceRemoved | DisplayAdded | DisplayRemoved | LayoutChanged | TilingChanged | ModeChanged | WindowNotifications | PermissionsChanged | ConfigReloaded
+EVENTS = ["focus.changed", "window.added", "window.changed", "window.removed", "workspace.changed", "workspace.created", "workspace.removed", "display.added", "display.removed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"]
 
 
 def default_path() -> str:

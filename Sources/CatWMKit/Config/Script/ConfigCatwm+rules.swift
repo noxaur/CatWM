@@ -69,6 +69,18 @@ extension ConfigCatwm {
           if (submap) (state.data.submaps[submap] = state.data.submaps[submap] || []).push(entry);
           else state.data.binds.push(entry);
         },
+        on(event, run) {
+          declare("on");
+          if (typeof event !== "string") throw usage("catwm.on needs an event name as its first argument");
+          if (typeof run !== "function") throw usage("catwm.on needs a function as its second argument");
+          state.functions.push(run);
+          state.data.eventHandlers.push({ event, function: state.functions.length - 1 });
+        },
+        dispatch(name, ...args) {
+          if (state.phase !== "call") throw usage("catwm.dispatch works inside a bind function or an event handler");
+          if (typeof name !== "string") throw usage("catwm.dispatch needs a dispatcher name as its first argument");
+          state.actions.push(args.length === 0 ? name : [name, args.map(String).join(" ")]);
+        },
         windows(match, set) {
           declare("windows");
           if (typeof set !== "function") throw usage("catwm.windows needs a function as its second argument");

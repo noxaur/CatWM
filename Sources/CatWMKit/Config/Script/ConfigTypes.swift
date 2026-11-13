@@ -77,6 +77,7 @@ package enum ConfigTypes {
         let root = tree()
         out += interfaces(root, prefix: "", path: [])
         out += interfaces(scopedTree(root), prefix: "Scoped", path: [])
+        out += eventTypes()
         out += apiTypes
         return out.joined(separator: "\n")
     }

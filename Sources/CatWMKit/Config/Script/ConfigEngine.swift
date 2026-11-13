@@ -80,8 +80,9 @@ package final class ConfigEngine {
         thread.perform { finish(self.evaluate()) }
     }
 
-    package func call(function: Int, window: WindowSnapshot, then finish: @escaping (FunctionRun) -> Void) {
-        thread.perform { finish(self.invoke(function, window)) }
+    package func call(function: Int, window: WindowSnapshot?, event: JSON? = nil, state: JSON = .null,
+                      then finish: @escaping (FunctionRun) -> Void) {
+        thread.perform { finish(self.invoke(function, window, event, state)) }
     }
 
     private func evaluate() -> Run {
@@ -127,24 +128,28 @@ package final class ConfigEngine {
         return Run(value: next, files: files, isNew: isNew)
     }
 
-    private func invoke(_ function: Int, _ window: WindowSnapshot) -> FunctionRun {
+    private func invoke(_ function: Int, _ window: WindowSnapshot?, _ event: JSON?, _ world: JSON) -> FunctionRun {
         guard let registry = context?.objectForKeyedSubscript("catwmRegistry") else {
             return FunctionRun(failure: ConfigDiagnostic(file: entry.path, phase: .evaluate,
                                                          message: "the config isn't loaded"))
         }
-        let frame = window.frame
-        let snapshot: [String: Any] = [
-            "title": window.title, "app": window.app, "pid": window.pid,
-            "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]
-        ]
+        var snapshot: [String: Any] = ["state": world.text]
+        if let event { snapshot["event"] = event.text }
+        if let window {
+            let frame = window.frame
+            snapshot["window"] = [
+                "title": window.title, "app": window.app, "pid": window.pid,
+                "frame": ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]
+            ]
+        }
         let start = DispatchTime.now().uptimeNanoseconds
         let output = registry.invokeMethod("call", withArguments: [function, snapshot])?.toString() ?? ""
         guard let result = JSON.parse(Data(output.utf8)) else {
             let seconds = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000
             let message = seconds >= Self.timeLimit
-                ? "the key's function ran longer than \(Int(Self.timeLimit)) s, so CatWM stopped it. "
+                ? "the function ran longer than \(Int(Self.timeLimit)) s, so CatWM stopped it. "
                     + "Look for an endless loop"
-                : "the key's function failed"
+                : "the function failed"
             return FunctionRun(failure: ConfigDiagnostic(file: entry.path, phase: .evaluate, message: message))
         }
         if let error = result["error"] {

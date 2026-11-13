@@ -49,10 +49,4 @@ extension AXUIElement {
         AXStalls.shared.note(self, error, since: start)
         return error
     }
-
-    package var windowID: CGWindowID? {
-        var id: CGWindowID = 0
-        guard let axGetWindow, axGetWindow(self, &id) == .success, id != 0 else { return nil }
-        return id
-    }
 }

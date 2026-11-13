@@ -29,7 +29,7 @@ package enum AXRead<T> {
 }
 
 extension AXUIElement {
-    package var windowNumber: CGWindowID? {
+    package var windowID: CGWindowID? {
         var id: CGWindowID = 0
         guard let axGetWindow, axGetWindow(self, &id) == .success, id != 0 else { return nil }
         return id

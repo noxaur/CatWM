@@ -20,10 +20,12 @@ The alternative was an `isFake` check at each call site. It was rejected because
 
 These parts aren't behind `WindowBackend`, so a fake test can't drive them:
 
-- Native Desktop machinery (`NativeDesktopController`, `Spaces.move`, the Desktop bridge). Use `virtualWorkspaces = false`. It still posts nothing in a blocked process, but it does nothing.
+- Native Desktop machinery (`NativeDesktopController`, `Spaces.move`, the Desktop bridge). Leave it off in a fake test. In a blocked process it posts nothing and does nothing.
 - AX observers. `AXObserverCreate` fails for a negative pid, so send a notification with `manager.handle(_:_:)`.
 - The focus sink window, which `parkFocus` shows when focus moves to an empty display or workspace.
-- Some direct window-server reads, such as `CGWindowInfo.onScreen()` in `focus(on:)` and the Overview.
+- Direct window-server reads, such as `CGWindowInfo.onScreen()` in the Overview and the split handles, and direct `Spaces.list`, `Spaces.of` and `Spaces.current` reads.
+- `Window.isValid` and the other `Window` reads that go straight to the AX element.
+- The Dock click tap (`DockWindowPull`), which posts events itself.
 - Template capture and restore.
 
-On an Apple M4 debug build, 200 windows on 20 apps settle in about 0.07 s, and a relayout of them takes about 2 ms of main thread. `twoHundredWindowsRetileInLessThan50Milliseconds` holds the relayout call to 50 ms of main-thread CPU time, because at load 90 wall time also counts the time the thread waits to be scheduled. CPU time alone would pass a main thread that blocks on a lock, a `sync` or the window server, so wall time gets its own 1 s bound.
+`twoHundredWindowsRetileInLessThan50Milliseconds` holds the relayout call to 50 ms of main-thread CPU time, because at load wall time also counts the time the thread waits to be scheduled. CPU time alone would pass a main thread that blocks on a lock, a `sync` or the window server, so wall time gets its own 1 s bound.

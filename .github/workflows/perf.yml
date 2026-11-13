@@ -80,7 +80,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
         with:
-          pattern: perf-*
+          pattern: perf-[0-9]
           path: shards
       - id: perf
         continue-on-error: true

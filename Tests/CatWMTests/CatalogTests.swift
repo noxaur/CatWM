@@ -172,3 +172,25 @@ private var catalogRoot: URL {
     ])
     #expect(KeyHint.label(dispatcher: "movefocus", arg: "top") == "Focus")
 }
+
+@Test func everyDispatcherIsInTheReadmeAndTheAgentDocs() throws {
+    let names = WindowActions.all.map(\.name) + FocusEffect.all.map(\.dispatcher)
+    for path in ["README.md", "Resources/AgentDocs/dispatchers.md"] {
+        let text = try String(contentsOf: catalogRoot.appendingPathComponent(path), encoding: .utf8)
+        let missing = names.filter { !text.contains("`\($0)`") }
+        #expect(missing.isEmpty, "Add \(missing) to \(path)")
+    }
+}
+
+@Test func theReadmeConfigExampleRuns() throws {
+    let readme = try String(contentsOf: catalogRoot.appendingPathComponent("README.md"), encoding: .utf8)
+    let start = try #require(readme.range(of: "```ts\nimport { catwm }"))
+    let end = try #require(readme.range(of: "\n```", range: start.upperBound..<readme.endIndex))
+    let example = String(readme[readme.index(start.lowerBound, offsetBy: 6)..<end.lowerBound])
+    let folder = try ConfigFolder(["catwm.config.ts": example])
+    defer { folder.remove() }
+    let run = ConfigEngine(entry: folder.entry).run()
+    #expect(run.failures.isEmpty, "\(run.failures.map(\.message))")
+    var config = Config()
+    #expect(ConfigScript.read(try #require(run.value), into: &config, file: nil, embedded: false).isEmpty)
+}

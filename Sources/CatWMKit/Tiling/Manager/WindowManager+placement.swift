@@ -43,19 +43,21 @@ extension WindowManager {
     }
 
     private func resizeTiled(_ window: Window, _ width: Measure, _ height: Measure) {
-        guard let screen = screen(of: window), screen.uuid == currentScreen()?.uuid else { return }
+        guard let screen = screen(of: window) else { return }
         let screenState = state(for: screen), ids = tiled(on: screen)
         let rect = usableRect(screen)
         var axis = screenState.layout.ratioAxis
         if screenState.layout == .bsp { axis?.horizontal = rect.width >= rect.height }
         let mains = SplitDivider.mains(screenState.layout, mainCount: screenState.mainCount, count: ids.count)
         guard let horizontal = axis?.horizontal, let index = ids.firstIndex(of: window.id), ids.count > mains,
-              case let measure = horizontal ? width : height, measure.relative else {
-            return Log.info("resizeactive: a tiled window changes with a relative size on its layout's split axis")
+              case let measure = horizontal ? width : height, measure.relative,
+              ratioSplit(of: window, on: screen) != nil else {
+            return Log.info("resizeactive: a tiled window changes with a relative size on its layout's split axis, "
+                + "and only when it borders the main split")
         }
         let extent = horizontal ? rect.width : rect.height
         let change = measure.amount(of: extent) / extent
-        adjustRatio("exact \(screenState.ratio + (index < mains ? change : -change))")
+        adjustRatio("exact \(screenState.ratio + (index < mains ? change : -change))", on: screen)
     }
 
     private func placeFloating(_ window: Window, _ target: (_ frame: CGRect, _ screen: Screen) -> CGRect?) {

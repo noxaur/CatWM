@@ -49,8 +49,10 @@ extension WindowManager {
         refresh()
     }
 
-    package func adjustRatio(_ arg: String) {
-        guard let current = context() else { return }
+    package func adjustRatio(_ arg: String, on screen: Screen? = nil) {
+        guard let screen = screen ?? currentScreen() else { return }
+        let current = TilingContext(window: focusedWindow(), screen: screen, state: state(for: screen),
+                                    ids: tiled(on: screen))
         let parts = arg.lowercased().split(separator: " ")
         var ratio = current.state.ratio
         if parts.first == "exact", parts.count > 1, let value = Double(parts[1]) {

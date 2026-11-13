@@ -1,6 +1,6 @@
 # Dispatchers
 
-Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher> <args>`.
+Used as `catwm.bind(mods, key, ["<dispatcher>", "<args>"])`, `catwm.dispatch("<dispatcher>", "<args>")` in a bind function or event handler, or `catwm dispatch <dispatcher> <args>`.
 
 | Dispatcher | Args | Effect |
 |---|---|---|
@@ -28,6 +28,7 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `moveoutofgroup` | | take the focused window out of its tabs and give it its own tile. You can also drag its tab down out of the tab bar |
 | `changegroupactive` | `f` / `b`, or a tab number from 1 | show the next or previous tab, or tab N |
 | `movegroupwindow` | `f` / `b` | move the focused tab one place right or left in its tab bar |
+| `minimize` | | minimise the focused window |
 | `killactive` | | close the focused window |
 | `exec` | shell command | run via `sh -c`. Keybinds only; refused from the CLI |
 | `launch` | app name, bundle ID, `.app` path, file path or URL, then optional `workspace=N`, `display=SPEC` (same as `focusmonitor`), `frame=x,y,w,h` (fractions or `%` of the display) | open an app, file or URL (deep links such as `vscode://…` work). With options, CatWM moves the new window to that workspace or display. `frame` floats it at that part of the display. Keybinds only; refused from the CLI |
@@ -47,11 +48,15 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `retile` / `reevaluate` | | recompute and reapply frames |
 | `reload` | | re-read the config |
 | `submap` | mode name, or `reset` | enter or leave a keybind mode |
+| `sort` | | open or close the Overview |
+| `sort-undo` | | undo the last Overview change |
 | `switcher` | none or `prev` | window switcher: tap for the last window, hold the modifier to browse every window on every workspace (macOS Desktop) and full-screen Space, type to search. In the list: Tab / Shift+Tab move, Return opens, Esc cancels, `` ` `` shows one app, Cmd+W closes, Cmd+Q quits, Cmd+H hides, Cmd+1…9 opens a row |
 | `sethomespace` | | no effect: each macOS Desktop is a workspace. Old configs can keep it |
 | `exit` | | quit CatWM (parked windows are restored first) |
 
-**Window targets.** A window dispatcher acts on the focused window. Start its argument with `@<target>` to act on another window instead: `catwm dispatch setfloating "@app:com.apple.Safari"`, `catwm dispatch movetoworkspacesilent "@title:/^Inbox/i 3"`. A target is `field:value`. Fields: `app` (a bundle ID, a trailing `*`, or a regex), `title`, `workspace` and `display` (text or a regex), `id` (a window ID, also written `address`) and `pid`. Write a regex as `/source/flags` (`i`, `m`, `s`; `g`, `u`, `y` and `d` are ignored). Quote a value that has spaces: `@title:"My Doc"`. `focuswindow` takes the target without the `@`. A target that is wrong or matches no window does nothing. It never falls back to the focused window. These take a target: `togglefloating`, `setfloating`, `settiled`, `resizeactive`, `moveactive`, `centerwindow`, `fullscreen`, `nativefullscreen`, `minimize`, `killactive`, `movewindow`, `movewindowtomonitor`, `moveintogroup`, `moveoutofgroup`, `changegroupactive`, `movegroupwindow`, `movetoworkspace` and `movetoworkspacesilent`. `catwm windows` lists the window IDs.
+**Window targets.** A window dispatcher acts on the focused window. Start its argument with `@<target>` to act on another window instead: `catwm dispatch setfloating "@app:com.apple.Safari"`, `catwm dispatch movetoworkspacesilent "@title:/^Inbox/i 3"`. A target is `field:value`. Fields: `app` (a bundle ID, a trailing `*`, or a regex), `title`, `workspace` and `display` (text or a regex), `id` (a window ID, also written `address`) and `pid`. Write a regex as `/source/flags` (`i`, `m`, `s`; `g`, `u`, `y` and `d` are ignored). Quote a value that has spaces: `@title:"My Doc"`. `focuswindow` takes the target without the `@`. A target that is wrong or matches no window does nothing. It never falls back to the focused window. These take a target: `togglefloating`, `setfloating`, `settiled`, `resizeactive`, `moveactive`, `centerwindow`, `fullscreen`, `nativefullscreen`, `minimize`, `killactive`, `movewindow`, `movewindowtomonitor`, `moveintogroup`, `moveoutofgroup`, `changegroupactive`, `movegroupwindow`, `movetoworkspace`, `movetoworkspacesilent`, `unminimize`, `pin`, `movetoscratchpad` and every plugin dispatcher. `catwm windows` lists the window IDs.
+
+**Plugin dispatchers.** Another app can add a dispatcher with a namespaced name, such as `myapp.toggle-notes`, through `register` over the socket (see `cli.md`). A bind, a rule, `catwm.dispatch` and `catwm dispatch` call it like a built-in, and CatWM sends the call, its argument and the target window to that app without waiting. A plugin name that no app has registered does nothing and logs a line, so a config can bind it before the app starts.
 
 In a key bind, unknown dispatchers and bad args are ignored silently; check the log with `catwm dump` or `--verbose`. Over the socket, `catwm dispatch` refuses an unknown dispatcher.
 With `virtual-workspaces = false`, `workspace`/`movetoworkspace` use macOS Spaces and need "Switch to Desktop N" enabled on Ctrl+N in System Settings → Keyboard → Shortcuts → Mission Control.

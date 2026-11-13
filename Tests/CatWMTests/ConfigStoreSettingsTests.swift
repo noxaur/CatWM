@@ -139,6 +139,27 @@ import Testing
         #expect(!store.migrateOverrides())
     }
 
+    @Test func overriddenBindsMoveAndKeepTheBindsAFunctionOwns() throws {
+        let folder = try ConfigFolder(["catwm.config.ts": catwmConfig(
+            "catwm.bind([\"alt\"], \"a\", \"sort\")",
+            "catwm.bind([\"alt\"], \"f\", () => { catwm.window.focused.float() })"
+        )])
+        defer { folder.remove() }
+        try folder.write(ConfigStore.overridesName, """
+        { "binds": [{ "mods": ["alt"], "key": "b", "run": "retile" }], "gaps": { "size": 12 } }
+        """)
+        let store = store(folder)
+        _ = store.load()
+
+        #expect(store.migrateOverrides())
+
+        let config = store.reload()
+        #expect(config.windowMarginSize == 12)
+        #expect(config.bindings.contains { $0.dispatcher == "retile" })
+        #expect(config.bindings.contains { $0.function != nil })
+        #expect(!FileManager.default.fileExists(atPath: store.overridesURL.path))
+    }
+
     @Test func anOverridesFileThatCanNotMoveStaysAndSaysWhy() throws {
         let source = catwmConfig("catwm.gaps.size = 8")
         let folder = try ConfigFolder(["catwm.config.ts": source])

@@ -17,9 +17,7 @@ extension ConfigStore {
             return fail(migration: problem.message)
         }
         let kept = current.bindings.filter { $0.function != nil }
-        expected.bindings = expected.bindings.filter { $0.function == nil }
-            + kept.filter { overrides[$0.submap.isEmpty ? "binds" : "submaps"] == nil }
-        expected.bindings = Self.functionsLast(expected.bindings)
+        expected.bindings = Self.functionsLast(expected.bindings.filter { $0.function == nil } + kept)
         let edits = ConfigScript.paths(overrides).compactMap { path in
             Self.value(at: path, in: overrides).map { Edit(path: path, value: $0) }
         }

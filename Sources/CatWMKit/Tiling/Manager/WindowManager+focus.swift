@@ -97,21 +97,28 @@ extension WindowManager {
     }
 
     private func applyMouseResize(_ window: Window, on screen: Screen) {
+        let frame = window.cachedFrame
+        guard !frame.isNull, let split = ratioSplit(of: window, on: screen) else { return }
+        state(for: screen).ratio = min(0.9, max(0.1, split.boundary(frame) / split.span))
+    }
+
+    func ratioSplit(of window: Window, on screen: Screen) -> (boundary: (CGRect) -> CGFloat, span: CGFloat)? {
         let screenState = state(for: screen)
         let ids = tiled(on: screen)
-        let rect = usableRect(screen), frame = window.cachedFrame
-        guard !frame.isNull else { return }
+        let rect = usableRect(screen)
         let layout = screenState.layout
         let mains = [.bsp, .twoPane, .twoPaneRight].contains(layout) ? 1 : screenState.mainCount
-        guard let idx = ids.firstIndex(of: window.id), ids.count > mains, var axis = layout.ratioAxis else { return }
+        guard let idx = ids.firstIndex(of: window.id), ids.count > mains, var axis = layout.ratioAxis else {
+            return nil
+        }
         if layout == .bsp { axis = (rect.width >= rect.height, true) }
         let isMain = idx < mains
-        if layout == .widescreenTall, isMain, mains > 1, idx != mains - 1 { return }
-        if layout == .widescreenTallRight, isMain, mains > 1, idx != 0 { return }
-        if !isMain, [.threeColumnLeft, .threeColumnRight].contains(layout) { return }
+        if layout == .widescreenTall, isMain, mains > 1, idx != mains - 1 { return nil }
+        if layout == .widescreenTallRight, isMain, mains > 1, idx != 0 { return nil }
+        if !isMain, [.threeColumnLeft, .threeColumnRight].contains(layout) { return nil }
         let gap = windowGap(count: ids.count, on: screen)
         let total = axis.horizontal ? rect.width : rect.height
-        func boundary(_ slot: CGRect) -> CGFloat {
+        let boundary = { (slot: CGRect) -> CGFloat in
             switch (axis.horizontal, axis.fromStart, isMain) {
             case (true, true, true): slot.maxX - rect.minX + gap
             case (true, true, false): slot.minX - rect.minX
@@ -122,7 +129,7 @@ extension WindowManager {
             }
         }
         if let slot = layoutTargets(ids, screenState, on: screen)?[window.id],
-           abs(boundary(slot) - screenState.ratio * (total + gap)) > 3 { return }
-        screenState.ratio = min(0.9, max(0.1, boundary(frame) / (total + gap)))
+           abs(boundary(slot) - screenState.ratio * (total + gap)) > 3 { return nil }
+        return (boundary, total + gap)
     }
 }

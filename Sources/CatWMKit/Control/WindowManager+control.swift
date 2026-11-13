@@ -35,6 +35,8 @@ extension WindowManager {
                 "focused": .bool(window.id == focused), "floating": .bool(window.isFloating),
                 "minimized": .bool(window.minimized), "fullscreen": .bool(window.fullscreen),
                 "visible": .bool(visible.contains(window.id)),
+                "pinned": .bool(pins.contains(window.id)),
+                "scratchpad": scratchpads.name(of: window.id).map(JSON.string) ?? .null,
                 "workspace": workspaceOf[window.id].map(JSON.string) ?? .null,
                 "screen": screen(of: window, in: screens).map { JSON.string($0.uuid) } ?? .null,
                 "frame": .rect(window.cachedFrame)

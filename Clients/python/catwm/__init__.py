@@ -19,6 +19,7 @@ class CatWMError(Exception):
 
 Direction = Literal["left", "right", "up", "down"]
 Step = Literal["next", "prev"]
+Mode = Literal["on", "off", "toggle"]
 Layout = Literal["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp", "3column-left", "3column-middle", "3column-right", "two-pane", "two-pane-right", "widescreen-tall", "widescreen-tall-right"]
 
 
@@ -68,6 +69,8 @@ class WindowsItem(TypedDict):
     minimized: bool
     fullscreen: bool
     visible: bool
+    pinned: bool
+    scratchpad: str | None
     workspace: str | None
     screen: str | None
     frame: Rect | None
@@ -423,6 +426,27 @@ class CatWM:
         """Close the focused window"""
         args: dict[str, Any] = {}
         self.call("killactive", args)
+
+    def movetoscratchpad(self, name: str | None = None) -> None:
+        """Hide the focused window in a scratchpad and float it"""
+        args: dict[str, Any] = {}
+        if name is not None:
+            args["name"] = name
+        self.call("movetoscratchpad", args)
+
+    def togglescratchpad(self, name: str | None = None) -> None:
+        """Show a scratchpad window floating over this workspace, or hide it again"""
+        args: dict[str, Any] = {}
+        if name is not None:
+            args["name"] = name
+        self.call("togglescratchpad", args)
+
+    def pin(self, mode: Mode | None = None) -> None:
+        """Float the focused window and keep it on every workspace of its display"""
+        args: dict[str, Any] = {}
+        if mode is not None:
+            args["mode"] = mode
+        self.call("pin", args)
 
     def moveintogroup(self, direction: Direction) -> None:
         """Add the focused window to the tabs of its neighbour"""

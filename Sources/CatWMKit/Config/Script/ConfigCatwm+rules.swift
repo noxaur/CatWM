@@ -12,13 +12,17 @@ extension ConfigCatwm {
             push("resizeactive", `exact ${finite(width, "width")} ${finite(height, "height")}`),
           move: (x, y) => push("moveactive", `exact ${finite(x, "x")} ${finite(y, "y")}`),
           center: () => push("centerwindow"),
+          pin: (on) => push("pin", on === false ? "off" : "on"),
+          scratchpad: (name) => push("movetoscratchpad", name === undefined ? "" : String(name)),
           moveTo: (workspace) => push("movetoworkspacesilent", String(workspace))
         };
       }
 
       function ruleWindow(actions) {
         const api = recorder(actions);
-        const win = { float: api.float, tile: api.tile, fullscreen: api.fullscreen };
+        const win = {
+          float: api.float, tile: api.tile, fullscreen: api.fullscreen, pin: api.pin, scratchpad: api.scratchpad
+        };
         Object.defineProperties(win, {
           size: {
             set(value) {

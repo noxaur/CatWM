@@ -75,7 +75,7 @@ package struct WindowScope: Equatable {
         "movefocus", "cyclenext", "focuswindow", "focuslast", "movewindow", "movewindowtomonitor", "swapwindow",
         "swapnext",
         "togglefloating", "setfloating", "settiled", "resizeactive", "moveactive", "centerwindow",
-        "fullscreen", "minimize", "killactive",
+        "fullscreen", "minimize", "killactive", "movetoscratchpad", "togglescratchpad", "pin",
         "moveintogroup", "moveoutofgroup", "changegroupactive", "movegroupwindow",
         "layoutmsg", "splitratio", "cyclelayout", "layout", "toggletiling", "retile",
         "balance", "togglesplit", "unminimize", "moveworkspacetomonitor", "swapworkspaces",

@@ -16,6 +16,12 @@ public enum Step: String, CaseIterable, Sendable {
     case prev = "prev"
 }
 
+public enum Mode: String, CaseIterable, Sendable {
+    case on = "on"
+    case off = "off"
+    case toggle = "toggle"
+}
+
 public enum Layout: String, CaseIterable, Sendable {
     case tall = "tall"
     case tallRight = "tall-right"
@@ -81,6 +87,8 @@ public struct WindowsItem: Codable, Equatable, Sendable {
     public let minimized: Bool
     public let fullscreen: Bool
     public let visible: Bool
+    public let pinned: Bool
+    public let scratchpad: String?
     public let workspace: String?
     public let screen: String?
     public let frame: Rect?
@@ -510,6 +518,27 @@ public final class CatWM: @unchecked Sendable {
     public func killactive() throws {
         let args: [String: Any] = [:]
         _ = try call("killactive", args)
+    }
+
+    /// Hide the focused window in a scratchpad and float it
+    public func movetoscratchpad(name: String? = nil) throws {
+        var args: [String: Any] = [:]
+        if let value = name { args["name"] = value }
+        _ = try call("movetoscratchpad", args)
+    }
+
+    /// Show a scratchpad window floating over this workspace, or hide it again
+    public func togglescratchpad(name: String? = nil) throws {
+        var args: [String: Any] = [:]
+        if let value = name { args["name"] = value }
+        _ = try call("togglescratchpad", args)
+    }
+
+    /// Float the focused window and keep it on every workspace of its display
+    public func pin(mode: Mode? = nil) throws {
+        var args: [String: Any] = [:]
+        if let value = mode { args["mode"] = value.rawValue }
+        _ = try call("pin", args)
     }
 
     /// Add the focused window to the tabs of its neighbour

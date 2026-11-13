@@ -28,6 +28,8 @@ extension CommandRegistry {
             Field(name: "minimized", type: "bool", summary: "The window is minimised"),
             Field(name: "fullscreen", type: "bool", summary: "The window is in full screen"),
             Field(name: "visible", type: "bool", summary: "The window is on a shown workspace"),
+            Field(name: "pinned", type: "bool", summary: "The window is on every workspace of its display"),
+            Field(name: "scratchpad", type: "string?", summary: "Scratchpad name, set while the window belongs to one"),
             Field(name: "workspace", type: "string?", summary: "Workspace name"),
             Field(name: "screen", type: "string?", summary: "Display ID"),
             Field(name: "frame", type: rect + "?", summary: "Last known frame")

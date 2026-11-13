@@ -95,7 +95,7 @@ extension WindowManager {
             },
             frames: windows.mapValues(\.cachedFrame), present: present,
             held: held ? present : nativeMoves.movingIDs.union(present.filter { animator.isBusy($0) }),
-            fullscreen: fullscreenSpaces())
+            maximised: maximisedSpaces())
         let plan = WorkspaceReconciliation.reconcile(observation, model: model, displayOf: displayOf)
         model = plan.model
         displayOf = plan.displayOf

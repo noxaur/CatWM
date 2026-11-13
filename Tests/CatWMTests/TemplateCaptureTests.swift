@@ -149,22 +149,22 @@ import Testing
         #expect(batch.windows.map(\.windowID) == [4, 9])
     }
 
-    @Test func savedWindowsKeepOrderMinimizedFullscreenAndLayout() throws {
+    @Test func savedWindowsKeepOrderMinimizedMaximisedAndLayout() throws {
         var savedFacts = facts(order: [7, 3])
         savedFacts.zoomed = ["desk": 3]
         savedFacts.fallbackFocus = 7
         let minimized = observed(id: 3, title: "Draft", minimized: true)
-        let fullscreen = observed(id: 7, title: "Talk", fullscreen: true)
+        let maximised = observed(id: 7, title: "Talk", maximised: true)
         let template = try TemplateCaptureAssembler.make(
             facts: savedFacts,
-            batch: .init(windows: [minimized, fullscreen], focusedID: nil, complete: true)
+            batch: .init(windows: [minimized, maximised], focusedID: nil, complete: true)
         )
         #expect(template.tilingEnabled)
         #expect(template.displays[0].layout == "tall")
         #expect(template.displays[0].ratio == 0.65)
         #expect(template.displays[0].mainCount == 2)
         #expect(template.windows.map(\.windowID) == [7, 3])
-        #expect(template.windows[0].fullscreen)
+        #expect(template.windows[0].maximised)
         #expect(!template.windows[0].minimized)
         #expect(template.windows[0].focused)
         #expect(template.windows[1].minimized)
@@ -172,22 +172,22 @@ import Testing
         #expect(template.windows[1].document == "file:///tmp/draft.txt")
     }
 
-    @Test func hiddenWorkspacesAndOtherSpacesStayOutUnlessFullscreen() throws {
+    @Test func hiddenWorkspacesAndOtherSpacesStayOutUnlessMaximised() throws {
         var savedFacts = facts()
         savedFacts.hiddenWorkspaceWindows = [8, 7]
         let hidden = observed(id: 8, title: "Hidden")
-        let fullscreen = observed(id: 7, title: "Show", fullscreen: true)
+        let maximised = observed(id: 7, title: "Show", maximised: true)
         let elsewhere = observed(id: 9, title: "Away", spaces: [99])
         let current = observed(id: 3, title: "Here", minimized: true)
         let template = try TemplateCaptureAssembler.make(
             facts: savedFacts,
-            batch: .init(windows: [hidden, fullscreen, elsewhere, current], focusedID: 3, complete: true)
+            batch: .init(windows: [hidden, maximised, elsewhere, current], focusedID: 3, complete: true)
         )
         #expect(template.windows.map(\.windowID) == [3, 7])
         #expect(template.windows[0].focused)
     }
 
-    @Test func nativeFullscreenOnItsOwnSpaceIsIncludedInTheTemplate() throws {
+    @Test func maximisedOnItsOwnSpaceIsIncludedInTheTemplate() throws {
         var savedFacts = facts(order: [3, 7])
         savedFacts.hiddenWorkspaceWindows = [7]
         let natural = CGRect(x: 40, y: 40, width: 600, height: 400)
@@ -196,16 +196,16 @@ import Testing
             facts: savedFacts,
             batch: .init(windows: [
                 observed(id: 3, title: "Here"),
-                observed(id: 7, title: "Presentation", fullscreen: true, spaces: [99]),
+                observed(id: 7, title: "Presentation", maximised: true, spaces: [99]),
                 observed(id: 9, title: "Other Desktop", spaces: [100])
             ], focusedID: 3, complete: true)
         )
         #expect(template.windows.map(\.windowID) == [3, 7])
-        #expect(template.windows.last?.fullscreen == true)
+        #expect(template.windows.last?.maximised == true)
         #expect(template.windows.last?.frame == natural)
     }
 
-    @Test func fullscreenUsesTheNaturalFrameAndFloatingFollowsTheVisibleFrame() throws {
+    @Test func maximisedUsesTheNaturalFrameAndFloatingFollowsTheVisibleFrame() throws {
         var savedFacts = facts()
         savedFacts.virtualWorkspaces = false
         savedFacts.naturalFrames = [
@@ -214,13 +214,13 @@ import Testing
         ]
         savedFacts.monitorForTiled = [1: "desk"]
         savedFacts.knownFloating = [1: false, 2: true]
-        let fullscreen = observed(id: 5, frame: CGRect(x: 12, y: 12, width: 40, height: 40), fullscreen: true)
+        let maximised = observed(id: 5, frame: CGRect(x: 12, y: 12, width: 40, height: 40), maximised: true)
         let normal = observed(id: 6, frame: CGRect(x: 30, y: 40, width: 300, height: 200))
         let tiled = observed(id: 1, frame: CGRect(x: 1100, y: 20, width: 200, height: 200))
         let floating = observed(id: 2, frame: CGRect(x: 1100, y: 20, width: 200, height: 200))
         let template = try TemplateCaptureAssembler.make(
             facts: savedFacts,
-            batch: .init(windows: [fullscreen, normal, tiled, floating], focusedID: nil, complete: true)
+            batch: .init(windows: [maximised, normal, tiled, floating], focusedID: nil, complete: true)
         )
         #expect(template.windows.first { $0.windowID == 5 }?.frame == CGRect(x: 0, y: 0, width: 1000, height: 800))
         #expect(template.windows.first { $0.windowID == 6 }?.frame == CGRect(x: 30, y: 40, width: 300, height: 200))
@@ -250,13 +250,13 @@ private func observed(
     title: String = "Window",
     frame: CGRect = CGRect(x: 40, y: 40, width: 600, height: 400),
     minimized: Bool = false,
-    fullscreen: Bool = false,
+    maximised: Bool = false,
     spaces: [UInt64] = [1]
 ) -> ObservedWindow {
     ObservedWindow(
         pid: 20, bundleID: "com.example.editor", appName: "Editor", title: title,
         document: title == "Draft" ? "file:///tmp/draft.txt" : nil, frame: frame, minimized: minimized,
-        fullscreen: fullscreen, resizable: true, windowID: id, launchDate: Date(timeIntervalSince1970: 100),
+        maximised: maximised, resizable: true, windowID: id, launchDate: Date(timeIntervalSince1970: 100),
         spaces: spaces
     )
 }

@@ -51,7 +51,7 @@ extension WindowManager {
 
     @MainActor
     private func withAppStates(_ template: WorkspaceTemplate) async throws -> WorkspaceTemplate {
-        let windows = template.windows.filter { !$0.minimized && !$0.fullscreen }.map {
+        let windows = template.windows.filter { !$0.minimized && !$0.maximised }.map {
             AppStateCapture.Window(id: $0.windowID, bundleID: $0.bundleID, title: $0.title, frame: $0.frame,
                                    document: $0.document)
         }

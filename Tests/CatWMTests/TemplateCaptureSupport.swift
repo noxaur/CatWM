@@ -12,7 +12,7 @@ func sampleTemplate(title: String = "Draft") -> WorkspaceTemplate {
     ], windows: [
         .init(bundleID: "com.example.editor", appName: "Editor", title: title, document: "file:///tmp/draft.txt",
               display: "desk", frame: CGRect(x: 0, y: 24, width: 650, height: 776), floating: false, minimized: false,
-              fullscreen: false, zoomed: false, focused: true, windowID: 42, launchDate: nil)
+              maximised: false, zoomed: false, focused: true, windowID: 42, launchDate: nil)
     ])
 }
 

@@ -132,7 +132,7 @@ extension WindowManager {
             }
             let listed = Set(scan.listed)
             for id in scan.listed + scan.found.keys.filter({ !listed.contains($0) }) {
-                let maximised = scan.fullscreen.contains(id)
+                let maximised = scan.maximised.contains(id)
                 guard !nativeMoves.isMoving(id),
                       maximised || managed(id) || (onScreenIDs.contains(id) && !onOtherSpace(id)) else {
                     continue
@@ -163,11 +163,11 @@ extension WindowManager {
         if let found = scan.found[id] { accept(found, from: scan, for: window) }
         let wasHeld = window.placementSuspended
         guard placementHolds.observe(window, scanStarted: scan.readAt, minimized: scan.minimized.contains(id),
-                                     fullscreen: scan.fullscreen.contains(id), restoring: restoringTemplate) else {
+                                     maximised: scan.maximised.contains(id), restoring: restoringTemplate) else {
             return false
         }
         if wasHeld && !window.placementSuspended { snapNextPlacement.insert(id) }
-        return !(scan.fullscreen.contains(id) || scan.minimized.contains(id))
+        return !(scan.maximised.contains(id) || scan.minimized.contains(id))
     }
 
     private func placeArrivals(_ observed: ObservedWindows, onScreen: [CGWindowInfo]) -> [Window] {
@@ -289,15 +289,15 @@ extension WindowManager {
 
     package func accept(_ found: WindowScanner.Found, from scan: WindowScanner.AppScan, for window: Window) {
         guard scan.readAt > window.observedAt else { return }
-        let wasResizable = window.resizable || window.fullscreen
+        let wasResizable = window.resizable || window.maximised
         window.observedAt = scan.readAt
         window.minimized = scan.minimized.contains(window.id)
-        window.fullscreen = scan.fullscreen.contains(window.id)
+        window.maximised = scan.maximised.contains(window.id)
         window.remember(found.frame, ifRevision: found.frameRevision ?? window.frameRevision, readAt: scan.readAt)
         let retitled = window.title != found.title
         window.title = found.title
         window.resizable = found.resizable
-        let resizable = window.resizable || window.fullscreen
+        let resizable = window.resizable || window.maximised
         if retitled, !tabs.isGrouped(window.id), windows[window.id] === window { markForRules(window) }
         if (retitled && !tabs.isGrouped(window.id)) || wasResizable != resizable {
             window.autoFloating = shouldFloat(window, title: window.title, resizable: resizable)

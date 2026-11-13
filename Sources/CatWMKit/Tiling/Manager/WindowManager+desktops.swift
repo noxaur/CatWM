@@ -115,20 +115,20 @@ extension WindowManager {
     }
 
     package func isOnHomeSpace(_ screen: Screen) -> Bool {
-        if config.virtualWorkspaces { return !Spaces.isFullscreen(display: screen.uuid) }
+        if config.virtualWorkspaces { return !Spaces.isMaximised(display: screen.uuid) }
         guard let home = desktops.homeSpace[screen.uuid] else { return true }
         return backend.currentSpace(display: screen.uuid) == home
     }
 
-    package func fullscreenSpaces() -> [CGWindowID: UInt64] {
+    package func maximisedSpaces() -> [CGWindowID: UInt64] {
         var found: [CGWindowID: UInt64] = [:]
-        let stillFullscreen = Set(scanner.results.values.flatMap(\.fullscreen))
-        leavingFullscreen = leavingFullscreen.filter {
-            stillFullscreen.contains($0.key) && Date().timeIntervalSince($0.value) < 3
+        let stillMaximised = Set(scanner.results.values.flatMap(\.maximised))
+        leavingMaximised = leavingMaximised.filter {
+            stillMaximised.contains($0.key) && Date().timeIntervalSince($0.value) < 3
         }
         for scan in scanner.results.values {
-            for id in scan.fullscreen
-            where windows[id] != nil && !scan.minimized.contains(id) && leavingFullscreen[id] == nil {
+            for id in scan.maximised
+            where windows[id] != nil && !scan.minimized.contains(id) && leavingMaximised[id] == nil {
                 if let spaces = scanner.desktop.spaces[id], spaces.count == 1, let space = spaces.first {
                     found[id] = space
                 }

@@ -63,7 +63,7 @@ package final class DesktopGestureTap {
         if phase == 1 {
             guard enabled(), event.flags.isDisjoint(with: Hotkeys.tapMods),
                   let screen = Screen.all().first(where: { $0.frame.contains(mouseLocation()) }),
-                  !Spaces.isFullscreen(display: screen.uuid), DesktopUI.isSettled(screen) else { return pass }
+                  !Spaces.isMaximised(display: screen.uuid), DesktopUI.isSettled(screen) else { return pass }
             tracking = true
             natural = DesktopSwipe.naturalScroll()
         }

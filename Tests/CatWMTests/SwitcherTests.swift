@@ -92,7 +92,7 @@ private let all = [safari, slack, notes, safariTwo]
     }
 }
 
-@Test @MainActor func spaceLabelsNumberDesktopsAndNameFullScreenSpaces() {
+@Test @MainActor func spaceLabelsNumberDesktopsAndNameMaximisedSpaces() {
     let main = Spaces.DisplaySpaces(ids: [11, 12, 13, 14], desktops: [0, 1, 3], current: 0)
     let side = Spaces.DisplaySpaces(ids: [21, 0], desktops: [0], current: 0)
     #expect(WindowManager.spaceLabels([main, side]) == [

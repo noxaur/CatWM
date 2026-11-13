@@ -106,7 +106,7 @@ extension WindowActions {
 
     package static let nativefullscreen = WindowAction(
         name: "nativefullscreen", group: "window", summary: "Give the focused window a macOS full screen Desktop"
-    ) { $0.manager.toggleNativeFullscreen() }
+    ) { $0.manager.toggleMaximised() }
 
     package static let minimize = WindowAction(
         name: "minimize", group: "window", summary: "Minimise the focused window"

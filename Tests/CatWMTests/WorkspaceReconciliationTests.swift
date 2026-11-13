@@ -82,56 +82,56 @@ import Testing
         #expect(result.visible == [7, 8])
     }
 
-    @Test func fullscreenWindowsJoinTheWorkspaceOfTheirOwnSpace() {
+    @Test func maximisedWindowsJoinTheWorkspaceOfTheirOwnSpace() {
         var model = WorkspaceModel()
         model.assign(7, to: spaceA)
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1, 5])],
-                                         frames: [8: displayA], present: [8], held: [], fullscreen: [7: 5])
+                                         frames: [8: displayA], present: [8], held: [], maximised: [7: 5])
         let result = WorkspaceReconciliation.reconcile(facts, model: model, displayOf: [:])
         let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
         #expect(result.model.workspaceOf[7] == workspace)
-        #expect(result.model.fullscreenHost[workspace] == 7)
+        #expect(result.model.maximisedHost[workspace] == 7)
         #expect(result.model.monitorOf[workspace] == "A")
-        #expect(result.model.fullscreenHost[spaceA] == nil)
+        #expect(result.model.maximisedHost[spaceA] == nil)
         #expect(result.visible == [8])
     }
 
-    @Test func fullscreenWorkspaceIsShownWhileItsSpaceIsCurrent() {
+    @Test func maximisedWorkspaceIsShownWhileItsSpaceIsCurrent() {
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 5, spaces: [1, 5])],
-                                         frames: [:], present: [], held: [], fullscreen: [7: 5])
+                                         frames: [:], present: [], held: [], maximised: [7: 5])
         let result = WorkspaceReconciliation.reconcile(facts, model: WorkspaceModel(), displayOf: [:])
         let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
         #expect(result.model.shown["A"] == workspace)
         #expect(result.model.isShown(result.model.workspaceOf[7]))
     }
 
-    @Test func leavingFullscreenReturnsTheWindowToTheShownWorkspace() {
+    @Test func leavingMaximisedReturnsTheWindowToTheShownWorkspace() {
         var model = WorkspaceModel()
         let stale = WindowManager.spaceWorkspace(display: "A", space: 5)
         model.assign(7, to: stale)
-        model.fullscreenHost[stale] = 7
+        model.maximisedHost[stale] = 7
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1])],
                                          frames: [7: displayA], present: [7], held: [])
         let result = WorkspaceReconciliation.reconcile(facts, model: model, displayOf: [:])
         #expect(result.model.workspaceOf[7] == spaceA)
-        #expect(result.model.fullscreenHost.isEmpty)
+        #expect(result.model.maximisedHost.isEmpty)
         #expect(result.visible == [7])
     }
 
-    @Test func fullscreenWindowsOnUnknownSpacesStayUnassigned() {
+    @Test func maximisedWindowsOnUnknownSpacesStayUnassigned() {
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1])],
-                                         frames: [:], present: [], held: [], fullscreen: [7: 9])
+                                         frames: [:], present: [], held: [], maximised: [7: 9])
         let result = WorkspaceReconciliation.reconcile(facts, model: WorkspaceModel(), displayOf: [:])
         #expect(result.model.workspaceOf[7] == nil)
-        #expect(result.model.fullscreenHost.isEmpty)
+        #expect(result.model.maximisedHost.isEmpty)
     }
 
-    @Test func aTabThatGoesFullscreenJoinsItsGroupAgainWhenItLeaves() {
+    @Test func aTabThatGoesMaximisedJoinsItsGroupAgainWhenItLeaves() {
         var model = WorkspaceModel()
         model.assign(7, to: spaceA); model.assign(8, to: spaceA)
         model.joinTab(8, onto: 7)
         let entering = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1, 5])],
-                                            frames: [7: displayA], present: [7], held: [], fullscreen: [8: 5])
+                                            frames: [7: displayA], present: [7], held: [], maximised: [8: 5])
         var result = WorkspaceReconciliation.reconcile(entering, model: model, displayOf: [:])
         #expect(!result.model.tabs.isGrouped(8))
         let leaving = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1])],

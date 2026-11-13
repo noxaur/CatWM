@@ -126,7 +126,7 @@ package struct TilingRecovery: Codable, Equatable {
         let saved = gone.map { entry in
             SavedWindow(bundleID: entry.bundleID ?? "", appName: "", title: memos[entry]?.title ?? "",
                         document: nil, display: "", frame: memos[entry]?.frame ?? .null, floating: false,
-                        minimized: false, fullscreen: false, zoomed: false, focused: false, windowID: entry.id,
+                        minimized: false, maximised: false, zoomed: false, focused: false, windowID: entry.id,
                         launchDate: nil)
         }
         let candidates = fresh.map { arrival in

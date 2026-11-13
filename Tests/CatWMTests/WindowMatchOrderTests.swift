@@ -8,7 +8,7 @@ import Testing
     private func saved(_ id: CGWindowID, _ frame: CGRect, title: String = "zsh",
                        document: String? = nil) -> SavedWindow {
         SavedWindow(bundleID: "com.apple.Terminal", appName: "Terminal", title: title, document: document,
-                    display: "desk", frame: frame, floating: false, minimized: false, fullscreen: false,
+                    display: "desk", frame: frame, floating: false, minimized: false, maximised: false,
                     zoomed: false, focused: false, windowID: id, launchDate: nil)
     }
 

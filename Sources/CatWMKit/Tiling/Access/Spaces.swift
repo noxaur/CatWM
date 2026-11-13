@@ -129,7 +129,7 @@ package enum Spaces {
 
     package static func list(display uuid: String) -> DisplaySpaces? { snapshot()?.list(display: uuid) }
 
-    package static func isFullscreen(display uuid: String) -> Bool {
+    package static func isMaximised(display uuid: String) -> Bool {
         guard let spaces = list(display: uuid), let cur = spaces.current else { return false }
         return !spaces.desktops.contains(cur)
     }

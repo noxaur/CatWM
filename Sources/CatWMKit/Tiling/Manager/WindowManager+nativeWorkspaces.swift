@@ -75,14 +75,14 @@ extension WindowManager {
             if let entry = desktops.nativeCatalog.entries.first(where: { membership.contains($0.space) }) {
                 assignments[id] = entry.name
                 displayOf[id] = sharesSpaces ? sharedDisplay(of: window, in: screens) ?? entry.display : entry.display
-            } else if window.fullscreen, let space = membership.first {
+            } else if window.maximised, let space = membership.first {
                 _ = host(id, on: space)
             }
         }
         model.assign(assignments)
-        model.fullscreenHost = [:]
-        for (id, space) in fullscreenSpaces() {
-            if let key = host(id, on: space) { model.fullscreenHost[key] = id }
+        model.maximisedHost = [:]
+        for (id, space) in maximisedSpaces() {
+            if let key = host(id, on: space) { model.maximisedHost[key] = id }
         }
         releaseEmptyWorkspaces()
         let visible = present.filter { model.isShown(workspaceOf[$0]) }
@@ -309,7 +309,7 @@ extension WindowManager {
         let eligible = order.filter {
             (workspaceOf[$0] == request.workspace || arriving[$0] != nil)
                 && windows[$0].map { shownApps.contains($0.pid) && !$0.isFloating } == true
-                && windows[$0]?.minimized == false && windows[$0]?.fullscreen == false
+                && windows[$0]?.minimized == false && windows[$0]?.maximised == false
         }
         let eligibleIDs = Set(eligible)
         let ids = eligible.filter { id in

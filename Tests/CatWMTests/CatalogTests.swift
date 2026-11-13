@@ -92,14 +92,14 @@ private var catalogRoot: URL {
 
 @Test @MainActor func pointerAvailabilityKeepsWindowRules() {
     let floating = CursorShortcutSpec.Context(
-        floating: true, tiled: false, zoomed: false, nativeFullscreen: false,
+        floating: true, tiled: false, zoomed: false, maximised: false,
         canMakeMain: false, multipleLayouts: false, multipleDisplays: false, virtualWorkspace: false)
     #expect(
         PointerActions.all.filter { $0.available(floating) && originalPointerIDs.contains($0.id) }.map(\.id) == [
             "float", "native", "dim", "blur", "minimize", "close"
         ])
     let tiled = CursorShortcutSpec.Context(
-        floating: false, tiled: true, zoomed: true, nativeFullscreen: false,
+        floating: false, tiled: true, zoomed: true, maximised: false,
         canMakeMain: true, multipleLayouts: true, multipleDisplays: true, virtualWorkspace: true)
     #expect(
         PointerActions.all.filter {

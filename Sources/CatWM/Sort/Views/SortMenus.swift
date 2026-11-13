@@ -31,7 +31,7 @@ extension SortModel {
             }))
         }
         items.append(workspaceMenu(current: id, run: run) { [weak self] in self?.place(id, inLane: $0) })
-        let placed = unplacedFullscreen(id) == nil
+        let placed = unplacedMaximised(id) == nil
         let others = displays.filter { $0.id != current }
         if !tabbed, placed, !others.isEmpty {
             items.append(MenuItem(id: "display", kind: .sub, label: "Move to display",

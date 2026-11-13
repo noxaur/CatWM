@@ -6,15 +6,15 @@ struct ScreenShape: Equatable {
     var notchHalfWidth: CGFloat
     var notchHeight: CGFloat
     var topInset: CGFloat
-    var isFullscreen: Bool
+    var isMaximised: Bool
 
     static func of(_ screen: NSScreen) -> ScreenShape {
-        if let uuid = screen.displayUUID, Spaces.isFullscreen(display: uuid) {
+        if let uuid = screen.displayUUID, Spaces.isMaximised(display: uuid) {
             return ScreenShape(topRadius: 0, notchHalfWidth: 0, notchHeight: 0, topInset: screen.safeAreaInsets.top,
-                               isFullscreen: true)
+                               isMaximised: true)
         }
         return ScreenShape(topRadius: topRadius(screen), notchHalfWidth: notchHalfWidth(screen),
-                           notchHeight: notchHeight(screen), topInset: 0, isFullscreen: false)
+                           notchHeight: notchHeight(screen), topInset: 0, isMaximised: false)
     }
 
     private static func notchHalfWidth(_ screen: NSScreen) -> CGFloat {

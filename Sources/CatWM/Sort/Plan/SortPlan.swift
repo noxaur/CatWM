@@ -79,7 +79,7 @@ struct SortDisplay: Identifiable {
     let aspect: CGFloat
     let screen: NSScreen
     let items: [SortItem]
-    let fullscreen: [SortItem]
+    let maximised: [SortItem]
     let workspaces: [SortWorkspace]
     let active: String?
     let taken: Set<String>

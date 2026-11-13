@@ -28,7 +28,7 @@ extension WindowManager {
             guard let nsScreen = screen.nsScreen else { return nil }
             let mine = tiledIDs.filter { home($0) == screen.uuid }
             let items = mine.compactMap { sortItem($0, rank: rank) }
-            let fullscreen = model.fullscreenHost.filter { monitorOf[$0.key] == screen.uuid }.values
+            let maximised = model.maximisedHost.filter { monitorOf[$0.key] == screen.uuid }.values
                 .sorted { (rank[$0] ?? 2000, $0) < (rank[$1] ?? 2000, $1) }
                 .compactMap { sortItem($0, rank: rank) }
             let active = virtualShown[screen.uuid]
@@ -38,7 +38,7 @@ extension WindowManager {
                 .union(tiledIDs.filter { home($0) != screen.uuid }.compactMap { workspaceOf[$0] })
             return SortDisplay(id: screen.uuid, name: screen.name, short: shorts[index],
                                isLaptop: screen.isBuiltin, aspect: screen.frame.width / max(screen.frame.height, 1),
-                               screen: nsScreen, items: items, fullscreen: fullscreen,
+                               screen: nsScreen, items: items, maximised: maximised,
                                workspaces: sortWorkspaces(mine, active: active, display: screen.uuid),
                                active: active, taken: taken, perDisplay: config.workspacesPerDisplay,
                                tabs: tabs.groups.map(\.activeFirst))
@@ -61,13 +61,13 @@ extension WindowManager {
     func isSortable(_ id: CGWindowID, screens: [Screen]) -> Bool {
         if present.contains(id) { return true }
         if config.virtualWorkspaces {
-            guard let window = windows[id], !window.minimized, !window.fullscreen,
+            guard let window = windows[id], !window.minimized, !window.maximised,
                   NSRunningApplication(processIdentifier: window.pid)?.isHidden != true,
                   let name = workspaceOf[id], let entry = desktops.nativeCatalog.entry(name) else { return false }
             return scanner.desktop.spaces[id]?.contains(entry.space) == true
                 || nativeMoves.confirms(id, on: entry.space)
         }
-        guard let window = windows[id], !window.minimized, !window.fullscreen,
+        guard let window = windows[id], !window.minimized, !window.maximised,
               NSRunningApplication(processIdentifier: window.pid)?.isHidden != true,
               let uuid = workspaceOf[id].flatMap({ monitorOf[$0] }), let home = desktops.homeSpace[uuid],
               let screen = screens.first(where: { $0.uuid == uuid }), !isOnHomeSpace(screen) else { return false }
@@ -100,9 +100,9 @@ extension WindowManager {
 
     func liveSort(_ plans: [SortApply]) {
         guard config.virtualWorkspaces, isStarted, closeAndSort.sortSession else { return }
-        let fullscreen = Set(model.fullscreenHost.values)
+        let maximised = Set(model.maximisedHost.values)
         let planned = plans.flatMap { $0.lanes.flatMap(\.ids) }
-            .filter { windows[$0] != nil && !fullscreen.contains($0) }
+            .filter { windows[$0] != nil && !maximised.contains($0) }
         let moving = Set(planned)
         let kept = Set(plans.flatMap { $0.lanes.map(\.name) })
         var gone: [String: Set<String>] = [:]
@@ -115,8 +115,8 @@ extension WindowManager {
         desktops.nativeDroppedWorkspaces.subtract(kept)
         desktops.nativeSortNames.formUnion(kept)
         desktops.nativeSortNames.subtract(desktops.nativeDroppedWorkspaces)
-        let landing = landSortDisplays(plans, gone: gone, moving: moving, fullscreen: fullscreen)
-        for apply in plans { applySortLanes(apply, gone: gone[apply.display] ?? [], fullscreen: fullscreen) }
+        let landing = landSortDisplays(plans, gone: gone, moving: moving, maximised: maximised)
+        for apply in plans { applySortLanes(apply, gone: gone[apply.display] ?? [], maximised: maximised) }
         order = order.filter { !moving.contains($0) } + planned
         lastFocused = lastFocused.filter { !moving.contains($0.value) }
         corrections = [:]
@@ -129,12 +129,12 @@ extension WindowManager {
     }
 
     private func landSortDisplays(_ plans: [SortApply], gone: [String: Set<String>], moving: Set<CGWindowID>,
-                                  fullscreen: Set<CGWindowID>) -> [String: String] {
+                                  maximised: Set<CGWindowID>) -> [String: String] {
         var landing: [String: String] = [:]
         for apply in plans {
             let names = Set(apply.lanes.map(\.name))
             let firstLive = apply.lanes.first { lane in
-                lane.ids.contains { windows[$0] != nil && !fullscreen.contains($0) }
+                lane.ids.contains { windows[$0] != nil && !maximised.contains($0) }
             }
             let land = virtualShown[apply.display].flatMap { names.contains($0) ? $0 : nil }
                 ?? (firstLive ?? apply.lanes.first)?.name
@@ -147,7 +147,7 @@ extension WindowManager {
         return landing
     }
 
-    private func applySortLanes(_ apply: SortApply, gone: Set<String>, fullscreen: Set<CGWindowID>) {
+    private func applySortLanes(_ apply: SortApply, gone: Set<String>, maximised: Set<CGWindowID>) {
         var moves: [CGWindowID: String] = [:]
         for lane in apply.lanes {
             monitorOf[lane.name] = apply.display
@@ -155,7 +155,7 @@ extension WindowManager {
             let laneState = state(workspace: lane.name)
             laneState.layout = lane.layout
             if let zoomed = laneState.zoomed, !lane.ids.contains(zoomed) { laneState.zoomed = nil }
-            for id in lane.ids where windows[id] != nil && !fullscreen.contains(id) { moves[id] = lane.name }
+            for id in lane.ids where windows[id] != nil && !maximised.contains(id) { moves[id] = lane.name }
         }
         for name in gone { labels[name] = nil }
         let hidden = Self.pendingPrefix + apply.display
@@ -179,7 +179,7 @@ extension WindowManager {
         }
     }
 
-    func finishSortAfterNative(closing ids: [CGWindowID], goTo: String?, focus: Bool, opening fullscreen: CGWindowID?) {
+    func finishSortAfterNative(closing ids: [CGWindowID], goTo: String?, focus: Bool, opening maximised: CGWindowID?) {
         closeAndSort.sortSession = false
         guard config.virtualWorkspaces, isStarted else { return releasePending() }
         let closing = ids.filter { windows[$0] != nil }
@@ -188,7 +188,7 @@ extension WindowManager {
         corrections = [:]
         closeAndSort.quietWorkspaceHUD = true
         defer { closeAndSort.quietWorkspaceHUD = false }
-        if let id = fullscreen, let window = windows[id] {
+        if let id = maximised, let window = windows[id] {
             self.focus(window)
         } else if let workspace = goTo {
             let main = order.first {

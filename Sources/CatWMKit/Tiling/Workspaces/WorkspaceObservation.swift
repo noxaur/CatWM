@@ -13,5 +13,5 @@ package struct WorkspaceObservation {
     package let frames: [CGWindowID: CGRect]
     package let present: Set<CGWindowID>
     package let held: Set<CGWindowID>
-    package var fullscreen: [CGWindowID: UInt64] = [:]
+    package var maximised: [CGWindowID: UInt64] = [:]
 }

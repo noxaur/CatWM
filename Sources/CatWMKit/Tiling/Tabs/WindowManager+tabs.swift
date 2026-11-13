@@ -352,7 +352,7 @@ extension WindowManager {
                 window.title = title
                 if !self.tabs.isGrouped(window.id) {
                     window.autoFloating = self.shouldFloat(window, title: title,
-                                                           resizable: window.resizable || window.fullscreen)
+                                                           resizable: window.resizable || window.maximised)
                     self.markForRules(window)
                 }
                 if wasFloating != window.isFloating {

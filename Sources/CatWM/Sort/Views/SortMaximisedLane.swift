@@ -2,7 +2,7 @@ import AppKit
 import CatWMKit
 import SwiftUI
 
-struct SortFullscreenLane: View {
+struct SortMaximisedLane: View {
     @ObservedObject var model: SortModel
     let item: SortItem
     let rows: Int
@@ -28,7 +28,7 @@ struct SortFullscreenLane: View {
             SortThumb(layout: .fullscreen, ids: [item.id], lit: lit ? item.id : nil)
                 .padding(.horizontal, 4)
                 .contentShape(Rectangle())
-                .onTapGesture { model.openFullscreen(item.id) }
+                .onTapGesture { model.openMaximised(item.id) }
                 .gesture(carry)
             Text("Full screen").textStyle(.caption).foregroundStyle(Theme.inkMuted).oneLine().padding(.leading, 4)
                 .contentShape(Rectangle())
@@ -48,7 +48,7 @@ struct SortFullscreenLane: View {
                         }
                     }
                     .zone(.row(item.id))
-                    .onTapGesture(count: 2) { model.openFullscreen(item.id) }
+                    .onTapGesture(count: 2) { model.openMaximised(item.id) }
                     .onTapGesture { model.selected = item.id }
                     .gesture(carry)
                     .accessibilityLabel("\(item.title), \(item.app), full screen")

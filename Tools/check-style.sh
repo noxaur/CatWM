@@ -262,6 +262,19 @@ def test_violations(path, source):
             for match in re.finditer(r"\bfunc [^\n]*\{\n\s*guard\b[^\n]*\belse *\{ *return *\}", source)]
 
 
+def package_violations(path, source):
+    if not path.startswith(SOURCES):
+        return []
+    failures = []
+    for match in re.finditer(r"^( *)(?:@\w+(?:\([^)\n]*\))? +)*(?:private|fileprivate) +(?:final +)?(?:struct|class|enum|actor|extension|protocol)\b[^\n]*\{$", source, re.M):
+        end = source.find("\n" + match[1] + "}", match.end())
+        body = source[match.end():end if end >= 0 else len(source)]
+        for inner in re.finditer(r"^ *(?:@\w+(?:\([^)\n]*\))? +)*package\b[^\n]*", body, re.M):
+            number = source.count("\n", 0, match.end() + inner.start()) + 1
+            failures.append((path, number, "package inside a private type has no effect. Delete the modifier", inner[0].strip()))
+    return failures
+
+
 def line_failures(path, source):
     failures = []
     in_multi = False
@@ -339,6 +352,7 @@ def main():
             source = handle.read()
         failures.extend(catalog_violations(path, source))
         failures.extend(test_violations(path, source))
+        failures.extend(package_violations(path, source))
         failures.extend(line_failures(path, source))
     for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS))):
         path = INTERNALS + "/" + name

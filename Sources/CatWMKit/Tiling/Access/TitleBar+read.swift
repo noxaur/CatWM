@@ -86,17 +86,17 @@ extension TitleBar {
 }
 
 private struct Reached<Element> {
-    package let node: TitleBar.Node<Element>
-    package let visible: CGRect
-    package let clip: CGRect
+    let node: TitleBar.Node<Element>
+    let visible: CGRect
+    let clip: CGRect
 }
 
 private struct TitleBarSearch<Element> {
-    package var frontier: [Reached<Element>] = []
-    package var spent = 0
+    var frontier: [Reached<Element>] = []
+    var spent = 0
 
-    package mutating func add(_ elements: [Element], clip: CGRect,
-                              read: (Element) -> AXRead<TitleBar.Node<Element>>) -> Bool {
+    mutating func add(_ elements: [Element], clip: CGRect,
+                      read: (Element) -> AXRead<TitleBar.Node<Element>>) -> Bool {
         for element in elements {
             spent += 1
             switch read(element) {
@@ -110,8 +110,8 @@ private struct TitleBarSearch<Element> {
         return true
     }
 
-    package mutating func topControl(below limit: CGFloat, read: (Element) -> AXRead<TitleBar.Node<Element>>,
-                                     expand: (Element) -> AXRead<[Element]>) -> AXRead<CGFloat?> {
+    mutating func topControl(below limit: CGFloat, read: (Element) -> AXRead<TitleBar.Node<Element>>,
+                             expand: (Element) -> AXRead<[Element]>) -> AXRead<CGFloat?> {
         while let index = frontier.indices.min(by: { frontier[$0].visible.minY < frontier[$1].visible.minY }) {
             let item = frontier.remove(at: index)
             guard item.visible.minY < limit else { break }

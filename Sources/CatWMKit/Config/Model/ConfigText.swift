@@ -2,10 +2,10 @@ import AppKit
 
 package struct ConfigText {
     private struct Assignment {
-        package let key: String
-        package let blocks: [String]
-        package var fullKey: String { (blocks + [key]).joined(separator: ":") }
-        package var optionKeys: [String] {
+        let key: String
+        let blocks: [String]
+        var fullKey: String { (blocks + [key]).joined(separator: ":") }
+        var optionKeys: [String] {
             switch ConfigOption.norm(key) {
             case "screen_padding", "gaps_out":
                 return ["screen-padding-left", "screen-padding-right", "screen-padding-top", "screen-padding-bottom"]
@@ -14,26 +14,26 @@ package struct ConfigText {
             }
         }
 
-        package var optionKey: String {
+        var optionKey: String {
             if fullKey.lowercased() == "animations:enabled" { return "animate" }
             return ConfigOption.named(key)?.key ?? ConfigOption.norm(key)
         }
     }
 
     private struct Line {
-        package var raw: String
-        package var ending: String
-        package var assignment: Assignment?
-        package var bind: BindRow?
-        package var settingValue: String?
+        var raw: String
+        var ending: String
+        var assignment: Assignment?
+        var bind: BindRow?
+        var settingValue: String?
 
-        package func removingAssignment() -> Self {
+        func removingAssignment() -> Self {
             var copy = self
             copy.raw = ConfigText.commentParts(raw).comment.trimmingCharacters(in: .whitespaces)
             return copy
         }
 
-        package func replacing(key: String? = nil, value: String) -> Self {
+        func replacing(key: String? = nil, value: String) -> Self {
             guard let equals = raw.firstIndex(of: "=") else { return self }
             var copy = self
             let prefix = key.map { name in String(raw.prefix(while: \.isWhitespace)) + name + " " }
@@ -66,9 +66,9 @@ package struct ConfigText {
     }
 
     private struct Reader {
-        package var resolved: [(String, String)] = []
-        package var blocks: [(name: String, line: Int)] = []
-        package var modVar: String?
+        var resolved: [(String, String)] = []
+        var blocks: [(name: String, line: Int)] = []
+        var modVar: String?
     }
 
     private mutating func read(_ index: Int, reader: inout Reader) {

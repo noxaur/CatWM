@@ -28,13 +28,13 @@ package struct CodeEditorAdapter: AppAdapter {
     private struct RecentWorkspace: Decodable { var configPath: String }
 
     private struct Recent: Decodable {
-        package var folderUri: String?
-        package var workspace: RecentWorkspace?
+        var folderUri: String?
+        var workspace: RecentWorkspace?
     }
 
     private struct RecentList: Decodable { var entries: [Recent] }
 
-    package static func recentProjects(_ json: String) -> [URL] {
+    static func recentProjects(_ json: String) -> [URL] {
         guard let list = try? JSONDecoder().decode(RecentList.self, from: Data(json.utf8)) else { return [] }
         return list.entries.compactMap { URL(string: $0.folderUri ?? $0.workspace?.configPath ?? "") }
             .filter(\.isFileURL)

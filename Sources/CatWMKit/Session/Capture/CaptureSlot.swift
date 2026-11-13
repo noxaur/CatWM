@@ -32,8 +32,8 @@ package final class StopFlag: Sendable {
 
 package final class CaptureSlot<Value: Sendable>: Sendable {
     private struct State: Sendable {
-        package var active: Task<Value, Never>?
-        package var activeID = 0
+        var active: Task<Value, Never>?
+        var activeID = 0
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
 
@@ -91,13 +91,13 @@ package final class CaptureSlot<Value: Sendable>: Sendable {
 
 private final class OnceGate<T: Sendable>: Sendable {
     private struct State: Sendable {
-        package var continuation: CheckedContinuation<T, Never>?
-        package var pending: T?
-        package var done = false
+        var continuation: CheckedContinuation<T, Never>?
+        var pending: T?
+        var done = false
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    package func install(_ continuation: CheckedContinuation<T, Never>) {
+    func install(_ continuation: CheckedContinuation<T, Never>) {
         let pending = state.withLock { state -> T? in
             if let pending = state.pending { return pending }
             if !state.done { state.continuation = continuation }
@@ -107,7 +107,7 @@ private final class OnceGate<T: Sendable>: Sendable {
     }
 
     @discardableResult
-    package func resume(_ value: T) -> Bool {
+    func resume(_ value: T) -> Bool {
         let (first, continuation) = state.withLock { state -> (Bool, CheckedContinuation<T, Never>?) in
             guard !state.done else { return (false, nil) }
             state.done = true

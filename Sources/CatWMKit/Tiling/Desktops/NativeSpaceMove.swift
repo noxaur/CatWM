@@ -12,11 +12,11 @@ package enum NativeSpaceMove {
     private typealias Release = @convention(c) (UnsafeMutableRawPointer, Selector) -> Void
 
     private struct Binding {
-        package let type: AnyClass
-        package let perform: Perform
-        package let allocate: Allocate
-        package let initialize: Initialize
-        package let release: Release
+        let type: AnyClass
+        let perform: Perform
+        let allocate: Allocate
+        let initialize: Initialize
+        let release: Release
     }
 
     private static let initializer = NSSelectorFromString("initWithWindows:spaceID:")
@@ -113,10 +113,10 @@ package enum NativeSpaceMove {
     }
 
     private struct SymbolTable {
-        package let entries: UInt
-        package let strings: UInt
-        package let count: Int
-        package let stringSize: UInt32
+        let entries: UInt
+        let strings: UInt
+        let count: Int
+        let stringSize: UInt32
     }
 
     private static func localSymbol(_ name: String) -> UnsafeMutableRawPointer? {

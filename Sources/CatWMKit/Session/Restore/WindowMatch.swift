@@ -83,9 +83,9 @@ package enum WindowMatch {
     }
 
     private struct Pair {
-        package var window: SavedWindow
-        package var candidate: WindowCandidate
-        package var distance: CGFloat
+        var window: SavedWindow
+        var candidate: WindowCandidate
+        var distance: CGFloat
     }
 
     private static func fits(_ candidate: WindowCandidate, _ window: SavedWindow, score: Int) -> Bool {
@@ -114,9 +114,9 @@ package struct MatchStability {
     package static let settleTime: TimeInterval = 0.6
     package static let maximumWait: TimeInterval = 2
     private struct Sighting {
-        package var candidate: WindowCandidate
-        package var since: Date
-        package var first: Date
+        var candidate: WindowCandidate
+        var since: Date
+        var first: Date
     }
 
     private var provisional: [UUID: Sighting] = [:]

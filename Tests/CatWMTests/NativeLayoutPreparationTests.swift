@@ -1,17 +1,19 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
 @Suite struct NativeLayoutPreparationTests {
     @Test @MainActor func aRecoveredLayoutNeedsNoRepositioningBeforeDesktopMotion() async throws {
-        guard let screen = Screen.all().first else { return }
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
         let name = "NativeLayoutPreparationTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let first = Window(id: 1, element: AXUIElementCreateApplication(-1), pid: 11, bundleID: "test.app")
         let second = Window(id: 2, element: AXUIElementCreateApplication(-1), pid: 12, bundleID: "test.app")
-        let original = WindowManager(config: .parse(defaultText))
+        let original = WindowManager(backend: fake, config: .parse(defaultText))
         original.config.virtualWorkspaces = true
         original.windows = [1: first, 2: second]
         original.order = [1, 2]
@@ -21,7 +23,7 @@ import Testing
         first.remember(try #require(frames[1]))
         second.remember(try #require(frames[2]))
         original.saveTilingRecovery(defaults: defaults)
-        let manager = WindowManager(config: .parse(defaultText))
+        let manager = WindowManager(backend: fake, config: .parse(defaultText))
         manager.config.virtualWorkspaces = true
         manager.loadTilingRecovery(defaults: defaults)
         manager.windows = [1: first, 2: second]
@@ -40,8 +42,9 @@ import Testing
 
     @Test(arguments: [false, true], [false, true]) @MainActor
     func tabGroupsKeepOneTileAndTheirStripBeforeTheSwitch(activeAppHidden: Bool, autoHide: Bool) async throws {
-        guard let screen = Screen.all().first else { return }
-        let manager = WindowManager(config: .parse(defaultText))
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = WindowManager(backend: fake, config: .parse(defaultText))
         manager.config.autoHideTabStrip = autoHide
         let first = Window(id: .max - 50, element: AXUIElementCreateApplication(-1), pid: -1, bundleID: nil)
         let second = Window(id: .max - 51, element: AXUIElementCreateApplication(-2), pid: -2, bundleID: nil)
@@ -71,8 +74,9 @@ import Testing
     }
 
     @Test @MainActor func windowsOfHiddenAppsGetNoSlotBeforeTheSwitch() async throws {
-        guard let screen = Screen.all().first else { return }
-        let manager = WindowManager(config: .parse(defaultText))
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = WindowManager(backend: fake, config: .parse(defaultText))
         manager.config.windowMargins = false
         let shown = Window(id: 1, element: AXUIElementCreateApplication(-1), pid: -1, bundleID: nil)
         let hidden = Window(id: 2, element: AXUIElementCreateApplication(-2), pid: -2, bundleID: nil)

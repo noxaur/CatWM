@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -34,7 +35,7 @@ import Testing
 
     @Test func aHugeMonitorStepDoesNotOverflow() {
         let manager = WindowManager(config: .parse(defaultText))
-        guard let first = Screen.all().first else { return }
+        let first = FakeBackend().addScreen()
         #expect(manager.screen(from: first, spec: "+\(Int.max)", in: [first])?.uuid == first.uuid)
         #expect(manager.screen(from: first, spec: "-\(Int.max)", in: [first])?.uuid == first.uuid)
         #expect(manager.screen(from: first, spec: "+1", in: []) == nil)

@@ -1,11 +1,14 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
 @Suite struct TabTilingTests {
-    @MainActor private func manager(on screen: Screen, windows ids: [CGWindowID]) -> WindowManager {
-        let manager = WindowManager(config: .parse(defaultText))
+    @MainActor private func manager(windows ids: [CGWindowID]) -> (WindowManager, Screen) {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = WindowManager(backend: fake, config: .parse(defaultText))
         manager.config.windowMargins = false
         manager.shown[screen.uuid] = "1"
         for id in ids {
@@ -15,12 +18,11 @@ import Testing
             manager.model.assign(id, to: "1")
             manager.visible.insert(id)
         }
-        return manager
+        return (manager, screen)
     }
 
     @Test @MainActor func tabsShareOneTileBelowTheirStrip() throws {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(3, onto: 1)
         #expect(manager.tiled(on: screen) == [3, 2])
         #expect(manager.tabStack(behind: 3) == [1])
@@ -34,8 +36,7 @@ import Testing
     }
 
     @Test @MainActor func anAutoHiddenGroupFillsItsWholeSlot() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         manager.model.joinTab(2, onto: 1)
         let slot = CGRect(x: 0, y: 40, width: 800, height: 600)
         #expect(manager.belowTabStrip(slot, for: 2).minY == slot.minY + TabGeometry.stripHeight)
@@ -45,8 +46,7 @@ import Testing
     }
 
     @Test @MainActor func aDroppedGroupJoinsAsAWhole() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(2, onto: 1)
         manager.joinTabs(of: 2, onto: 3)
         #expect(manager.tabs.group(of: 3)?.members.sorted() == [1, 2, 3])
@@ -54,8 +54,7 @@ import Testing
     }
 
     @Test @MainActor func aLiftedTabJoinsAWindowOnlyAfterAHoverOverItsBody() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3, 4])
+        let (manager, screen) = manager(windows: [1, 2, 3, 4])
         manager.model.joinTab(2, onto: 1)
         manager.model.joinTab(4, onto: 1)
         let slot = CGRect(x: screen.visible.minX + 600, y: screen.visible.minY + 40, width: 500, height: 500)
@@ -73,8 +72,7 @@ import Testing
     }
 
     @Test @MainActor func aLiftedTabHeldOverItsOwnGroupStaysInIt() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(2, onto: 1)
         manager.model.joinTab(3, onto: 1)
         let slot = CGRect(x: screen.visible.minX + 600, y: screen.visible.minY + 40, width: 500, height: 500)
@@ -90,8 +88,7 @@ import Testing
     }
 
     @Test @MainActor func aHiddenTabStaysPutWhileTheActiveTabCoversIt() throws {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         let tab = try #require(manager.windows[2])
         let slot = CGRect(x: 100, y: 68, width: 500, height: 600)
         #expect(!manager.covered(tab, by: slot))
@@ -102,8 +99,7 @@ import Testing
     }
 
     @Test @MainActor func escapeOnlyActsWhileADropShows() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         #expect(!manager.cancelTabDrop())
         manager.drags[2] = false
         #expect(!manager.cancelTabDrop())
@@ -114,8 +110,7 @@ import Testing
     }
 
     @Test @MainActor func aCancelledDropLeavesTheLiftedTabOutOfAnyGroup() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(2, onto: 1)
         let slot = CGRect(x: screen.visible.minX + 600, y: screen.visible.minY + 40, width: 500, height: 500)
         manager.targets[3] = slot
@@ -129,8 +124,7 @@ import Testing
     }
 
     @Test @MainActor func aGroupNeedsRoomForItsLargestTabAndItsStrip() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         manager.minSizes[1] = CGSize(width: 500, height: 300)
         manager.minSizes[2] = CGSize(width: 400, height: 420)
         manager.model.joinTab(2, onto: 1)
@@ -138,8 +132,7 @@ import Testing
     }
 
     @Test @MainActor func droppingOnTheTopOfATileAddsATab() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         let slot = CGRect(x: screen.visible.minX, y: screen.visible.minY + 40, width: 600, height: 500)
         manager.targets[1] = slot
         #expect(manager.tabDropTarget(for: 2, at: CGPoint(x: slot.midX, y: slot.minY + 10)) == 1)
@@ -151,8 +144,7 @@ import Testing
     }
 
     @Test @MainActor func aTabMovesOnePlaceAndStopsAtTheEnds() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(2, onto: 1)
         manager.model.joinTab(3, onto: 2)
         manager.moveTab(3, by: -1)
@@ -166,8 +158,7 @@ import Testing
     }
 
     @Test @MainActor func focusingAHiddenTabShowsIt() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2])
+        let (manager, screen) = manager(windows: [1, 2])
         manager.model.joinTab(2, onto: 1)
         manager.followTabFocus(1)
         #expect(manager.tabs.group(of: 1)?.active == 1)
@@ -175,8 +166,7 @@ import Testing
     }
 
     @Test @MainActor func aFloatingTabLeavesItsGroup() {
-        guard let screen = Screen.all().first else { return }
-        let manager = manager(on: screen, windows: [1, 2, 3])
+        let (manager, screen) = manager(windows: [1, 2, 3])
         manager.model.joinTab(2, onto: 1)
         manager.model.joinTab(3, onto: 1)
         manager.windows[3]?.userFloating = .chosen(true)

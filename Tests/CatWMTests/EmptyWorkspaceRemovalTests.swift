@@ -29,7 +29,7 @@ import Testing
         let manager = await makeManager(removals)
         for target in ["2", "3", "1", "2"] { manager.holdSwitchTarget(target) }
         manager.releaseEmptyWorkspaces()
-        _ = await poll(0.5, every: 10_000_000) { false }
+        #expect(await poll(2, every: 10_000_000) { removals.spaces.contains(3) })
         #expect(!removals.spaces.contains(2))
     }
 
@@ -38,7 +38,7 @@ import Testing
         let manager = await makeManager(removals)
         manager.releaseEmptyWorkspaces()
         manager.holdSwitchTarget("3")
-        _ = await poll(0.5, every: 10_000_000) { false }
+        #expect(await poll(2, every: 10_000_000) { removals.spaces.contains(2) })
         #expect(!removals.spaces.contains(3))
     }
 

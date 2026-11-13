@@ -355,6 +355,14 @@ def layout_violations(path, source, cases):
     return failures
 
 
+def test_violations(path, source):
+    if not path.startswith("Tests/CatWMTests/"):
+        return []
+    return [(path, source.count("\n", 0, match.end()) + 1,
+             "a test that returns early passes without testing. Use try #require, or run on a FakeBackend screen", match[0].splitlines()[-1].strip())
+            for match in re.finditer(r"@Test\b[^{]*?\bfunc [^\n]*\{\n\s*guard\b[^\n]*\belse *\{ *return *\}", source)]
+
+
 def line_failures(path, source):
     failures = []
     in_multi = False
@@ -437,10 +445,10 @@ def main():
     for path in sorted(swift_files()):
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
             source = handle.read()
-            failures.extend(catalog_violations(path, source))
-            failures.extend(layout_violations(path, source, cases))
-        with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
-            failures.extend(line_failures(path, handle.read()))
+        failures.extend(catalog_violations(path, source))
+        failures.extend(layout_violations(path, source, cases))
+        failures.extend(test_violations(path, source))
+        failures.extend(line_failures(path, source))
     for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS))):
         path = INTERNALS + "/" + name
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:

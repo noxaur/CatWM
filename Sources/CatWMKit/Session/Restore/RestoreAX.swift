@@ -85,7 +85,7 @@ package enum RestoreAX {
         case .value(let value): subrole = value
         }
         guard subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole,
-              let id = element.windowNumber else { return .missing }
+              let id = element.windowID else { return .missing }
         guard !expired() else { return .stalled }
         let minimized = element.readBool(kAXMinimizedAttribute).value ?? false
         guard WindowKind.includes(subrole: subrole, minimized: minimized) else { return .missing }

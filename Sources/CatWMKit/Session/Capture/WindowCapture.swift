@@ -121,7 +121,7 @@ package enum WindowCapture {
     private static func focusedID(_ pid: pid_t) -> CGWindowID? {
         guard let focused = axApp(pid).readElement(kAXFocusedWindowAttribute).value else { return nil }
         AXUIElementSetMessagingTimeout(focused, axTimeout)
-        return focused.windowNumber
+        return focused.windowID
     }
 
     private static func observe(_ element: AXUIElement, _ app: AppSnapshot) -> AXRead<ObservedWindow> {
@@ -132,7 +132,7 @@ package enum WindowCapture {
         case .value(let value): subrole = value
         }
         guard subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole,
-              let id = element.windowNumber else { return .missing }
+              let id = element.windowID else { return .missing }
         guard case .value(let minimized) = flag(element, kAXMinimizedAttribute) else { return .stalled }
         guard WindowKind.includes(subrole: subrole, minimized: minimized) else { return .missing }
         guard case .value(let maximised) = flag(element, "AXFullScreen") else { return .stalled }

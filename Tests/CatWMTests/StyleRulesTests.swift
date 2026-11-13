@@ -18,7 +18,8 @@ import Testing
     #expect(process.terminationStatus == 0, "\(output)")
 }
 
-private func styleFailures(path: String, source: String, rule: String = "line") throws -> [String] {
+private func styleFailures(path: String, source: String, rule: String = "line",
+                           layoutEnum: String? = nil) throws -> [String] {
     let root = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
@@ -32,7 +33,8 @@ private func styleFailures(path: String, source: String, rule: String = "line") 
     loader.exec_module(module)
     rule = sys.argv[4]
     if rule == "layout":
-        failures = module.layout_violations(sys.argv[2], sys.argv[3], module.layout_cases())
+        cases = module.layout_cases(sys.argv[5] if len(sys.argv) > 5 else None)
+        failures = module.layout_violations(sys.argv[2], sys.argv[3], cases)
     else:
         failures = module.line_failures(sys.argv[2], sys.argv[3])
     for failure in failures:
@@ -42,7 +44,7 @@ private func styleFailures(path: String, source: String, rule: String = "line") 
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     let checker = root.appendingPathComponent("Tools/check-style.sh").path
-    process.arguments = ["python3", "-c", script, checker, path, source, rule]
+    process.arguments = ["python3", "-c", script, checker, path, source, rule] + (layoutEnum.map { [$0] } ?? [])
     process.standardOutput = pipe
     try process.run()
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -214,4 +216,18 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     let text = "[.tall, .wide].contains(layout)"
     """
     #expect(try styleFailures(path: "Sources/CatWMKit/Example.swift", source: source, rule: "layout").isEmpty)
+}
+
+@Test func layoutRuleReadsAnEnumCaseDeclarationThatWraps() throws {
+    let layout = """
+    enum Layout: String, CaseIterable {
+        case tall, tallRight = "tall-right", // the right-hand tall layout
+             wide
+        package var title: String { "" }
+    }
+    """
+    let wide = "switch layout {\ncase .tall, .wide: 1\ndefault: 2\n}"
+    let failures = try styleFailures(path: "Sources/CatWMKit/Example.swift", source: wide, rule: "layout",
+                                     layoutEnum: layout)
+    #expect(failures.contains { $0.contains("default in a switch over Layout") })
 }

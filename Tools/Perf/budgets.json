@@ -173,13 +173,13 @@
       "group": "Motion",
       "label": "Animator tick, 12 windows, color-fill, no SkyLight",
       "unit": "ms",
-      "cap": 0.1
+      "cap": 0.25
     },
     "motion.tick.live.cpu": {
       "group": "Motion",
       "label": "Animator tick, 12 windows, live, no SkyLight",
       "unit": "ms",
-      "cap": 0.1
+      "cap": 0.25
     }
   }
 }

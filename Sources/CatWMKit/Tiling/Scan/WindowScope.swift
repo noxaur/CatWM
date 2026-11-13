@@ -67,7 +67,7 @@ package struct WindowScope: Equatable {
     }
 
     package static let allowedCommands: Set<String> = [
-        "ping", "commands", "dispatch", "subscribe", "unsubscribe",
+        "ping", "commands", "dispatch", "subscribe", "unsubscribe", "register", "unregister",
         "status", "windows", "workspaces", "screens", "dump", "config.get", "config.set", "config.options",
         "poststyle",
         "agent.open", "agent.launch", "agent.windows", "agent.type", "agent.key", "agent.press", "agent.text",

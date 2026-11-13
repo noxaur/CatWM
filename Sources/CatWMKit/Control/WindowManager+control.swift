@@ -2,6 +2,7 @@ import AppKit
 
 extension WindowManager {
     package func connectionClosed(_ client: ControlConnection) {
+        plugins.remove(client)
         guard let display = agents.take(client) else { return }
         Task { @MainActor in await display.quit() }
     }

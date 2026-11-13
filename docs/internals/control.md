@@ -10,6 +10,17 @@ A window dispatcher acts on the focused window, unless its argument starts with 
 
 `focuswindow` takes the target without the `@`, and shows a window's workspace first when it isn't shown. `focuslast` reads the second entry of `focusOrder`, the same history that the focus stamps keep, so there is no second history to drift.
 
+## Plugins
+
+Another app adds its own dispatcher with the `register` command, or in embedded mode with `CatWMEngine.register`. `PluginDispatchers` (`Control/`) owns the names, one table for each `WindowManager`. `WindowManager.dispatch` and the rule actions look a name up there only after `WindowActions` has no match, so binds, `dispatch`, the CLI and rule actions all reach a plugin like a built-in.
+
+- **Fire and forget.** CatWM writes `{"invoke": name, "data": {"arg", "window"}}` to the owning connection and never waits. The main queue moves every window, so a plugin that hangs, crashes or reads slowly must not stall a frame. The cost is that a plugin can't veto or answer a bind. A plugin that wants to change something calls a command back. `window` is the rule's target, or the focused window, as `{id, app, title}` or `null`.
+- **Namespaces.** A name needs a dot (`myapp.toggle-notes`), in lowercase `a-z`, `0-9`, `-` and `_`. Built-in dispatchers have no dot, so the dot keeps plugin names apart from future built-ins, and two apps differ by their prefix. Commands such as `config.get` do have a dot, so registration also refuses any built-in dispatcher or command name. A name belongs to one connection. The same connection can register it again, and another connection is refused. This keeps a second process from stealing a bind.
+- **Lifetime.** Names exist only while the connection is open: `connectionClosed` removes them. No config or file stores a plugin, so a crashed plugin leaves no stale entry. A bind to an unregistered name is a valid config and does nothing except log one line, because the app may start after CatWM.
+- **Config.** `ConfigScript` accepts any namespaced name as an action, because the config runs before any plugin connects. `catwm.d.ts` types it as `PluginAction`.
+- **Access.** `register` is public. A plugin name never reaches the `keybindOnly` set, because `dispatch` checks the built-in name first and a plugin can't take one. The commands are allowed in a scoped instance: they act on no window.
+- **Embedded.** The engine owns the table, so a handler registered before `start` survives the new manager.
+
 ## Access
 
 - `public`: in the CLI, the schema and the libraries.

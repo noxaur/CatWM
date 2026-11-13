@@ -12,14 +12,14 @@ extension WindowManager {
         switch target {
         case let .window(other):
             if let from = screen(of: window), let into = screen(of: other), from.uuid != into.uuid {
-                assignTabs(of: window.id, to: shown[into.uuid])
+                move(window, toDisplay: into)
             } else {
                 swapOrder(window.id, other.id)
+                refresh()
             }
         case let .monitor(screen):
-            assignTabs(of: window.id, to: shown[screen.uuid])
+            move(window, toDisplay: screen)
         }
-        refresh()
         focus(window)
         if case let .window(other) = target, other.pid != window.pid {
             focusRequests.focusEcho = FocusEcho(id: window.id, other: other.pid)

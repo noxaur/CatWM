@@ -5,11 +5,6 @@ import os
 package final class ConfigEngine {
     package static let timeLimit = 1.0
 
-    package struct Source: Equatable {
-        package var file: String
-        package var line: Int
-    }
-
     package struct Run {
         package var value: JSON?
         package var files: [URL] = []
@@ -144,16 +139,6 @@ package final class ConfigEngine {
 
     private func overlaid(_ path: String) -> String? {
         overlay.isEmpty ? nil : overlay[Self.standard(path)]
-    }
-
-    private static func sources(_ json: JSON?) -> [String: Source] {
-        var sources: [String: Source] = [:]
-        for (path, entry) in json?.object ?? [:] {
-            guard let raw = entry["file"]?.string, let line = entry["line"]?.int else { continue }
-            let file = raw.hasPrefix("file://") ? URL(string: raw)?.path ?? raw : raw
-            sources[path] = Source(file: file, line: line)
-        }
-        return sources
     }
 
     private func invoke(_ function: Int, _ window: WindowSnapshot?, _ event: JSON?, _ world: JSON) -> FunctionRun {
@@ -313,5 +298,22 @@ private final class RunLoopThread {
     package func stop() {
         let state = state
         perform { state.withLock { $0.running = false } }
+    }
+}
+
+extension ConfigEngine {
+    package struct Source: Equatable {
+        package var file: String
+        package var line: Int
+    }
+
+    private static func sources(_ json: JSON?) -> [String: Source] {
+        var sources: [String: Source] = [:]
+        for (path, entry) in json?.object ?? [:] {
+            guard let raw = entry["file"]?.string, let line = entry["line"]?.int else { continue }
+            let file = raw.hasPrefix("file://") ? URL(string: raw)?.path ?? raw : raw
+            sources[path] = Source(file: file, line: line)
+        }
+        return sources
     }
 }

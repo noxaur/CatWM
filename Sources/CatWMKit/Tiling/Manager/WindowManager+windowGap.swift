@@ -13,7 +13,7 @@ extension WindowManager {
         let area = usableRect(screen, workspace: workspace).insetBy(dx: -gap / 2, dy: -gap / 2)
         let frames: [CGRect]?
         if screenState.layout == .dwindle {
-            frames = screenState.withDwindle(on: dwindleDisplay(screen)) { tree in
+            frames = screenState.withDwindle(on: dwindleDisplay(screen, screenState)) { tree in
                 tree.sync(ids, minimums: dwindleMinimums(ids, gap: gap))
                 return tree.frames(in: area)
             }

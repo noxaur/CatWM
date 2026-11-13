@@ -17,15 +17,26 @@ extension WindowManager {
     }
 
     package func dwindle(on screen: Screen) -> DwindleTree {
-        state(for: screen).dwindles[dwindleDisplay(screen)] ?? DwindleTree()
+        let screenState = state(for: screen)
+        return screenState.dwindles[dwindleDisplay(screen, screenState)] ?? DwindleTree()
     }
 
     @discardableResult
     package func withDwindle<Result>(on screen: Screen, _ body: (inout DwindleTree) -> Result) -> Result {
-        state(for: screen).withDwindle(on: dwindleDisplay(screen), body)
+        let screenState = state(for: screen)
+        return screenState.withDwindle(on: dwindleDisplay(screen, screenState), body)
     }
 
-    func dwindleDisplay(_ screen: Screen) -> String { sharesSpaces ? screen.uuid : "" }
+    func dwindleDisplay(_ screen: Screen, _ screenState: ScreenState) -> String {
+        guard screenState.dwindles[screen.uuid] == nil, !screenState.dwindles.isEmpty else { return screen.uuid }
+        let screens = backend.screens(), live = Set(screens.map(\.uuid))
+        let showing = Set(screens.filter { state(for: $0) === screenState }.map(\.uuid))
+        screenState.dwindles = screenState.dwindles.filter { live.contains($0.key) }
+        if let idle = screenState.dwindles.keys.sorted().first(where: { !showing.contains($0) }) {
+            screenState.dwindles[screen.uuid] = screenState.dwindles.removeValue(forKey: idle)
+        }
+        return screen.uuid
+    }
 
     package func resizeWindow(_ window: Window, by delta: CGSize) {
         if changeDwindle(of: window, { $0.resize(at: $1, by: delta, in: $2) }) { return }
@@ -76,7 +87,9 @@ extension WindowManager {
         let screenState = state(for: screen)
         guard screenState.layout == .dwindle else { return nil }
         let ids = tiled(on: screen), gap = windowGap(count: ids.count, on: screen)
-        screenState.withDwindle(on: dwindleDisplay(screen)) { $0.sync(ids, minimums: dwindleMinimums(ids, gap: gap)) }
+        screenState.withDwindle(on: dwindleDisplay(screen, screenState)) {
+            $0.sync(ids, minimums: dwindleMinimums(ids, gap: gap))
+        }
         return DwindleInput(ids: ids, area: usableRect(screen).insetBy(dx: -gap / 2, dy: -gap / 2))
     }
 }

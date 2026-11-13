@@ -14,3 +14,11 @@ import Testing
     #expect(ran.map { ($0 * 100).rounded() / 100 } == [0.12, 0.22, 0.30])
     #expect(clock.now() == 0.5)
 }
+
+@MainActor @Test func aTimerDueAtTheEndRunsDespiteFloatingPointDrift() {
+    let clock = FakeClock()
+    var ran = false
+    clock.delay(0.1) { clock.delay(0.2) { ran = true } }
+    clock.advance(by: 0.3)
+    #expect(ran)
+}

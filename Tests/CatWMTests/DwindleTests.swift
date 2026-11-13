@@ -3,14 +3,23 @@ import CatWMFakes
 @testable import CatWMKit
 import Testing
 
+@MainActor func focus(_ id: CGWindowID, in fake: FakeBackend, manager: WindowManager) async throws {
+    fake.userFocuses(id)
+    manager.handle(kAXFocusedWindowChangedNotification, try #require(fake.element(id)))
+    #expect(await fake.wait(manager) { manager.focusRequests.reportedFocus?.id == id })
+}
+
+func ratios(_ tree: DwindleTree) -> [CGFloat] {
+    var out: [CGFloat] = [], node = tree.root
+    while case .split(let split)? = node {
+        out.append((split.ratio * 1e6).rounded() / 1e6)
+        node = split.second
+    }
+    return out
+}
+
 @Suite(.timeLimit(.minutes(1))) @MainActor struct DwindleTests {
     private let area = CGRect(x: 0, y: 0, width: 1600, height: 900)
-
-    private func focus(_ id: CGWindowID, in fake: FakeBackend, manager: WindowManager) async throws {
-        fake.userFocuses(id)
-        manager.handle(kAXFocusedWindowChangedNotification, try #require(fake.element(id)))
-        #expect(await fake.wait(manager) { manager.focusRequests.reportedFocus?.id == id })
-    }
 
     @Test func eachWindowSplitsThePreviousOneAlongItsLongerSide() {
         var tree = DwindleTree()
@@ -157,15 +166,6 @@ import Testing
         await tiles.settle()
     }
 
-    private func ratios(_ tree: DwindleTree) -> [CGFloat] {
-        var out: [CGFloat] = [], node = tree.root
-        while case .split(let split)? = node {
-            out.append((split.ratio * 1e6).rounded() / 1e6)
-            node = split.second
-        }
-        return out
-    }
-
     @Test func draggingATileEdgeMovesTheSplitThatEdgeBelongsTo() async throws {
         let tiles = try await threeTiles()
         let (fake, manager, screen, ids) = (tiles.fake, tiles.manager, tiles.screen, tiles.ids)
@@ -222,59 +222,5 @@ import Testing
         #expect(fake.frame(of: ids[0]) == CGRect(x: 600, y: 0, width: 1000, height: 900))
         #expect(fake.frame(of: ids[1]) == CGRect(x: 0, y: 0, width: 600, height: 450))
         #expect(manager.splitDivider(on: screen)?.position == 600)
-    }
-
-    @Test(arguments: [false, true])
-    func sharedSpacesKeepATreePerDisplay(rightHasAWindow: Bool) async throws {
-        let fake = FakeBackend()
-        let left = fake.addScreen(frame: area, visible: area)
-        let right = fake.addScreen(frame: area.offsetBy(dx: 1600, dy: 0), visible: area.offsetBy(dx: 1600, dy: 0))
-        let ids = ([-531, -532, -533] as [pid_t]).map {
-            fake.addWindow(pid: $0, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
-        }
-        let manager = fake.makeManager { $0.layouts = [.dwindle] }
-        #expect(await fake.settle(manager))
-        manager.config.virtualWorkspaces = true
-        manager.desktops.nativeCatalog.sharedSpaces = true
-        for id in ids { manager.model.assign(id, to: "1") }
-        manager.shown = [left.uuid: "1", right.uuid: "1"]
-        manager.displayOf = [ids[0]: left.uuid, ids[1]: left.uuid, ids[2]: right.uuid]
-        if !rightHasAWindow { manager.visible.remove(ids[2]) }
-        let leftIDs = manager.tiled(on: left), rightIDs = manager.tiled(on: right)
-        try #require(leftIDs.count == 2 && rightIDs.count == (rightHasAWindow ? 1 : 0))
-        let screenState = manager.state(for: left)
-        #expect(screenState === manager.state(for: right))
-
-        _ = manager.layoutTargets(leftIDs, screenState, on: left)
-        #expect(manager.withDwindle(on: left) { tree in tree.setRootRatio(0.7, in: area) })
-        for _ in 0..<2 {
-            _ = manager.layoutTargets(rightIDs, screenState, on: right)
-            _ = manager.layoutTargets(leftIDs, screenState, on: left)
-        }
-        #expect(ratios(manager.dwindle(on: left)) == [0.7])
-        #expect(manager.dwindle(on: right).ids == rightIDs)
-    }
-
-    @Test func aWindowArrivingOnAnotherWorkspaceJoinsItsStack() async throws {
-        let fake = FakeBackend()
-        let left = fake.addScreen(frame: area, visible: area)
-        let other = area.offsetBy(dx: 1600, dy: 0)
-        let right = fake.addScreen(frame: other, visible: other)
-        let focused = fake.addWindow(pid: -541, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
-        for pid in [-542, -543] as [pid_t] {
-            fake.addWindow(pid: pid, frame: CGRect(x: 1650, y: 50, width: 600, height: 400))
-        }
-        let manager = fake.makeManager { $0.layouts = [.dwindle, .tall] }
-        #expect(await fake.settle(manager))
-        manager.setLayout(.tall, on: right)
-        manager.order = [focused] + manager.order.filter { $0 != focused }
-        #expect(await fake.settle(manager))
-        try await focus(focused, in: fake, manager: manager)
-        let stack = manager.tiled(on: right)
-        try #require(manager.tiled(on: left) == [focused] && stack.count == 2)
-
-        let arrival = fake.addWindow(pid: -544, frame: CGRect(x: 1700, y: 100, width: 600, height: 400))
-        #expect(await fake.settle(manager))
-        #expect(manager.tiled(on: right) == stack + [arrival])
     }
 }

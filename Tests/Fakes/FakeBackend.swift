@@ -141,6 +141,14 @@ package final class FakeBackend: WindowBackend, Sendable {
         }
     }
 
+    package func userActivates(_ pid: pid_t, bundleID: String? = "test.fake.app") {
+        precondition(pid < 0, "A fake app uses a negative pid, so no AX call reaches a real app")
+        state.withLockUnchecked { state in
+            state.apps[pid] = state.apps[pid] ?? bundleID
+            state.front = pid
+        }
+    }
+
     package func setResizable(_ id: CGWindowID, _ resizable: Bool) {
         state.withLockUnchecked { state in state.windowList[id]?.resizable = resizable }
     }

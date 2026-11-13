@@ -192,6 +192,9 @@ extension WindowManager {
         order.insert(contentsOf: toMain.map(\.id), at: 0)
         let ids = Set(toMain.map(\.id))
         order.append(contentsOf: arrivals.map(\.id).filter { !ids.contains($0) })
+        if let front = frontmostPID(), reportedFocusedWindow() == nil, arrivals.contains(where: { $0.pid == front }) {
+            requestFocusObservation()
+        }
     }
 
     private func restoreSavedWorkspace(_ window: Window, titles: [CGWindowID: String?]) {

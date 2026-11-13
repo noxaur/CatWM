@@ -43,7 +43,7 @@ import Testing
         #expect(try text(folder, "catwm.config.ts.bak") == legacyUserConfig)
         let script = try text(folder)
         #expect(!script.contains("export default"))
-        #expect(script.contains("catwm.motion.duration = 0.12"))
+        #expect(script.contains("\ncatwm.motion = {\n") && script.contains("\n  duration: 0.12,\n"))
         #expect(script.contains("catwm.bind([\"alt\", \"ctrl\"], \"h\", [\"movefocus\", \"l\"])"))
         #expect(script.contains("catwm.bind([], \"h\", [\"movefocus\", \"l\"], { submap: \"window\" })"))
     }
@@ -76,8 +76,7 @@ import Testing
         #expect(config.animationDuration == 0.3)
         #expect(config.bindings.first?.repeats == true)
         let script = try text(folder)
-        #expect(script.contains("catwm.motion.panels = \"pop\""))
-        #expect(script.contains("catwm.motion.modeEffect = \"ripple\""))
+        #expect(script.contains("catwm.motion = {\n  duration: 0.3,\n  modeEffect: \"ripple\",\n  panels: \"pop\",\n}"))
         #expect(!script.contains("animation"))
         #expect(FileManager.default.fileExists(atPath: folder.url.appendingPathComponent("parts/base.ts").path))
     }

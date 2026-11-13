@@ -7,6 +7,8 @@ description: Mandatory before you create a pull request in CatWM. Use when the u
 
 Merge target branch into your branch. Resolve merge conflicts yourself. Keep intent of both sides and run the project checks.
 
+One concern per PR. Split unrelated changes into separate PRs, and stack a PR on the branch it depends on.
+
 ## Template
 
 Branch: short name at most three words, separated by hyphens.

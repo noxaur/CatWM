@@ -1,10 +1,12 @@
 # Dwindle layout
 
-`dwindle` is [Hyprland's default layout](https://wiki.hypr.land/Configuring/Dwindle-Layout/): each new window splits the focused window's tile, and each split keeps its own direction and ratio. Every other layout is a pure function of the window count, so dwindle is the only one with state, `ScreenState.dwindle`.
+`dwindle` is [Hyprland's default layout](https://wiki.hypr.land/Configuring/Dwindle-Layout/): each new window splits the focused window's tile, and each split keeps its own direction and ratio. Every other layout is a pure function of the window count, so dwindle is the only one with state, the trees in `ScreenState.dwindles`.
+
+A workspace has one tree, except when displays share Spaces. Then one workspace shows on every display and each display tiles its own windows, so `ScreenState` keeps a tree per display. A single shared tree would be synced to each display's windows in turn on every refresh, which wipes its ratios and split choices. Outside shared Spaces the key is empty, so a workspace keeps its tree when it moves to another display.
 
 ## Leaves follow `order` by position
 
-The tree stores only structure. Its leaves are the workspace's tiled windows in `order`, matched by position, so every dispatcher and overview drag that reorders windows swaps tiles in the tree with no dwindle code. Keying leaves by window id was rejected because every reorder path would need a dwindle branch. `sync` runs before each layout: a window gone from `order` removes its leaf and its sibling takes the parent's place, and a new window splits the leaf before it. The refresh inserts a new window into `order` right after the focused one, so it splits the focused tile. The focused window is `reportedFocus` first, because by the time the refresh sees the new window, the frontmost app is usually that window's app.
+The tree stores only structure. Its leaves are the workspace's tiled windows in `order`, matched by position, so every dispatcher and overview drag that reorders windows swaps tiles in the tree with no dwindle code. Keying leaves by window id was rejected because every reorder path would need a dwindle branch. `sync` runs before each layout: a window gone from `order` removes its leaf and its sibling takes the parent's place, and a new window splits the leaf before it. The refresh inserts a new window on the focused window's workspace into `order` right after the focused one, so it splits the focused tile. New windows on other workspaces go to the end, as in every other layout. The focused window is `reportedFocus` first, because by the time the refresh sees the new window, the frontmost app is usually that window's app.
 
 ## Splits
 
@@ -12,7 +14,7 @@ A split with automatic direction picks one from its rectangle on every layout, l
 
 ## Minimum sizes
 
-Windows with a learned minimum size (`minSizes`, plus the gap) shape the tree instead of overlapping. An automatic split takes the other direction when its own can't hold both halves' minimums and the other can, and every split moves its divider just enough to give each half its minimum when the room allows. The stored ratio doesn't change, so the layout springs back when the window closes. Dwindle doesn't use the generic `fitMinimums` pass, because that pass only fits tiles that share an edge span, which nested splits rarely do.
+Windows with a learned minimum size (`minSizes`, plus the gap) shape the tree instead of overlapping. An automatic split takes the other direction when its own can't hold both halves' minimums and the other can, and every split moves its divider just enough to give each half its minimum when the room allows. The stored ratio doesn't change, so the layout springs back when the window closes. `sync` stores the minimums with the windows, so `togglesplit`, `resizeactive` and the mouse all walk the directions the layout shows. `togglesplit` refuses a direction that can't hold both halves' minimums instead of overlapping them. Dwindle doesn't use the generic `fitMinimums` pass, because that pass only fits tiles that share an edge span, which nested splits rarely do.
 
 ## Mouse resize and the split handle
 

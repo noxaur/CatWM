@@ -74,7 +74,7 @@ extension WindowManager {
         let mains = SplitDivider.mains(screenState.layout, mainCount: screenState.mainCount, count: ids.count)
         if screenState.layout == .dwindle {
             guard ids.count > 1 else { return }
-            screenState.dwindle.swapRoot()
+            withDwindle(on: screen) { $0.swapRoot() }
         } else if ids.count <= mains || screenState.layout.ratioAxis == nil {
             return
         } else if let mirrored = screenState.layout.mirrored {

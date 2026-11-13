@@ -133,4 +133,62 @@ import Testing
             #expect(left.visible.contains(fake.frame(of: first)))
         }
     }
+
+    @Test(arguments: [("mon:1", "mon:0"), ("r", "l")])
+    func aWindowMovedToADisplayComesBackAfterTheHoldEndsWithoutARefresh(there: String, back: String) async throws {
+        let fake = FakeBackend()
+        let left = fake.addScreen()
+        let right = fake.addScreen(frame: left.frame.offsetBy(dx: left.frame.width, dy: 0))
+        let manager = fake.makeManager()
+        let id = fake.addWindow()
+        #expect(await fake.settle(manager))
+        try await focus(id, in: fake, manager: manager)
+        manager.dispatch("movewindow", there)
+        for _ in 0..<3 {
+            await withCheckedContinuation { done in manager.animator.afterPendingWrites { done.resume() } }
+            fake.clock.advance(by: 1)
+        }
+        #expect(right.visible.contains(fake.frame(of: id)))
+        #expect(manager.animator.quietEnd(id) == nil)
+        manager.dispatch("movewindow", back)
+        #expect(await fake.settle(manager))
+        #expect(left.visible.contains(fake.frame(of: id)))
+        #expect(manager.tiled(on: left) == [id])
+    }
+
+    @Test func aWindowSwappedOntoAnotherDisplayByADragComesBackAfterTheHold() async throws {
+        let fake = FakeBackend()
+        let left = fake.addScreen()
+        let right = fake.addScreen(frame: left.frame.offsetBy(dx: left.frame.width, dy: 0))
+        let manager = fake.makeManager { $0.mouseSwapsWindows = true }
+        let dragged = fake.addWindow()
+        #expect(await fake.settle(manager))
+        try await focus(dragged, in: fake, manager: manager)
+        manager.dispatch("movewindow", "mon:1")
+        #expect(await fake.settle(manager))
+        let hit = fake.addWindow()
+        #expect(await fake.settle(manager))
+        try await focus(hit, in: fake, manager: manager)
+        manager.dispatch("movewindow", "mon:0")
+        #expect(await fake.settle(manager))
+        #expect(manager.tiled(on: left) == [hit])
+        #expect(manager.tiled(on: right) == [dragged])
+        let target = fake.frame(of: hit)
+        fake.userMoves(dragged, to: target)
+        fake.setPointer(CGPoint(x: target.midX, y: target.midY))
+        manager.drags[dragged] = false
+        manager.observeFrame(try #require(manager.windows[dragged]))
+        manager.mouseUp()
+        #expect(await fake.wait(manager) { manager.tiled(on: left) == [dragged] })
+        for _ in 0..<3 {
+            await withCheckedContinuation { done in manager.animator.afterPendingWrites { done.resume() } }
+            fake.clock.advance(by: 1)
+        }
+        #expect(right.visible.contains(fake.frame(of: hit)))
+        try await focus(hit, in: fake, manager: manager)
+        manager.dispatch("movewindow", "mon:0")
+        #expect(await fake.settle(manager))
+        #expect(left.visible.contains(fake.frame(of: hit)))
+        #expect(manager.tiled(on: left).contains(hit))
+    }
 }

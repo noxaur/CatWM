@@ -52,10 +52,7 @@ extension WindowManager {
             animator.animate([.init(window: window, to: frame, bounds: visible)],
                              spec: motion(of: window))
         }
-        if let display {
-            assignManagedWindow(window.id, to: shown[display.uuid])
-            refresh()
-        }
+        if let display { move(window, toDisplay: display) }
         if let raw = launch.request.workspace, let workspace = resolveWorkspace(raw) {
             moveWindow(window, toWorkspace: workspace, follow: false)
         }

@@ -26,9 +26,9 @@ package enum MotionResolver {
     }
 
     private struct Scored {
-        package let id: CGWindowID
-        package let score: CGFloat
-        package let edge: CGFloat
+        let id: CGWindowID
+        let score: CGFloat
+        let edge: CGFloat
     }
 
     package static func resolve(

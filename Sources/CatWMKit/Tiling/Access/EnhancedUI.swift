@@ -9,7 +9,7 @@ package final class EnhancedUI: Sendable {
     private struct State { var holds = 0, wasOn = false }
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    package init(pid: pid_t, backend: any WindowBackend) {
+    init(pid: pid_t, backend: any WindowBackend) {
         self.pid = pid
         self.backend = backend
     }

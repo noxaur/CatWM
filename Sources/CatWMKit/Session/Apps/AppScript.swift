@@ -14,18 +14,18 @@ package enum Blocking {
     }
 
     private struct GateState<T: Sendable>: Sendable {
-        package var continuation: CheckedContinuation<T, Never>?
-        package var done = false
+        var continuation: CheckedContinuation<T, Never>?
+        var done = false
     }
 
     private final class Gate<T: Sendable>: Sendable {
         private let state = OSAllocatedUnfairLock(initialState: GateState<T>())
 
-        package func install(_ continuation: CheckedContinuation<T, Never>) {
+        func install(_ continuation: CheckedContinuation<T, Never>) {
             state.withLock { $0.continuation = continuation }
         }
 
-        package func resume(_ value: T) {
+        func resume(_ value: T) {
             let waiting = state.withLock { state -> CheckedContinuation<T, Never>? in
                 guard !state.done else { return nil }
                 state.done = true

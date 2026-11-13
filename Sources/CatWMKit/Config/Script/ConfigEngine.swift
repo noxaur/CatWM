@@ -283,7 +283,7 @@ private final class RunLoopThread {
     private let runLoop: CFRunLoop
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    package init(name: String) {
+    init(name: String) {
         let state = state
         let ready = DispatchSemaphore(value: 0)
         let thread = Thread {
@@ -300,12 +300,12 @@ private final class RunLoopThread {
         runLoop = loop
     }
 
-    package func perform(_ block: @escaping () -> Void) {
+    func perform(_ block: @escaping () -> Void) {
         CFRunLoopPerformBlock(runLoop, CFRunLoopMode.defaultMode.rawValue, block)
         CFRunLoopWakeUp(runLoop)
     }
 
-    package func stop() {
+    func stop() {
         let state = state
         perform { state.withLock { $0.running = false } }
     }

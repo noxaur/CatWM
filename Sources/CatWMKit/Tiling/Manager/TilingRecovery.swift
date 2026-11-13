@@ -43,8 +43,8 @@ package struct TilingRecovery: Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey { case order, fullscreen = "zoomed", menuBars, memos, departed }
 
-    package init(order: [Identity] = [], fullscreen: [String: Identity] = [:], menuBars: [String: MenuBar] = [:],
-                 memos: [Identity: Memo] = [:], departed: [Identity: Date] = [:]) {
+    init(order: [Identity] = [], fullscreen: [String: Identity] = [:], menuBars: [String: MenuBar] = [:],
+         memos: [Identity: Memo] = [:], departed: [Identity: Date] = [:]) {
         self.order = order
         self.fullscreen = fullscreen
         self.menuBars = menuBars

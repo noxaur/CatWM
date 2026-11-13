@@ -8,9 +8,9 @@ import QuartzCore
     private var sample: Sample?
 
     private struct Sample {
-        package let value: Double
-        package let time: CFTimeInterval
-        package let velocity: Double
+        let value: Double
+        let time: CFTimeInterval
+        let velocity: Double
     }
 
     package init(screen: NSScreen?) { self.screen = screen }
@@ -115,11 +115,11 @@ import QuartzCore
         private var continuation: CheckedContinuation<Void, Error>?
         private var result: Result<Void, Error>?
 
-        package func wait(_ continuation: CheckedContinuation<Void, Error>) {
+        func wait(_ continuation: CheckedContinuation<Void, Error>) {
             if let result { continuation.resume(with: result) } else { self.continuation = continuation }
         }
 
-        package func finish(_ result: Result<Void, Error>) {
+        func finish(_ result: Result<Void, Error>) {
             guard self.result == nil else { return }
             self.result = result
             continuation?.resume(with: result)

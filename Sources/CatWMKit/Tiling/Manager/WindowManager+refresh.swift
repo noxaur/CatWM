@@ -6,15 +6,15 @@ extension WindowManager {
     package static let restoreHold: TimeInterval = 1.5
 
     private struct ObservedWindows {
-        package var present = Set<CGWindowID>()
-        package var fresh: [Window] = []
-        package var titles: [CGWindowID: String?] = [:]
+        var present = Set<CGWindowID>()
+        var fresh: [Window] = []
+        var titles: [CGWindowID: String?] = [:]
     }
 
     private struct PlannedMoves {
-        package var moves: [Animator.Move] = []
-        package var instant: [Animator.Move] = []
-        package var motion: [(moves: [Animator.Move], spec: MotionSpec)] = []
+        var moves: [Animator.Move] = []
+        var instant: [Animator.Move] = []
+        var motion: [(moves: [Animator.Move], spec: MotionSpec)] = []
     }
 
     package func refresh(instant instantLayout: Bool = false, placing only: Set<CGWindowID>? = nil) {

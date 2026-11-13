@@ -3,14 +3,14 @@ import QuartzCore
 
 @MainActor package final class WindowResizeScene {
     private final class SceneView: NSView {
-        package override var isFlipped: Bool { true }
+        override var isFlipped: Bool { true }
     }
 
     private struct Display {
-        package let panel: CatWMPanel
-        package let frame: CGRect
-        package let layers: [CGWindowID: CALayer]
-        package let mask: CAShapeLayer
+        let panel: CatWMPanel
+        let frame: CGRect
+        let layers: [CGWindowID: CALayer]
+        let mask: CAShapeLayer
     }
     private var displays: [Display] = []
     private var placements: [CGWindowID: WindowScenePlacement]

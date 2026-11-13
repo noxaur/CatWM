@@ -57,7 +57,7 @@ package final class ControlConnection: Sendable {
 
     private enum SendAction { case drop, finish, flush }
 
-    package func send(_ data: Data) {
+    func send(_ data: Data) {
         queue.async { [self] in
             let action = state.withLock { state -> SendAction in
                 guard !state.closed else { return .drop }

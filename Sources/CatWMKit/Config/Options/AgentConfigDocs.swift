@@ -41,7 +41,7 @@ package enum AgentConfigDocs {
     }
 
     private struct Inputs: Decodable {
-        package let directories: [String]
-        package let files: [String]
+        let directories: [String]
+        let files: [String]
     }
 }

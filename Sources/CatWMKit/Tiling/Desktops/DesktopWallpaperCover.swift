@@ -22,15 +22,15 @@ import ScreenCaptureKit
     private enum Capture { case waiting, finished(CGImage?) }
 
     private final class Pending {
-        package let screen: Screen
-        package let source: UInt64
-        package let target: UInt64
-        package let panel: CatWMPanel
-        package let image: Task<CGImage?, Never>
-        package let started = CACurrentMediaTime()
-        package var capture = Capture.waiting
+        let screen: Screen
+        let source: UInt64
+        let target: UInt64
+        let panel: CatWMPanel
+        let image: Task<CGImage?, Never>
+        let started = CACurrentMediaTime()
+        var capture = Capture.waiting
 
-        package init(screen: Screen, source: UInt64, target: UInt64, panel: CatWMPanel, image: Task<CGImage?, Never>) {
+        init(screen: Screen, source: UInt64, target: UInt64, panel: CatWMPanel, image: Task<CGImage?, Never>) {
             self.screen = screen; self.source = source; self.target = target
             self.panel = panel; self.image = image
         }

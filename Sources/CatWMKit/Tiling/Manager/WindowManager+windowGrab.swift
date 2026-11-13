@@ -2,11 +2,11 @@ import AppKit
 
 extension WindowManager {
     private struct GrabCandidates {
-        package var best: [CGPoint] = []
-        package var usable: [CGPoint] = []
-        package var unknown: [CGPoint] = []
-        package var skipped: [String: Int] = [:]
-        package var hintedCount = 0
+        var best: [CGPoint] = []
+        var usable: [CGPoint] = []
+        var unknown: [CGPoint] = []
+        var skipped: [String: Int] = [:]
+        var hintedCount = 0
     }
 
     private static let blockedGrabRoles: Set<String> = [

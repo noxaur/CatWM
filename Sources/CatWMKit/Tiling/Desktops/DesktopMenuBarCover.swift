@@ -29,23 +29,23 @@ import AppKit
     }
 
     @MainActor private final class Pending {
-        package let display: CGDirectDisplayID
-        package let source: UInt64
-        package let started = ProcessInfo.processInfo.systemUptime
-        package let image: Task<CGImage?, Never>
-        package let panel: CatWMPanel
-        package var target: UInt64?
+        let display: CGDirectDisplayID
+        let source: UInt64
+        let started = ProcessInfo.processInfo.systemUptime
+        let image: Task<CGImage?, Never>
+        let panel: CatWMPanel
+        var target: UInt64?
 
-        package init(display: CGDirectDisplayID, source: UInt64, image: Task<CGImage?, Never>, panel: CatWMPanel) {
+        init(display: CGDirectDisplayID, source: UInt64, image: Task<CGImage?, Never>, panel: CatWMPanel) {
             self.display = display
             self.source = source
             self.image = image
             self.panel = panel
         }
 
-        package var isFresh: Bool { ProcessInfo.processInfo.systemUptime - started < 0.5 }
+        var isFresh: Bool { ProcessInfo.processInfo.systemUptime - started < 0.5 }
 
-        package func move(to target: UInt64) {
+        func move(to target: UInt64) {
             guard self.target != target else { return }
             self.target = target
             _ = NativeSpaceMove.move(window: CGWindowID(panel.windowNumber), to: target)

@@ -3,8 +3,8 @@ import os
 
 package final class PendingWrites: Sendable {
     private struct State: Sendable {
-        package var continuation: CheckedContinuation<Bool, Never>?
-        package var result: Result<Bool, Never>?
+        var continuation: CheckedContinuation<Bool, Never>?
+        var result: Result<Bool, Never>?
     }
     private let state = OSAllocatedUnfairLock(initialState: State())
 

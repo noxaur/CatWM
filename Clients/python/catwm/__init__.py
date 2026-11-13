@@ -388,7 +388,7 @@ class CatWM:
         self.call("settiled", args)
 
     def resizeactive(self, size: str) -> None:
-        """Set the size of the focused floating window"""
+        """Resize the focused window"""
         args: dict[str, Any] = {}
         args["size"] = size
         self.call("resizeactive", args)
@@ -506,6 +506,33 @@ class CatWM:
         """Make the current Desktop the home Desktop"""
         args: dict[str, Any] = {}
         self.call("sethomespace", args)
+
+    def balance(self) -> None:
+        """Give every tiled window the same area, as far as the layout allows"""
+        args: dict[str, Any] = {}
+        self.call("balance", args)
+
+    def togglesplit(self) -> None:
+        """Flip the split direction: Tall and Wide swap, and so do Column and Row"""
+        args: dict[str, Any] = {}
+        self.call("togglesplit", args)
+
+    def unminimize(self) -> None:
+        """Bring back the minimized window of this workspace used last"""
+        args: dict[str, Any] = {}
+        self.call("unminimize", args)
+
+    def moveworkspacetomonitor(self, target: str) -> None:
+        """Move the windows of this workspace to the workspace another display shows"""
+        args: dict[str, Any] = {}
+        args["target"] = target
+        self.call("moveworkspacetomonitor", args)
+
+    def swapworkspaces(self, displays: str) -> None:
+        """Swap the workspaces two displays show"""
+        args: dict[str, Any] = {}
+        args["displays"] = displays
+        self.call("swapworkspaces", args)
 
     def sort(self) -> None:
         """Open or close the Overview"""

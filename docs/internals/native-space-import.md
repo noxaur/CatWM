@@ -29,3 +29,7 @@ Imports confirm membership in about 6 ms and screen visibility in 23–53 ms. Th
 ## Probes
 
 `Tools/SpaceMoveProbe.swift` moves disposable helper windows and fails if membership doesn't change or the active Desktop does. It needs two normal Desktops. Compile it as `main.swift` with `NativeSpaceMove.swift` and `WindowServerUpdates.swift`, and run it with `--batch-updates` to require update batching. Add `-D CATWM_ARRIVAL_PROBE` with `PrivateSymbols.swift` and `Spaces.swift` to check that completion waits for screen visibility. `WindowServerUpdatesProbe.swift` tests the lease logic, and `DockClickProbe.swift` tests click consumption and replay without an event tap. A real Dock click hasn't been verified end to end.
+
+## Moving a workspace to another display
+
+`moveworkspacetomonitor` and `swapworkspaces` move windows, not Desktops. A Desktop belongs to one display, and macOS has no call to hand it to another, so the windows join the workspace the target display shows. Each window takes the same path as `movewindowtomonitor`, so under native workspaces the imports above do the work. A workspace that ends up empty is left to the usual empty-workspace removal. The alternative, rebinding the Desktop to the other display's list, would need a private Spaces write that no probe has shown to work.

@@ -12,10 +12,12 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `cyclenext` / `swapnext` | none or `prev` | cycle focus / swap with the next window |
 | `layoutmsg` | `swapwithmaster`, `swapsides`, `focusmaster`, `addmaster`, `removemaster`, `cyclenext`, `cycleprev`, `swapnext`, `swapprev`, `mfact ±0.05`, `orientationnext`, `orientationprev` | layout-specific actions (main pane) |
 | `splitratio` | `+0.05`, `-0.05`, `exact 0.6` | resize the main split |
+| `balance` | | give every tiled window the same area, as far as the layout allows (sets the main split to `main windows / windows`; two-pane layouts split 50/50). Layouts with no uneven split, such as Column, do nothing |
+| `togglesplit` | | flip the split direction: Tall and Wide swap, and so do Column and Row. Other layouts do nothing |
 | `togglefloating` | | float/tile the focused window |
 | `setfloating` / `settiled` | | float or tile the focused window and keep the choice |
-| `resizeactive` | `exact W H` | set the size of the focused floating window, in points. The top-left corner stays. A tiled window is ignored |
-| `moveactive` | `exact X Y` | move the focused floating window's top-left corner to X, Y points from the top-left of its display's visible area. Kept on that display. A tiled window is ignored |
+| `resizeactive` | `exact W H`, `50% 100%`, `+50 -20`, `+5% 0` | resize the focused window: points, a percentage of its display's visible area, or a change. A floating window keeps its top-left corner. A tiled window moves the split it borders, so it takes only a change along the layout's split axis (`+10% 0` on Tall grows the main pane by 10%) and ignores the rest |
+| `moveactive` | `exact X Y`, `10% 0%`, `+50 -20` | move the focused floating window: its top-left corner in points or a percentage from the top-left of its display's visible area, or a change. Kept on that display. A tiled window is ignored |
 | `centerwindow` | | center the focused floating window on its display's visible area. A tiled window is ignored |
 | `fullscreen` | | zoom the focused window |
 | `nativefullscreen` | | macOS Full Screen (the green button) for the focused window: it gets a Space of its own and leaves the tiling until it comes back |
@@ -26,6 +28,10 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `killactive` | | close the focused window |
 | `exec` | shell command | run via `sh -c`. Keybinds only; refused from the CLI |
 | `launch` | app name, bundle ID, `.app` path, file path or URL, then optional `workspace=N`, `display=SPEC` (same as `focusmonitor`), `frame=x,y,w,h` (fractions or `%` of the display) | open an app, file or URL (deep links such as `vscode://…` work). With options, CatWM moves the new window to that workspace or display. `frame` floats it at that part of the display. Keybinds only; refused from the CLI |
+| `unminimize` | | bring back the minimized window of the current workspace that was used last |
+| `moveworkspacetomonitor` | monitor spec | move every window of the current workspace to the workspace another display shows. A Desktop stays with its display |
+| `swapworkspaces` | two monitor specs, e.g. `0 1` or `left right` | swap what two displays show, resolved from the focused display |
+| `sendshortcut` | `<mods> <key> [bundle id]`, e.g. `cmd+shift t` | press a key in the focused window's app, or in the app with that bundle ID, without CatWM or the system seeing it. Keybinds only; refused from the CLI |
 | `focusmonitor` | `l r u d`, `+1`, `-1`, index | focus another display |
 | `workspace` | `N`, `name:foo`, `previous`, `+1`, `-1`, `e+1`, `e-1` | switch workspace (`e±1`: next one that has windows) |
 | `movetoworkspace` | same as `workspace` | move the window and follow it |

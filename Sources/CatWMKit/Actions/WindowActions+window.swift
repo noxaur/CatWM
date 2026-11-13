@@ -78,20 +78,22 @@ extension WindowActions {
     }
 
     package static let resizeactive = WindowAction.text(
-        "resizeactive", "window", "Set the size of the focused floating window",
-        .text("size", "`exact W H`, the size in points. A tiled window keeps its size.")
+        "resizeactive", "window", "Resize the focused window",
+        .text("size", "`exact W H` in points, `50% 100%` of the display's visible area, or a change such as "
+              + "`+50 -20` or `+5% 0`. A floating window keeps its top-left corner. A tiled window moves the split "
+              + "it borders, so it takes only a change along the layout's split axis.")
     ) { context in
-        guard let window = context.window, let size = context.exactPair else { return }
-        context.manager.resizeWindow(window, to: CGSize(width: size.x, height: size.y))
+        guard let window = context.window, let (width, height) = Measure.pair(context.arg) else { return }
+        context.manager.resizeWindow(window, width, height)
     }
 
     package static let moveactive = WindowAction.text(
         "moveactive", "window", "Move the focused floating window",
-        .text("position", "`exact X Y`, the top-left corner in points from the top-left of the display's visible area."
-              + " A tiled window stays in its tile.")
+        .text("position", "`exact X Y` in points from the top-left of the display's visible area, `50% 10%` of that "
+              + "area, or a change such as `+50 -20`. A tiled window stays in its tile.")
     ) { context in
-        guard let window = context.window, let point = context.exactPair else { return }
-        context.manager.moveWindow(window, toOffset: point)
+        guard let window = context.window, let (x, y) = Measure.pair(context.arg) else { return }
+        context.manager.moveWindow(window, x, y)
     }
 
     package static let centerwindow = WindowAction(

@@ -71,13 +71,6 @@ package struct WindowAction: Sendable {
 extension ActionContext {
     package var backward: Bool { arg.lowercased().hasPrefix("prev") }
     package var tabBackward: Bool { backward || arg.lowercased().hasPrefix("b") }
-
-    var exactPair: CGPoint? {
-        let parts = arg.lowercased().split(whereSeparator: \.isWhitespace)
-        guard parts.count == 3, parts[0] == "exact", let x = Double(parts[1]), let y = Double(parts[2]),
-              x.isFinite, y.isFinite else { return nil }
-        return CGPoint(x: x, y: y)
-    }
 }
 
 package enum WindowActions {
@@ -88,6 +81,7 @@ package enum WindowActions {
         moveintogroup, moveoutofgroup, changegroupactive, movegroupwindow,
         layoutmsg, splitratio, cyclelayout, layout, toggletiling, retile,
         workspace, movetoworkspace, movetoworkspacesilent, sethomespace,
+        balance, togglesplit, unminimize, moveworkspacetomonitor, swapworkspaces, sendshortcut,
         sort, sortUndo, switcher, focuswindow, focuslast,
         submap, reload, exit, exec, launch
     ]

@@ -96,11 +96,11 @@ import QuartzCore
             from = running.frame(at: now)
             velocity = running.velocity(at: now)
         } else if let landed = landing.removeValue(forKey: id) {
-            from = move.from ?? landed.target
+            from = landed.target
         } else if let followed = following[id] {
-            from = move.from ?? followed.target
+            from = followed.target
         } else {
-            from = move.from ?? move.window.cachedFrame
+            from = move.window.cachedFrame
         }
         cancel(id)
         owners[id] = move.window.pid

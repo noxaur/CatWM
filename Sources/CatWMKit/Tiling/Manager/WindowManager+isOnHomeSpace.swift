@@ -39,24 +39,6 @@ extension WindowManager {
             ?? screens.first
     }
 
-    package func park(_ id: CGWindowID, screens: [Screen]) {
-        guard let window = windows[id], isVirtual(workspaceOf[id]) else { return }
-        let frame = animator.destination(id) ?? window.cachedFrame
-        guard !frame.isNull, !isParked(frame, screens) else { return }
-        if let slide, slide.outgoing.contains(id) {
-            guard let screen = monitorScreen(of: id, in: screens) else { return }
-            let x = slide.forward ? screen.frame.minX - frame.width + 1 : screen.frame.maxX - 1
-            let edge = CGRect(x: x, y: frame.minY, width: frame.width, height: frame.height)
-            guard !frame.approxEqual(edge, tolerance: 2), !animator.isMoving(id, to: edge) else { return }
-            floats.floatFrames[id] = floatsFreely(id) ? frame : nil
-            animator.animate([.init(window: window, to: edge, bounds: screen.visible)],
-                             spec: motion(forWorkspace: slide.workspace))
-            return
-        }
-        floats.floatFrames[id] = floatsFreely(id) ? frame : nil
-        cornerPark(id, screens: screens)
-    }
-
     package func cornerPark(_ id: CGWindowID, screens: [Screen]) {
         guard let window = windows[id], let screen = monitorScreen(of: id, in: screens) else { return }
         let size = (animator.destination(id) ?? window.cachedFrame).size
@@ -70,58 +52,6 @@ extension WindowManager {
         if window.isFloating || !tilingEnabled { return true }
         guard let workspace = workspaceOf[id] else { return false }
         return (states[workspace]?.layout ?? config.layouts.first) == .floating
-    }
-
-    package func unpark(floating id: CGWindowID, screens: [Screen]) {
-        guard let window = windows[id] else { return }
-        let frame = animator.destination(id) ?? window.cachedFrame
-        guard isParked(frame, screens) else {
-            floats.floatFrames[id] = nil
-            return
-        }
-        guard let screen = screen(of: window, in: screens) ?? screens.first else { return }
-        var rect = floats.floatFrames.removeValue(forKey: id) ?? targets[id]
-            ?? CGRect(x: screen.visible.midX - frame.width / 2, y: screen.visible.midY - frame.height / 2,
-                      width: frame.width, height: frame.height)
-        rect.origin.x = max(screen.visible.minX, min(rect.origin.x, screen.visible.maxX - rect.width))
-        rect.origin.y = max(screen.visible.minY, min(rect.origin.y, screen.visible.maxY - rect.height))
-        animator.quiet(id)
-        if let from = slideStart(id, to: rect, on: screen) {
-            animator.animate([.init(window: window, to: rect, bounds: screen.visible, from: from)],
-                             spec: motion(of: window))
-            return
-        }
-        animator.animate([.init(window: window, to: rect, bounds: screen.visible)], duration: 0)
-    }
-
-    package func beginSlide(from previous: String, to workspace: String, on screen: Screen) {
-        if let old = slide {
-            for id in old.outgoing where !visible.contains(id) { cornerPark(id, screens: backend.screens()) }
-        }
-        slide = nil
-        let spec = motion(forWorkspace: workspace)
-        guard spec.duration >= 0.01 else { return }
-        let outgoing = visible.filter { workspaceOf[$0] == previous }
-        let arriving = present.filter { workspaceOf[$0] == workspace }
-        guard outgoing.count + arriving.count <= Self.maxAnimatedMoves else { return }
-        let until = CACurrentMediaTime() + spec.duration
-        slide = Slide(monitor: screen.uuid, workspace: workspace, outgoing: outgoing,
-                      forward: workspaceSort(previous, workspace), until: until)
-        DispatchQueue.main.asyncAfter( // style-ok: the slide is a time window for late windows
-            deadline: .now() + spec.duration + 0.2
-        ) { [weak self] in
-            guard let self, self.slide?.until == until else { return }
-            let screens = backend.screens()
-            for id in outgoing where !self.visible.contains(id) { self.cornerPark(id, screens: screens) }
-            self.slide = nil
-        }
-    }
-
-    package func slideStart(_ id: CGWindowID, to target: CGRect, on screen: Screen) -> CGRect? {
-        guard let slide, slide.monitor == screen.uuid, slide.workspace == workspaceOf[id],
-              CACurrentMediaTime() < slide.until else { return nil }
-        let x = slide.forward ? screen.frame.maxX - 1 : screen.frame.minX - target.width + 1
-        return CGRect(x: x, y: target.minY, width: target.width, height: target.height)
     }
 
     package func restoreHiddenWindows(completion: (@MainActor @Sendable () -> Void)? = nil) {

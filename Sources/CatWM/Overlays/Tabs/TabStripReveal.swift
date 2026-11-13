@@ -27,6 +27,7 @@ import CatWMKit
         self.targets = targets
         guard !targets.isEmpty else { return stop() }
         let ids = Set(targets.map(\.window.id))
+        for id in bars.keys where !ids.contains(id) { titleBars.forget(id) }
         bars = bars.filter { ids.contains($0.key) }
         targets.forEach { readTitleBar(of: $0.window) }
         guard monitors.isEmpty else { return }

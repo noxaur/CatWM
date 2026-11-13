@@ -6,13 +6,11 @@ extension Animator {
         package let window: Window
         package let target: CGRect
         package let bounds: CGRect
-        package var from: CGRect?
 
-        package init(window: Window, to target: CGRect, bounds: CGRect, from: CGRect? = nil) {
+        package init(window: Window, to target: CGRect, bounds: CGRect) {
             self.window = window
             self.target = target
             self.bounds = bounds
-            self.from = from
         }
     }
 

@@ -92,7 +92,7 @@ import QuartzCore
         let plans = moves.reduce(into: [CGWindowID: WindowFillPlan]()) { plans, move in
             let id = move.window.id
             guard active[id] == nil, let cached = cache[id] else { return }
-            plans[id] = WindowFillPlan(from: move.from ?? move.window.cachedFrame, to: move.target,
+            plans[id] = WindowFillPlan(from: move.window.cachedFrame, to: move.target,
                                        appearance: cached.appearance, displays: displays)
         }
         _ = prepare(plans, moving: Set(moves.map(\.window.id)))

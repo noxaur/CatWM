@@ -253,16 +253,6 @@ extension WindowManager {
         }
     }
 
-    package func stackTabs(_ tiles: [CGWindowID: CGRect]) -> [CGWindowID: CGRect] {
-        var slots: [CGWindowID: CGRect] = [:]
-        for (id, tile) in tiles {
-            let slot = belowTabStrip(tile, for: id)
-            let behind = tabs.group(of: id)?.members.filter { $0 != id && windows[$0]?.isFloating == false } ?? []
-            for member in [id] + behind { slots[member] = slot }
-        }
-        return slots
-    }
-
     package func belowTabStrip(_ slot: CGRect, for id: CGWindowID) -> CGRect {
         guard let group = tabs.group(of: id),
               !config.autoHideTabStrip || surface.revealedTabGroup == group.id else { return slot }

@@ -52,7 +52,7 @@ with Events("focus.changed", "workspace.changed") as events:
     events.wait("workspace.changed", where={"workspace": "3"}, timeout=3)
 ```
 
-`events.wait(name, where=..., timeout=...)` returns the next matching event or raises `TimeoutError`. `events.drain()` returns the events that wait now. The events are: `focus.changed`, `window.added`, `window.removed`, `workspace.changed`, `layout.changed`, `tiling.changed`, `mode.changed` and `config.reloaded`.
+`events.wait(name, where=..., timeout=...)` returns the next matching event or raises `TimeoutError`. `events.drain()` returns the events that wait now. The events are: `focus.changed`, `window.added`, `window.changed`, `window.removed`, `workspace.created`, `workspace.removed`, `workspace.changed`, `display.added`, `display.removed`, `layout.changed`, `tiling.changed`, `mode.changed` and `config.reloaded`.
 
 ## Test apps on a private display
 

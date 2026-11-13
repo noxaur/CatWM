@@ -122,7 +122,7 @@ package enum ConfigRuntime {
         call(index, snapshot) {
           const run = committed[index];
           if (typeof run !== "function") {
-            const message = "this key's function is from an older config";
+            const message = "this function is from an older config";
             return JSON.stringify({ error: fail("evaluate", null, null, message) });
           }
           try {

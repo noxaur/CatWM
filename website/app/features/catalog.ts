@@ -848,7 +848,7 @@ const EVENTS: Category = {
       id: "events",
       name: "Listen for changes",
       line: "One line for each change, as it happens.",
-      body: "catwm events prints the events that you name, or all of them. The events are focus.changed, window.added, window.removed, workspace.changed, layout.changed, tiling.changed, mode.changed, window.notifications and config.reloaded. On a socket connection, send subscribe and unsubscribe.",
+      body: "catwm events prints the events that you name, or all of them. The events are focus.changed, window.added, window.changed, window.removed, workspace.created, workspace.removed, workspace.changed, display.added, display.removed, layout.changed, tiling.changed, mode.changed, window.notifications and config.reloaded. On a socket connection, send subscribe and unsubscribe.",
       cli: ["catwm events focus.changed workspace.changed", "catwm events"],
     },
   ],

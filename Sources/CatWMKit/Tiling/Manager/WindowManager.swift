@@ -88,6 +88,7 @@ import AppKit
     package var scratchpads = Scratchpads()
     package var pins = PinnedWindows()
     package var windowsToMatch: [CGWindowID] = []
+    package var eventHandlerToken: UUID?
     package var previousWorkspace: [String: String] = [:]
     package var labels: [String: String] = [:]
     package struct Slide {

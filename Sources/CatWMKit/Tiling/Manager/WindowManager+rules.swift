@@ -7,7 +7,7 @@ extension WindowManager {
         let snapshot = ConfigEngine.WindowSnapshot(
             title: window.title ?? "", app: window.bundleID ?? "", pid: Int(window.pid),
             frame: animator.destination(window.id) ?? window.cachedFrame)
-        store.call(function: function, window: snapshot) { [weak self] result in
+        store.call(function: function, window: snapshot, state: scriptState()) { [weak self] result in
             guard let self else { return }
             if let failure = result.failure {
                 Log.info("config: \(failure.text)")
@@ -61,20 +61,20 @@ extension WindowManager {
         }
     }
 
-    private func run(_ action: RuleAction, on window: Window) {
+    func run(_ action: RuleAction, on window: Window?) {
         if let refusal = scopeRefusal(action.dispatcher) {
             Log.info(refusal)
             return
         }
-        if action.dispatcher == WindowActions.fullscreen.name, isZoomed(window) { return }
+        if action.dispatcher == WindowActions.fullscreen.name, let window, isZoomed(window) { return }
         guard let command = WindowActions.named(action.dispatcher) else {
             Log.info("unknown dispatcher \(action.dispatcher)")
             return
         }
         command.run(ActionContext(manager: self, arg: action.arg.trimmingCharacters(in: .whitespaces), target: window))
         switch action.dispatcher {
-        case WindowActions.setfloating.name: window.userFloating = .chosen(true)
-        case WindowActions.settiled.name: window.userFloating = .chosen(false)
+        case WindowActions.setfloating.name: window?.userFloating = .chosen(true)
+        case WindowActions.settiled.name: window?.userFloating = .chosen(false)
         default: break
         }
     }

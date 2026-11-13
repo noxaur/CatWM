@@ -10,12 +10,15 @@ extension WindowManager {
     package func startServices() {
         guard !servicesStarted else { return }
         servicesStarted = true
+        syncEventHandlers()
         if config.features.contains(.socket) { ControlServer.shared.start(path: socketPath) }
         store.watch { [weak self] in self?.apply($0, showHUD: true) }
     }
 
     package func stopServices() {
         servicesStarted = false
+        if let token = eventHandlerToken { EventBus.shared.stopListening(token) }
+        eventHandlerToken = nil
         ControlServer.shared.stop()
         store.stopWatching()
     }
@@ -252,6 +255,7 @@ extension WindowManager {
     package func apply(_ next: Config, showHUD: Bool) {
         let old = config
         config = Self.effective(next, scope: scope)
+        syncEventHandlers()
         let changes = config.changes(from: old)
         guard !changes.isEmpty || config.diagnostics != old.diagnostics else { return }
         if changes.contains("features") { applyFeatures(from: old.features) }

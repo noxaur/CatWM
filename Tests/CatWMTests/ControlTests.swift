@@ -129,6 +129,39 @@ private var projectRoot: URL {
         #expect(names == ["window.added", "window.removed", "focus.changed", "workspace.changed", "mode.changed"])
     }
 
+    @Test func aDiffNamesWindowDisplayAndWorkspaceChanges() {
+        var old = StateSnapshot()
+        old.windows = [1: .init(app: "a", title: "one", floating: false, workspace: "1")]
+        old.displays = ["d1": "Built-in"]
+        old.workspaceNames = ["1"]
+        var new = old
+        new.windows = [1: .init(app: "a", title: "two", floating: true, workspace: "2")]
+        new.displays = ["d2": "Dell"]
+        new.workspaceNames = ["2"]
+        let events = EventBus.changes(from: old, to: new)
+
+        #expect(events.map(\.0) == ["window.changed", "workspace.created", "workspace.removed",
+                                    "display.added", "display.removed"])
+        #expect(events[0].1["changed"] == ["title", "floating", "workspace"])
+        #expect(events[0].1["workspace"] == "2")
+        #expect(events[3].1["display"] == "d2")
+        #expect(events[4].1["name"] == "Built-in")
+    }
+
+    @Test func aWindowFirstGettingItsWorkspaceIsNotAChange() {
+        var old = StateSnapshot()
+        old.windows = [1: .init(app: "a", title: "one")]
+        var new = old
+        new.windows = [1: .init(app: "a", title: "one", workspace: "1")]
+
+        #expect(EventBus.changes(from: old, to: new).isEmpty)
+    }
+
+    @Test func everyEventHasAType() {
+        let types = ConfigTypes.render()
+        for name in EventBus.allNames { #expect(types.contains("\"\(name)\": {")) }
+    }
+
     @Test func noChangeMakesNoEvent() {
         let snapshot = StateSnapshot()
         #expect(EventBus.changes(from: snapshot, to: snapshot).isEmpty)

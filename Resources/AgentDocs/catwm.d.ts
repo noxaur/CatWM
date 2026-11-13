@@ -119,7 +119,7 @@ export interface Actions {
   setfloating: [...args: (string | number)[]]
   /** Tile the focused window. */
   settiled: [...args: (string | number)[]]
-  /** Resize the focused window. */
+  /** Set the size of the focused floating window. */
   resizeactive: [size: string | number]
   /** Move the focused floating window. */
   moveactive: [position: string | number]
@@ -133,12 +133,6 @@ export interface Actions {
   minimize: [...args: (string | number)[]]
   /** Close the focused window. */
   killactive: [...args: (string | number)[]]
-  /** Hide the focused window in a scratchpad and float it. */
-  movetoscratchpad: [name?: string | number]
-  /** Show a scratchpad window floating over this workspace, or hide it again. */
-  togglescratchpad: [name?: string | number]
-  /** Float the focused window and keep it on every workspace of its display. */
-  pin: [mode?: "on" | "off" | "toggle" | (string & {})]
   /** Add the focused window to the tabs of its neighbour. */
   moveintogroup: [direction: "left" | "right" | "up" | "down" | "l" | "r" | "u" | "d" | (string & {})]
   /** Take the focused window out of its tabs. */
@@ -173,28 +167,12 @@ export interface Actions {
   movetoworkspacesilent: [workspace: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | (string & {})]
   /** Make the current Desktop the home Desktop. */
   sethomespace: [...args: (string | number)[]]
-  /** Give every tiled window the same area, as far as the layout allows. */
-  balance: [...args: (string | number)[]]
-  /** Flip the split direction: Tall and Wide swap, and so do Column and Row. */
-  togglesplit: [...args: (string | number)[]]
-  /** Bring back the minimized window of this workspace used last. */
-  unminimize: [...args: (string | number)[]]
-  /** Move the windows of this workspace to the workspace another display shows. */
-  moveworkspacetomonitor: [target: string | number]
-  /** Swap the workspaces two displays show. */
-  swapworkspaces: [displays: string | number]
-  /** Press a key in the focused window's app, or in another app. */
-  sendshortcut: [shortcut: string | number]
   /** Open or close the Overview. */
   sort: [...args: (string | number)[]]
   /** Undo the last Overview change. */
   "sort-undo": [...args: (string | number)[]]
   /** Open the window switcher. */
   switcher: [step?: "next" | "prev" | (string & {})]
-  /** Focus the window that a target names, on any workspace or display. */
-  focuswindow: [target: string | number]
-  /** Focus the window that had focus before this one. */
-  focuslast: [...args: (string | number)[]]
   /** Enter a key mode, or leave it. */
   submap: [name: "window" | "reset" | (string & {})]
   /** Read the config file again. */
@@ -298,9 +276,9 @@ export interface FeaturesOptions {
 }
 
 export interface FloatingOptions {
-  /** Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app, and a RegExp matches the bundle IDs it fits. */
-  get apps(): List<string | RegExp>
-  set apps(value: readonly (string | RegExp)[] | undefined)
+  /** Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app. */
+  get apps(): List<string>
+  set apps(value: readonly string[] | undefined)
   /** Apps in the list. True: listed apps float. false: only listed apps are tiled. Default: `true`. */
   get listedAppsFloat(): boolean
   set listedAppsFloat(value: boolean | undefined)
@@ -426,16 +404,10 @@ export interface PaddingOptions {
   set top(value: number | undefined)
 }
 
-export interface ScratchpadOptions {
-  /** How much of the display's visible area a scratchpad window fills when `togglescratchpad` shows it. A window that can't resize keeps its size. From 20 to 100. Default: `80`. */
-  get size(): number
-  set size(value: number | undefined)
-}
-
 export interface SwitcherOptions {
   /** Apps the switcher hides. Apps the window switcher never shows; wildcards like com.adobe.* work. Default: `[]`. */
-  get exclude(): List<string | RegExp>
-  set exclude(value: readonly (string | RegExp)[] | undefined)
+  get exclude(): List<string>
+  set exclude(value: readonly string[] | undefined)
   /** Instant jump. A search with one prefix match opens by itself. Default: `true`. */
   get instantJump(): boolean
   set instantJump(value: boolean | undefined)
@@ -522,8 +494,6 @@ export interface Options {
   /** Main pane resize step. How much the split moves each time. Default: `5`. */
   get resizeStep(): number
   set resizeStep(value: number | undefined)
-  get scratchpad(): ScratchpadOptions
-  set scratchpad(value: Input<ScratchpadOptions> | undefined)
   get switcher(): SwitcherOptions
   set switcher(value: Input<SwitcherOptions> | undefined)
   get tabs(): TabsOptions
@@ -613,6 +583,121 @@ export interface ScopedOptions {
   set padding(value: number | Input<ScopedPaddingOptions> | undefined)
 }
 
+/** The data of each event that `catwm.on` handles. Socket subscribers get the same events. */
+export interface Events {
+  /** The focused window changed. */
+  "focus.changed": {
+    /** Window ID, or null when no window has focus. */
+    readonly window: number | null
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+  }
+  /** CatWM found a new window. */
+  "window.added": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+  }
+  /** A window's title, floating state or workspace changed. */
+  "window.changed": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Window title. */
+    readonly title: string | null
+    /** The window floats. */
+    readonly floating: boolean
+    /** Workspace name. */
+    readonly workspace: string | null
+    /** What changed: title, floating or workspace. */
+    readonly changed: string[]
+  }
+  /** A window is gone. */
+  "window.removed": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+  }
+  /** A display shows another workspace. */
+  "workspace.changed": {
+    /** Display ID. */
+    readonly screen: string
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A workspace came into being. */
+  "workspace.created": {
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A workspace is gone. */
+  "workspace.removed": {
+    /** Workspace name. */
+    readonly workspace: string
+  }
+  /** A display was connected. */
+  "display.added": {
+    /** Display ID. */
+    readonly display: string
+    /** Display name. */
+    readonly name: string
+  }
+  /** A display was disconnected. */
+  "display.removed": {
+    /** Display ID. */
+    readonly display: string
+    /** Display name. */
+    readonly name: string
+  }
+  /** A display uses another layout. */
+  "layout.changed": {
+    /** Display ID. */
+    readonly screen: string
+    /** Layout name. */
+    readonly layout: string
+  }
+  /** Tiling went on or off. */
+  "tiling.changed": {
+    /** Tiling is on. */
+    readonly enabled: boolean
+  }
+  /** The key mode changed. */
+  "mode.changed": {
+    /** Key mode, empty for none. */
+    readonly mode: string
+  }
+  /** The unread badge of a window changed. */
+  "window.notifications": {
+    /** Window ID. */
+    readonly window: number
+    /** Bundle ID. */
+    readonly app: string | null
+    /** Unread count, or null for a dot or no badge. */
+    readonly count: number | null
+    /** The app shows unread items with no number. */
+    readonly dot: boolean
+    /** dock, banner or database, or null. */
+    readonly source: string | null
+  }
+  /** A permission was granted or revoked. */
+  "permissions.changed": {
+    /** The permissions that are granted now. */
+    readonly granted: string[]
+  }
+  /** CatWM applied the config again. */
+  "config.reloaded": {
+    /** Problems in the config: file, line, phase and message. A failed save keeps the last good config. */
+    readonly errors: Record<string, unknown>[]
+  }
+}
+
 /** A count of windows: an exact number, or a range. */
 export type Count = number | { atLeast?: number; atMost?: number }
 
@@ -621,13 +706,13 @@ export type Display = "builtin" | "external" | (string & {})
 
 /** Which windows a rule matches. Every field you give has to match. */
 export interface WindowMatch {
-  /** A bundle ID, a bundle ID ending in `*` such as `com.adobe.*`, or a regular expression. */
-  app?: string | RegExp
+  /** A bundle ID. `com.adobe.*` matches every Adobe app. */
+  app?: string
   /** The exact title, or a regular expression. */
   title?: string | RegExp
   pid?: number
-  workspace?: string | RegExp
-  display?: Display | RegExp
+  workspace?: string
+  display?: Display
   floating?: boolean
   minimized?: boolean
   fullscreen?: boolean
@@ -639,11 +724,11 @@ export interface WorkspaceMatch {
   windows?: Count
   /** The most windows any one app has on the workspace. */
   sameApp?: Count
-  /** At least one window of this bundle ID (`*` at the end works), or of a bundle ID a RegExp matches. */
-  app?: string | RegExp
+  /** At least one window of this bundle ID. */
+  app?: string
   layout?: Layout
-  name?: string | RegExp
-  display?: Display | RegExp
+  name?: string
+  display?: Display
   /** The workspace with the focused window. */
   focused?: boolean
 }
@@ -653,10 +738,6 @@ export interface WindowRule {
   float(): void
   tile(): void
   fullscreen(): void
-  /** Floats the window and keeps it on every workspace of its display. `pin(false)` stops that. */
-  pin(on?: boolean): void
-  /** Hides the window in a scratchpad. `togglescratchpad` shows it. The default name is `scratchpad`. */
-  scratchpad(name?: string): void
   size: { width: number; height: number }
   position: "center" | { x: number; y: number }
   workspace: string
@@ -676,8 +757,6 @@ export interface WindowHandle {
   resize(width: number, height: number): void
   move(x: number, y: number): void
   center(): void
-  pin(on?: boolean): void
-  scratchpad(name?: string): void
   moveTo(workspace: string): void
 }
 
@@ -688,12 +767,34 @@ export interface WindowHandle {
  */
 export type WorkspaceRuleCall = (match: WorkspaceMatch, set: (scoped: ScopedOptions) => void) => void
 
-/** A key bind as data, the form the Settings window writes. */
-export interface BindSpec {
-  mods?: readonly Mod[]
-  key: Key
-  run: Action
-  repeat?: boolean
+/** A window as `catwm.state` lists it. */
+export interface WindowState {
+  readonly id: number
+  /** The bundle ID. */
+  readonly app: string | null
+  readonly title: string | null
+  readonly floating: boolean
+  readonly workspace: string | null
+}
+
+/** What CatWM knew when your function was called. It doesn't change while the function runs. */
+export interface State {
+  /** The ID of the focused window, or null. */
+  readonly focused: number | null
+  readonly windows: readonly WindowState[]
+  readonly workspaces: readonly {
+    readonly name: string
+    readonly label: string | null
+    /** A display shows it. */
+    readonly shown: boolean
+  }[]
+  readonly displays: readonly {
+    readonly id: string
+    readonly name: string
+    /** The workspace the display shows. */
+    readonly workspace: string | null
+    readonly layout: string | null
+  }[]
 }
 
 export interface Catwm extends Options {
@@ -707,15 +808,18 @@ export interface Catwm extends Options {
     run: Action | (() => void),
     options?: { repeat?: boolean; submap?: string }
   ): void
-  /**
-   * The binds that run an action, as the Settings window saves them. Assigning replaces them all. Binds
-   * with a function, and binds you add with `catwm.bind`, are not part of it.
-   */
-  binds: readonly BindSpec[]
-  /** The same for each mode, keyed by the mode's name. */
-  submaps: Readonly<Record<string, readonly BindSpec[]>>
   /** Runs `set` once, while the config loads. It records what to do to each window that starts matching. */
   windows(match: WindowMatch, set: (win: WindowRule) => void): void
+  /**
+   * Runs `handle` each time the event happens, with the event's data. It runs after the event, so it can't
+   * decide where a new window goes: use `catwm.windows` for that. Its actions apply to the event's window,
+   * if the event has one. Call it while the config loads.
+   */
+  on<E extends keyof Events>(event: E, handle: (event: Events[E]) => void): void
+  /** Runs an action, like a bind does. It works inside a bind function or an event handler. */
+  dispatch<A extends keyof Actions>(action: A, ...args: Actions[A]): void
+  /** What CatWM knows now. It works inside a bind function or an event handler. */
+  readonly state: State
   readonly window: {
     /** The focused window. It works only inside a function you pass to `catwm.bind`. */
     readonly focused: WindowHandle

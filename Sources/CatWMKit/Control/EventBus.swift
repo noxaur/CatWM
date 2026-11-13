@@ -10,12 +10,16 @@ package struct StateSnapshot: Equatable, Sendable {
     package struct Entry: Equatable, Sendable {
         package var app: String?
         package var title: String?
+        package var floating = false
+        package var workspace: String?
     }
 
     package var focused: CGWindowID?
     package var windows: [CGWindowID: Entry] = [:]
     package var workspaces: [String: String] = [:]
     package var layouts: [String: String] = [:]
+    package var displays: [String: String] = [:]
+    package var workspaceNames: Set<String> = []
     package var tiling = true
     package var mode = ""
 }
@@ -34,6 +38,14 @@ package struct StateSnapshot: Equatable, Sendable {
             Field(name: "app", type: "string?", summary: "Bundle ID"),
             Field(name: "title", type: "string?", summary: "Window title")
         ]),
+        EventSpec(name: "window.changed", summary: "A window's title, floating state or workspace changed", data: [
+            Field(name: "window", type: "int", summary: "Window ID"),
+            Field(name: "app", type: "string?", summary: "Bundle ID"),
+            Field(name: "title", type: "string?", summary: "Window title"),
+            Field(name: "floating", type: "bool", summary: "The window floats"),
+            Field(name: "workspace", type: "string?", summary: "Workspace name"),
+            Field(name: "changed", type: "string[]", summary: "What changed: title, floating or workspace")
+        ]),
         EventSpec(name: "window.removed", summary: "A window is gone", data: [
             Field(name: "window", type: "int", summary: "Window ID"),
             Field(name: "app", type: "string?", summary: "Bundle ID")
@@ -41,6 +53,20 @@ package struct StateSnapshot: Equatable, Sendable {
         EventSpec(name: "workspace.changed", summary: "A display shows another workspace", data: [
             Field(name: "screen", type: "string", summary: "Display ID"),
             Field(name: "workspace", type: "string", summary: "Workspace name")
+        ]),
+        EventSpec(name: "workspace.created", summary: "A workspace came into being", data: [
+            Field(name: "workspace", type: "string", summary: "Workspace name")
+        ]),
+        EventSpec(name: "workspace.removed", summary: "A workspace is gone", data: [
+            Field(name: "workspace", type: "string", summary: "Workspace name")
+        ]),
+        EventSpec(name: "display.added", summary: "A display was connected", data: [
+            Field(name: "display", type: "string", summary: "Display ID"),
+            Field(name: "name", type: "string", summary: "Display name")
+        ]),
+        EventSpec(name: "display.removed", summary: "A display was disconnected", data: [
+            Field(name: "display", type: "string", summary: "Display ID"),
+            Field(name: "name", type: "string", summary: "Display name")
         ]),
         EventSpec(name: "layout.changed", summary: "A display uses another layout", data: [
             Field(name: "screen", type: "string", summary: "Display ID"),
@@ -155,6 +181,7 @@ package struct StateSnapshot: Equatable, Sendable {
             data["title"] = nil
             out.append(("window.removed", .object(data)))
         }
+        out += windowChanges(from: old, to: new, info: info)
         if old.focused != new.focused {
             let entry = new.focused.flatMap { new.windows[$0] }
             out.append(("focus.changed", .object([
@@ -169,8 +196,48 @@ package struct StateSnapshot: Equatable, Sendable {
         for screen in new.layouts.keys.sorted() where old.layouts[screen] != new.layouts[screen] {
             out.append(("layout.changed", ["screen": .string(screen), "layout": .string(new.layouts[screen] ?? "")]))
         }
+        out += topologyChanges(from: old, to: new)
         if old.tiling != new.tiling { out.append(("tiling.changed", ["enabled": .bool(new.tiling)])) }
         if old.mode != new.mode { out.append(("mode.changed", ["mode": .string(new.mode)])) }
+        return out
+    }
+
+    private nonisolated static func windowChanges(
+        from old: StateSnapshot, to new: StateSnapshot, info: (CGWindowID, StateSnapshot.Entry) -> [String: JSON]
+    ) -> [(String, JSON)] {
+        var out: [(String, JSON)] = []
+        for id in new.windows.keys.sorted() {
+            guard let before = old.windows[id], let after = new.windows[id], before != after else { continue }
+            var changed: [JSON] = []
+            if before.title != after.title { changed.append(.string("title")) }
+            if before.floating != after.floating { changed.append(.string("floating")) }
+            if before.workspace != after.workspace, before.workspace != nil { changed.append(.string("workspace")) }
+            guard !changed.isEmpty else { continue }
+            var data = info(id, after)
+            data["floating"] = .bool(after.floating)
+            data["workspace"] = after.workspace.map(JSON.string) ?? .null
+            data["changed"] = .array(changed)
+            out.append(("window.changed", .object(data)))
+        }
+        return out
+    }
+
+    private nonisolated static func topologyChanges(
+        from old: StateSnapshot, to new: StateSnapshot
+    ) -> [(String, JSON)] {
+        var out: [(String, JSON)] = []
+        for name in new.workspaceNames.subtracting(old.workspaceNames).sorted() {
+            out.append(("workspace.created", ["workspace": .string(name)]))
+        }
+        for name in old.workspaceNames.subtracting(new.workspaceNames).sorted() {
+            out.append(("workspace.removed", ["workspace": .string(name)]))
+        }
+        for id in new.displays.keys.sorted() where old.displays[id] == nil {
+            out.append(("display.added", ["display": .string(id), "name": .string(new.displays[id] ?? "")]))
+        }
+        for id in old.displays.keys.sorted() where new.displays[id] == nil {
+            out.append(("display.removed", ["display": .string(id), "name": .string(old.displays[id] ?? "")]))
+        }
         return out
     }
 }
@@ -179,10 +246,15 @@ extension WindowManager {
     package func snapshot() -> StateSnapshot {
         var snapshot = StateSnapshot()
         snapshot.focused = reportedFocusedWindow()?.id
-        snapshot.windows = windows.mapValues { StateSnapshot.Entry(app: $0.bundleID, title: $0.title) }
+        snapshot.windows = windows.mapValues {
+            StateSnapshot.Entry(app: $0.bundleID, title: $0.title, floating: $0.isFloating,
+                                workspace: workspaceOf[$0.id])
+        }
+        snapshot.workspaceNames = Set(workspaceOf.values).union(shown.values).union(states.keys).subtracting([""])
         snapshot.tiling = tilingEnabled
         snapshot.mode = Hotkeys.shared.submap
         for screen in backend.screens() {
+            snapshot.displays[screen.uuid] = screen.name
             snapshot.workspaces[screen.uuid] = shown[screen.uuid] ?? ""
             let layout = states[workspaceKey(for: screen)]?.layout ?? config.layouts.first
             snapshot.layouts[screen.uuid] = layout?.rawValue

@@ -154,6 +154,15 @@ public struct WindowAddedData: Codable, Equatable, Sendable {
     public let title: String?
 }
 
+public struct WindowChangedData: Codable, Equatable, Sendable {
+    public let window: Int
+    public let app: String?
+    public let title: String?
+    public let floating: Bool
+    public let workspace: String?
+    public let changed: [String]
+}
+
 public struct WindowRemovedData: Codable, Equatable, Sendable {
     public let window: Int
     public let app: String?
@@ -162,6 +171,24 @@ public struct WindowRemovedData: Codable, Equatable, Sendable {
 public struct WorkspaceChangedData: Codable, Equatable, Sendable {
     public let screen: String
     public let workspace: String
+}
+
+public struct WorkspaceCreatedData: Codable, Equatable, Sendable {
+    public let workspace: String
+}
+
+public struct WorkspaceRemovedData: Codable, Equatable, Sendable {
+    public let workspace: String
+}
+
+public struct DisplayAddedData: Codable, Equatable, Sendable {
+    public let display: String
+    public let name: String
+}
+
+public struct DisplayRemovedData: Codable, Equatable, Sendable {
+    public let display: String
+    public let name: String
 }
 
 public struct LayoutChangedData: Codable, Equatable, Sendable {
@@ -196,8 +223,13 @@ public struct ConfigReloadedData: Codable, Equatable, Sendable {
 public enum Event: Sendable {
     case focusChanged(FocusChangedData)
     case windowAdded(WindowAddedData)
+    case windowChanged(WindowChangedData)
     case windowRemoved(WindowRemovedData)
     case workspaceChanged(WorkspaceChangedData)
+    case workspaceCreated(WorkspaceCreatedData)
+    case workspaceRemoved(WorkspaceRemovedData)
+    case displayAdded(DisplayAddedData)
+    case displayRemoved(DisplayRemovedData)
     case layoutChanged(LayoutChangedData)
     case tilingChanged(TilingChangedData)
     case modeChanged(ModeChangedData)
@@ -210,8 +242,13 @@ public enum Event: Sendable {
         switch name {
         case "focus.changed": return .focusChanged(try JSONDecoder().decode(FocusChangedData.self, from: data))
         case "window.added": return .windowAdded(try JSONDecoder().decode(WindowAddedData.self, from: data))
+        case "window.changed": return .windowChanged(try JSONDecoder().decode(WindowChangedData.self, from: data))
         case "window.removed": return .windowRemoved(try JSONDecoder().decode(WindowRemovedData.self, from: data))
         case "workspace.changed": return .workspaceChanged(try JSONDecoder().decode(WorkspaceChangedData.self, from: data))
+        case "workspace.created": return .workspaceCreated(try JSONDecoder().decode(WorkspaceCreatedData.self, from: data))
+        case "workspace.removed": return .workspaceRemoved(try JSONDecoder().decode(WorkspaceRemovedData.self, from: data))
+        case "display.added": return .displayAdded(try JSONDecoder().decode(DisplayAddedData.self, from: data))
+        case "display.removed": return .displayRemoved(try JSONDecoder().decode(DisplayRemovedData.self, from: data))
         case "layout.changed": return .layoutChanged(try JSONDecoder().decode(LayoutChangedData.self, from: data))
         case "tiling.changed": return .tilingChanged(try JSONDecoder().decode(TilingChangedData.self, from: data))
         case "mode.changed": return .modeChanged(try JSONDecoder().decode(ModeChangedData.self, from: data))

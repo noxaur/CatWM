@@ -159,6 +159,28 @@ catwm.workspaces({ windows: 1 }, () => {
 
 You can match on `windows` and `sameApp` (a number, or `{ atLeast, atMost }`), `app`, `layout`, `name`, `display` and `focused`. A workspace rule can set gaps, padding, layouts, `newWindowsToMain`, motion and focus dimming. `catwm.d.ts` marks these options as scoped. CatWM shows an error for anything else, or for a `catwm.bind` inside a workspace rule.
 
+## Reacting to events
+
+`catwm.on(event, handler)` runs a function each time something happens, such as a new window or a display that you unplug. The handler gets the event's data. `catwm.dispatch(action, ...args)` runs an action, like a key does, and acts on the event's window when the event has one:
+
+```ts
+catwm.on("window.added", (e) => {
+  if (e.app === "com.apple.Notes") catwm.dispatch("movetoworkspacesilent", "3")
+})
+
+catwm.on("display.removed", () => {
+  catwm.dispatch("workspace", "1")
+})
+```
+
+The events are `focus.changed`, `window.added`, `window.changed`, `window.removed`, `workspace.created`, `workspace.removed`, `workspace.changed`, `display.added`, `display.removed`, `layout.changed`, `tiling.changed`, `mode.changed`, `permissions.changed` and `config.reloaded`. `catwm.d.ts` lists the data of each. They are the same events that `catwm subscribe` sends.
+
+A handler runs after the event, so a window has already appeared when `window.added` fires. To decide where a window goes or whether it floats, use a rule from [Rules for apps and windows](#rules-for-apps-and-windows): a rule applies as the window arrives. If a handler changes what its own event reports, such as floating a window on `window.changed`, make sure that it settles, or it will run again.
+
+Inside a handler or a key function, `catwm.state` shows what CatWM knows at that moment, read-only: `focused`, `windows` (`id`, `app`, `title`, `floating`, `workspace`), `workspaces` (`name`, `label`, `shown`) and `displays` (`id`, `name`, `workspace`, `layout`).
+
+CatWM looks at events only while your config has a handler, so a config without `catwm.on` costs nothing.
+
 ## Splitting the config into files
 
 A long config reads better in parts. Import other files with a relative path, and each file can set options itself:

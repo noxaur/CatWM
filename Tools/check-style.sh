@@ -291,11 +291,11 @@ def code_only(source):
     return "".join(out)
 
 
-def layout_cases():
-    source = code_only(open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read())
+def layout_cases(source=None):
+    source = code_only(source or open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read())
     body = source[source.index("{", source.index("enum Layout")) + 1:source.index("package var title")]
-    return {name for line in re.findall(r"^\s*case\b(.*)$", body, re.M)
-            for name in re.findall(r"(?:^|,)\s*(\w+)", line)}
+    return {name for declaration in re.findall(r"^\s*case\b((?:[^\n]*,[ \t]*\n)*[^\n]*)", body, re.M)
+            for name in re.findall(r"(?:^|,)\s*(\w+)", declaration)}
 
 
 def case_label(code, start):

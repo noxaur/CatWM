@@ -48,7 +48,7 @@ extension WindowManager {
             if let name = workspaceOf[id] { members[name, default: []].append(id) }
         }
         let names = Set(members.keys).union(shown.values)
-            .union(desktops.nativeCatalog.entries.map(\.name)).sorted(by: workspaceSort)
+            .union(desktops.nativeCatalog.entries.map(\.name)).sorted(by: WorkspaceKey.precedes)
         return .array(names.map { name in
             [
                 "name": .string(name), "windows": .array((members[name] ?? []).map { .int(Int($0)) }),

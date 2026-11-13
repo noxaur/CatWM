@@ -126,7 +126,7 @@ extension WindowManager {
         }
         desktops.nativeCreationBusy = true
         defer { desktops.nativeCreationBusy = false; scheduleRefresh(after: 0) }
-        let number = Int(WorkspaceKey.number(name)) ?? 0
+        let number = WorkspaceKey.ordinal(name)
         var latest = snapshot
         repeat {
             let successor = desktops.nativeCatalog.successor(of: name, on: screen.uuid)
@@ -152,7 +152,7 @@ extension WindowManager {
             self.desktops.nativeCreationBusy = true
             defer { self.desktops.nativeCreationBusy = false; self.scheduleRefresh(after: 0) }
             let entries = removed.compactMap { self.desktops.nativeCatalog.entry($0) }
-                .sorted { (Int(WorkspaceKey.number($0.name)) ?? 0) > (Int(WorkspaceKey.number($1.name)) ?? 0) }
+                .sorted { (WorkspaceKey.ordinal($0.name)) > (WorkspaceKey.ordinal($1.name)) }
             for entry in entries {
                 guard let screen = backend.screens().first(where: { $0.uuid == entry.display }) else { continue }
                 do {

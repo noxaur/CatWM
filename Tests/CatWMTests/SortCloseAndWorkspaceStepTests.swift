@@ -30,7 +30,7 @@ import Testing
 
     @Test func extremeOccupiedStepsWrapWithoutOverflow() {
         let sorted = ["1", "3", "5"]
-        let before = WorkspaceReconciliation.workspaceSort
+        let before = WorkspaceKey.precedes
         #expect(WindowManager.step(sorted, from: "3", by: Int.max, sortedBy: before) == "5")
         #expect(WindowManager.step(sorted, from: "1", by: Int.min, sortedBy: before) == "3")
         #expect(WindowManager.step(sorted, from: "6", by: Int.max, sortedBy: before) == "1")

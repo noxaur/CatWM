@@ -12,7 +12,7 @@ extension WindowManager {
     }
 
     @MainActor private func commitNativeSort() async {
-        for name in desktops.nativeSortNames.sorted(by: workspaceSort) {
+        for name in desktops.nativeSortNames.sorted(by: WorkspaceKey.precedes) {
             guard let display = monitorOf[name],
                   let screen = backend.screens().first(where: { $0.uuid == display }) else {
                 continue

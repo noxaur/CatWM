@@ -24,10 +24,6 @@ private func plan(items: [SortItem]? = nil, lanes: [SortLane]? = nil, taken: Set
 }
 
 @Suite @MainActor struct SortPlanTests {
-    @Test func workspacesSortNumericallyThenByName() {
-        #expect(["10", "web", "2", "1", "chat"].sorted(by: SortPlan.order) == ["1", "2", "10", "chat", "web"])
-    }
-
     @Test func availableNamesSkipUsedAndTakenOnes() {
         let sortPlan = plan(taken: ["3"])
         #expect(Array(sortPlan.available(avoiding: ["4"]).prefix(3)) == ["5", "6", "7"])

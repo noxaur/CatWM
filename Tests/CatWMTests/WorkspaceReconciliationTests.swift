@@ -7,8 +7,8 @@ import Testing
     private let displayA = CGRect(x: 0, y: 0, width: 1000, height: 800)
     private let displayB = CGRect(x: 1000, y: 0, width: 1000, height: 800)
 
-    private let spaceA = WindowManager.spaceWorkspace(display: "A", space: 1)
-    private let spaceB = WindowManager.spaceWorkspace(display: "B", space: 2)
+    private let spaceA = WorkspaceKey.space(display: "A", space: 1)
+    private let spaceB = WorkspaceKey.space(display: "B", space: 2)
 
     private func observation(frames: [CGWindowID: CGRect], held: Set<CGWindowID> = []) -> WorkspaceObservation {
         WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1]),
@@ -18,7 +18,7 @@ import Testing
 
     @Test func fiftyWindowsProduceAReplayableSwitchPlan() {
         var model = WorkspaceModel()
-        let elsewhere = WindowManager.spaceWorkspace(display: "A", space: 9)
+        let elsewhere = WorkspaceKey.space(display: "A", space: 9)
         var frames: [CGWindowID: CGRect] = [:]
         for id in CGWindowID(1)...50 {
             model.assign(id, to: id <= 25 ? spaceA : elsewhere)
@@ -56,7 +56,7 @@ import Testing
 
     @Test func disconnectedDisplaysAndUnknownFramesUseTheRemainingDisplay() {
         var model = WorkspaceModel()
-        let gone = WindowManager.spaceWorkspace(display: "gone", space: 3)
+        let gone = WorkspaceKey.space(display: "gone", space: 3)
         model.virtualShown = ["gone": "1"]
         model.show(gone, on: "gone")
         model.assign(7, to: gone)
@@ -88,7 +88,7 @@ import Testing
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1, 5])],
                                          frames: [8: displayA], present: [8], held: [], maximised: [7: 5])
         let result = WorkspaceReconciliation.reconcile(facts, model: model, displayOf: [:])
-        let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let workspace = WorkspaceKey.space(display: "A", space: 5)
         #expect(result.model.workspaceOf[7] == workspace)
         #expect(result.model.maximisedHost[workspace] == 7)
         #expect(result.model.monitorOf[workspace] == "A")
@@ -100,14 +100,14 @@ import Testing
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 5, spaces: [1, 5])],
                                          frames: [:], present: [], held: [], maximised: [7: 5])
         let result = WorkspaceReconciliation.reconcile(facts, model: WorkspaceModel(), displayOf: [:])
-        let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let workspace = WorkspaceKey.space(display: "A", space: 5)
         #expect(result.model.shown["A"] == workspace)
         #expect(result.model.isShown(result.model.workspaceOf[7]))
     }
 
     @Test func leavingMaximisedReturnsTheWindowToTheShownWorkspace() {
         var model = WorkspaceModel()
-        let stale = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let stale = WorkspaceKey.space(display: "A", space: 5)
         model.assign(7, to: stale)
         model.maximisedHost[stale] = 7
         let facts = WorkspaceObservation(displays: [.init(id: "A", frame: displayA, space: 1, spaces: [1])],

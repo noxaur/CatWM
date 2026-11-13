@@ -21,15 +21,6 @@ extension SortPlan {
         return plan
     }
 
-    static func order(_ lhs: String, _ rhs: String) -> Bool {
-        switch (Int(WorkspaceKey.number(lhs)), Int(WorkspaceKey.number(rhs))) {
-        case let (x?, y?): return x < y
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: return lhs < rhs
-        }
-    }
-
     func available(avoiding other: Set<String>) -> [String] {
         let used = Set(lanes.map(\.workspace))
         var out: [String] = []

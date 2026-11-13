@@ -98,14 +98,14 @@ package struct NativeWorkspaceCatalog {
 
     package func successor(of name: String, on display: String) -> UInt64? {
         guard !perDisplay else { return nil }
-        return entries(on: display).filter { WorkspaceReconciliation.workspaceSort(name, $0.name) }
-            .min { WorkspaceReconciliation.workspaceSort($0.name, $1.name) }?.space
+        return entries(on: display).filter { WorkspaceKey.precedes(name, $0.name) }
+            .min { WorkspaceKey.precedes($0.name, $1.name) }?.space
     }
 
     package func step(from name: String, by delta: Int) -> String? {
         guard let source = entry(name) else { return nil }
         let local = entries(on: source.display)
-            .sorted { WorkspaceReconciliation.workspaceSort($0.name, $1.name) }
+            .sorted { WorkspaceKey.precedes($0.name, $1.name) }
         guard let index = local.firstIndex(of: source) else { return nil }
         guard delta >= -index, delta < local.count - index else { return nil }
         return local[index + delta].name

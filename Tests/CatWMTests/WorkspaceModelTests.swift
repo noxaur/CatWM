@@ -61,7 +61,7 @@ import Testing
 
     @Test func forgettingAWindowReleasesItsMaximisedWorkspace() {
         var model = WorkspaceModel()
-        let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let workspace = WorkspaceKey.space(display: "A", space: 5)
         model.assign(7, to: workspace); model.maximisedHost[workspace] = 7
         model.forget(7)
         #expect(model.maximisedHost[workspace] == nil && model.workspaceOf[7] == nil)
@@ -108,7 +108,7 @@ import Testing
         model.order = [1, 2, 3]
         model.joinTab(2, onto: 1)
         model.joinTab(3, onto: 2)
-        let maximised = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let maximised = WorkspaceKey.space(display: "A", space: 5)
         model.hostMaximised(2, in: maximised)
         #expect(model.tabs.group(of: 1)?.members == [1, 3])
         #expect(model.rejoinMaximisedTabs { _ in true }.isEmpty)
@@ -124,7 +124,7 @@ import Testing
         for id: CGWindowID in [1, 2, 3] { model.assign(id, to: "1") }
         model.joinTab(2, onto: 1)
         model.joinTab(3, onto: 2)
-        let maximised = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let maximised = WorkspaceKey.space(display: "A", space: 5)
         model.hostMaximised(2, in: maximised)
         model.leaveTab(3)
         model.assign(2, to: "2")

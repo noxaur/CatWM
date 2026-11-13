@@ -1,10 +1,5 @@
 name: build
-description: Build CatWM on a macOS runner from a cached .build that compiles only what changed.
-
-inputs:
-  config:
-    description: "debug or release"
-    required: true
+description: Build a release CatWM on a macOS runner from a cached .build that compiles only what changed.
 
 runs:
   using: composite
@@ -13,18 +8,18 @@ runs:
       run: sudo xcode-select -s /Applications/Xcode_27.2.app
     - shell: bash
       run: python3 Tools/stamp-mtimes.py
-    # Every run restores the newest build of its config and dependency pins, and every run but a PR
+    # Every run restores the newest build of its dependency pins, and every run but a PR
     # saves its own. A PR builds a small diff from main, so its save would only cost upload time. A
     # new pin builds cold, so no artifact of an old pin can end up in the app.
     - id: cache
       uses: actions/cache/restore@v4
       with:
         path: .build
-        key: build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+        key: build-release-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
         restore-keys: |
-          build-${{ inputs.config }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-
+          build-release-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}-
     - shell: bash
-      run: CATWM_INSTANCE=ci ./build.sh ${{ inputs.config == 'debug' && '--dev' || '' }}
+      run: CATWM_INSTANCE=ci ./build.sh
     - if: github.event_name != 'pull_request' && steps.cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:

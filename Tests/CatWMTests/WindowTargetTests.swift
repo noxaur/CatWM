@@ -154,6 +154,36 @@ import Testing
         #expect(await world.fake.wait(world.manager) { world.manager.focusRequests.reportedFocus?.id == mail })
     }
 
+    @Test func aFunctionCanZoomATargetWhileThePressedWindowIsZoomed() async throws {
+        let world = makeWorld()
+        let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")
+        let notes = world.fake.addWindow(pid: -101, bundleID: "test.notes", title: "Todo")
+        #expect(await world.fake.settle(world.manager))
+        try await focus(notes, world)
+        let pressed = try #require(world.manager.windows[notes])
+        let screen = try #require(world.fake.screens().first)
+
+        world.manager.run(RuleAction(dispatcher: "fullscreen", arg: ""), on: pressed)
+        #expect(await world.fake.wait(world.manager) { world.manager.state(for: screen).zoomed == notes })
+        world.manager.run(RuleAction(dispatcher: "fullscreen", arg: "@app:test.mail"), on: pressed)
+        #expect(await world.fake.wait(world.manager) { world.manager.state(for: screen).zoomed == mail })
+    }
+
+    @Test func aMixedCasePluginNameFromAFunctionGetsItsTarget() async throws {
+        let world = makeWorld()
+        let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")
+        let notes = world.fake.addWindow(pid: -101, bundleID: "test.notes", title: "Todo")
+        #expect(await world.fake.settle(world.manager))
+        let peer = PluginDispatcherTests.Peer()
+        _ = try world.manager.plugins.register("myapp.look", for: peer.client)
+
+        world.manager.run(RuleAction(dispatcher: "MyApp.Look", arg: "@app:test.mail x"),
+                          on: try #require(world.manager.windows[notes]))
+        let data = try #require(peer.nextLine()?["data"])
+        #expect(data["arg"] == "x")
+        #expect(data["window"]?["id"] == .int(Int(mail)))
+    }
+
     @Test func aDispatcherActsOnTheTargetInsteadOfTheFocusedWindow() async throws {
         let world = makeWorld()
         let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")

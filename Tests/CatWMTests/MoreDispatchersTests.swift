@@ -186,6 +186,17 @@ import Testing
         return World(fake: fake, manager: manager, ids: ids, screens: [left, right])
     }
 
+    @Test func aTargetedTiledResizeMovesTheSplitOfItsOwnDisplay() async throws {
+        let setup = await twoDisplays()
+        let (fake, manager, ids, screens) = (setup.fake, setup.manager, setup.ids, setup.screens)
+        try await focus(ids[2], in: fake, manager: manager)
+        let main = try #require(manager.tiled(on: screens[0]).first)
+        manager.dispatch("resizeactive", "@id:\(main) +10% 0")
+        #expect(await fake.settle(manager))
+        #expect(abs(manager.state(for: screens[0]).ratio - 0.6) < 0.001)
+        #expect(abs(manager.state(for: screens[1]).ratio - 0.5) < 0.001)
+    }
+
     @Test func moveWorkspaceToMonitorSendsEveryWindowOver() async throws {
         let setup = await twoDisplays()
         let (fake, manager, ids, screens) = (setup.fake, setup.manager, setup.ids, setup.screens)

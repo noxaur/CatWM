@@ -43,7 +43,7 @@ extension WindowManager {
     }
 
     private func resizeTiled(_ window: Window, _ width: Measure, _ height: Measure) {
-        guard let screen = screen(of: window), screen.uuid == currentScreen()?.uuid else { return }
+        guard let screen = screen(of: window) else { return }
         let screenState = state(for: screen), ids = tiled(on: screen)
         let rect = usableRect(screen)
         var axis = screenState.layout.ratioAxis
@@ -55,7 +55,7 @@ extension WindowManager {
         }
         let extent = horizontal ? rect.width : rect.height
         let change = measure.amount(of: extent) / extent
-        adjustRatio("exact \(screenState.ratio + (index < mains ? change : -change))")
+        adjustRatio("exact \(screenState.ratio + (index < mains ? change : -change))", on: screen)
     }
 
     private func placeFloating(_ window: Window, _ target: (_ frame: CGRect, _ screen: Screen) -> CGRect?) {

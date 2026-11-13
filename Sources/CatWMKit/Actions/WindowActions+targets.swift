@@ -47,7 +47,7 @@ extension WindowManager {
     }
 
     func resolveTarget(of dispatcher: String, in arg: String) -> (window: Window?, arg: String)? {
-        let plugin = PluginDispatchers.isNamespaced(dispatcher)
+        let plugin = PluginDispatchers.isNamespaced(dispatcher.lowercased())
         guard let name = WindowActions.named(dispatcher)?.name ?? (plugin ? dispatcher : nil), arg.hasPrefix("@")
         else { return (nil, arg) }
         guard plugin || WindowActions.targetable.contains(name) else {

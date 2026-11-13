@@ -22,7 +22,7 @@ import Testing
         ].joined(separator: "\n") + "\n" + lines.joined(separator: "\n"))
     }
 
-    private func makeWorld(_ lines: String...) throws -> World {
+    private func makeWorld(_ lines: String..., clock: FakeClock? = nil) throws -> World {
         let fake = FakeBackend()
         fake.addScreen(frame: CGRect(x: 0, y: 0, width: 1440, height: 900), visible: visible)
         let folder = try ConfigFolder(["catwm.config.ts": script(lines.joined(separator: "\n"))])
@@ -30,7 +30,7 @@ import Testing
         let store = ConfigStore(folder: folder.url, defaults: defaults)
         let config = store.load()
         #expect(store.failures.isEmpty)
-        let manager = fake.makeManager { $0 = config }
+        let manager = fake.makeManager({ $0 = config }, clock: clock)
         manager.store = store
         return World(fake: fake, manager: manager, folder: folder, store: store)
     }
@@ -220,32 +220,6 @@ import Testing
         #expect(window.isFloating)
     }
 
-    @Test func aRuleDoesNotSnapTheWindowBack() async throws {
-        let world = try makeWorld(
-            "catwm.windows({ app: \"\(app)\", title: /Settings/ }, (win) => {",
-            "  win.float()",
-            "  win.position = \"center\"",
-            "})")
-        let id = world.fake.addWindow(bundleID: app, title: "Settings")
-        #expect(await world.fake.settle(world.manager))
-        let size = world.fake.frame(of: id).size
-        let ruled = centered(size)
-        #expect(world.fake.frame(of: id) == ruled)
-        try await Task.sleep(for: .milliseconds(250)) // style-ok: outlast Animator.verify, which no event reports
-
-        let moved = CGRect(x: 100, y: 120, width: size.width, height: size.height)
-        world.fake.userMoves(id, to: moved)
-        world.fake.setTitle(id, "Settings 2")
-        #expect(await world.fake.settle(world.manager))
-        #expect(world.fake.frame(of: id) == moved)
-
-        world.fake.setTitle(id, "Other")
-        #expect(await world.fake.settle(world.manager))
-        world.fake.setTitle(id, "Settings")
-        #expect(await world.fake.settle(world.manager))
-        #expect(world.fake.frame(of: id) == ruled)
-    }
-
     @Test func theLatestOfToggleRuleAndSaveDecidesFloating() async throws {
         let world = try makeWorld(
             "catwm.floating.apps.push(\"\(app)\")",
@@ -300,5 +274,35 @@ import Testing
         try save(world, "catwm.windows({ app: \"\(app)\" }, (win) => { win.size = { width: 400, height: 300 } })")
         #expect(await world.fake.settle(world.manager))
         #expect(!window.isFloating)
+    }
+}
+
+extension WindowRuleTests {
+    @Test func aRuleDoesNotSnapTheWindowBack() async throws {
+        let clock = FakeClock()
+        let world = try makeWorld(
+            "catwm.windows({ app: \"\(app)\", title: /Settings/ }, (win) => {",
+            "  win.float()",
+            "  win.position = \"center\"",
+            "})", clock: clock)
+        let id = world.fake.addWindow(bundleID: app, title: "Settings")
+        #expect(await world.fake.settle(world.manager))
+        let size = world.fake.frame(of: id).size
+        let ruled = centered(size)
+        #expect(world.fake.frame(of: id) == ruled)
+        clock.advance(by: 1)
+        #expect(await world.fake.settle(world.manager))
+
+        let moved = CGRect(x: 100, y: 120, width: size.width, height: size.height)
+        world.fake.userMoves(id, to: moved)
+        world.fake.setTitle(id, "Settings 2")
+        #expect(await world.fake.settle(world.manager))
+        #expect(world.fake.frame(of: id) == moved)
+
+        world.fake.setTitle(id, "Other")
+        #expect(await world.fake.settle(world.manager))
+        world.fake.setTitle(id, "Settings")
+        #expect(await world.fake.settle(world.manager))
+        #expect(world.fake.frame(of: id) == ruled)
     }
 }

@@ -166,3 +166,11 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     let excused = wait + " // style-ok: no event exists for this"
     #expect(try styleFailures(path: "Sources/CatWMKit/Motion/Windows/Example.swift", source: excused).isEmpty)
 }
+
+@Test func styleOkCannotSilenceATestSleepOutsideTheRealServerTest() throws {
+    let wait = "try await Task." + "sleep(for: .milliseconds(250)) // style-ok: outlast the verify pass"
+    let failures = try styleFailures(path: "Tests/CatWMTests/Example.swift", source: wait)
+    #expect(failures.contains { $0.contains("makeManager(clock:)") })
+    #expect(failures.contains { $0.contains("style-ok cannot silence a test sleep") })
+    #expect(try styleFailures(path: "Tests/CatWMTests/AgentDisplayLiveTests.swift", source: wait).isEmpty)
+}

@@ -67,6 +67,8 @@ STORED_STATIC = re.compile(r"\bstatic var (?!defaultValue\b)\w+(?: *: *[^={]*)? 
 UNCHECKED = re.compile(r"@unchecked Sendable")
 ASSUME_MAIN = re.compile(r"\bMainActor\.assumeIsolated\b")
 TEST_WAIT = re.compile(r"\bThread\.sleep\(|\bTask\.sleep\(|\busleep\(|\basyncAfter\(")
+TEST_WAIT_RULE = "test-wait:"
+TEST_WAIT_REAL_SERVER = ("Tests/CatWMTests/AgentDisplayLiveTests.swift",)
 IGNORED_RUN = re.compile(r"^\s*(?:_\s*=\s*)?try\?\s+\w+\.run\s*\(")
 IGNORED_DIRECTORY = re.compile(r"^\s*(?:_\s*=\s*)?try\?\s+\w+(?:\.\w+)*\.createDirectory\s*\(")
 TEST_RUNLOOP = re.compile(r"^\s*RunLoop\.(?:main|current)\.run\s*\(\s*until\s*:\s*Date\(\)\.addingTimeInterval\s*\(")
@@ -182,7 +184,8 @@ def banned(path, code, uses_defaults=False):
     if path.startswith(SOURCES) and ASSUME_MAIN.search(code):
         hits.append("MainActor.assumeIsolated traps off the main thread. Hop to the main actor")
     if path.startswith("Tests/") and TEST_WAIT.search(code):
-        hits.append("sleep in a test. Wait on a condition or an injected clock")
+        fix = "sleep in a test. Wait on a condition, or step a FakeClock passed to makeManager(clock:) to run engine timers"
+        hits.append(fix if path in TEST_WAIT_REAL_SERVER else TEST_WAIT_RULE + " " + fix)
     if path.startswith(SOURCES) and IGNORED_RUN.search(code):
         hits.append("try? drops a run failure. Use do/catch and record the error with Log")
     if path.startswith(SOURCES) and IGNORED_DIRECTORY.search(code):
@@ -310,9 +313,12 @@ def line_failures(path, source):
         code = line if idx is None else line[:idx]
         hits = banned(path, code, uses_defaults)
         animation = [hit for hit in hits if hit.startswith(ANIMATION_RULE)]
-        others = [hit for hit in hits if not hit.startswith(ANIMATION_RULE)]
+        waits = [hit for hit in hits if hit.startswith(TEST_WAIT_RULE)]
+        others = [hit for hit in hits if hit not in animation and hit not in waits]
         for hit in animation:
             failures.append((path, number, hit[len(ANIMATION_RULE):].strip(), line.strip()))
+        for hit in waits:
+            failures.append((path, number, hit[len(TEST_WAIT_RULE):].strip(), line.strip()))
         if idx is None:
             for hit in others:
                 failures.append((path, number, hit, line.strip()))
@@ -328,6 +334,9 @@ def line_failures(path, source):
         match = OK.match(comment)
         if match and animation:
             failures.append((path, number, "style-ok cannot silence an animation rule. Add a token or helper in Motion/ instead", line.strip()))
+            continue
+        if match and waits:
+            failures.append((path, number, "style-ok cannot silence a test sleep. Engine timers run on a FakeClock passed to makeManager(clock:); only " + ", ".join(TEST_WAIT_REAL_SERVER) + " may wait on a real server", line.strip()))
             continue
         if match and reason_ok(match.group(1)) and others:
             continue

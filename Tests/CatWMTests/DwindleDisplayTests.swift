@@ -134,4 +134,22 @@ import Testing
         #expect(await fake.settle(manager))
         #expect(manager.order == ids + [arrival])
     }
+
+    @Test func withSeparateSpacesAnArrivalWithoutADisplayStillSplitsTheFocusedTile() async throws {
+        let fake = FakeBackend()
+        let screen = fake.addScreen(frame: area, visible: area)
+        let ids = ([-581, -582] as [pid_t]).map {
+            fake.addWindow(pid: $0, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
+        }
+        let manager = fake.makeManager { $0.layouts = [.dwindle] }
+        #expect(await fake.settle(manager))
+        try await focus(ids[0], in: fake, manager: manager)
+        let arrival: CGWindowID = 99
+        manager.model.assign(arrival, to: try #require(manager.workspaceOf[ids[0]]))
+        manager.displayOf = [ids[0]: screen.uuid]
+        manager.order = ids
+
+        manager.orderArrivals([arrival], firstRun: false)
+        #expect(manager.order == [ids[0], arrival, ids[1]])
+    }
 }

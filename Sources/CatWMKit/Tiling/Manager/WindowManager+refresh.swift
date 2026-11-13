@@ -201,7 +201,7 @@ extension WindowManager {
            let screen = screen(of: focused), state(for: screen).layout == .dwindle,
            tiled(on: screen).contains(focused.id) {
             func beside(_ id: CGWindowID) -> Bool {
-                workspaceOf[id] == workspaceOf[focused.id] && displayOf[id] == displayOf[focused.id]
+                workspaceOf[id] == workspaceOf[focused.id] && (!sharesSpaces || displayOf[id] == displayOf[focused.id])
             }
             order.insert(contentsOf: rest.filter(beside), at: index + 1)
             order.append(contentsOf: rest.filter { !beside($0) })

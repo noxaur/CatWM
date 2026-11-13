@@ -89,6 +89,37 @@
       "label": "Added by config load",
       "unit": "MB",
       "cap": 10
+    },
+    "motion.live.error": {
+      "group": "Motion",
+      "label": "Live tracking error p50 per move and app profile",
+      "unit": "px",
+      "cap": 235
+    },
+    "motion.live.lag": {
+      "group": "Motion",
+      "label": "Live lag p50 per move and app profile",
+      "unit": "ms",
+      "virtual": true,
+      "cap": 37
+    },
+    "motion.live.spill": {
+      "group": "Motion",
+      "label": "Live spill p95 per move and app profile",
+      "unit": "px",
+      "cap": 535
+    },
+    "motion.fill.gap": {
+      "group": "Motion",
+      "label": "Color-fill uncovered gap p95 per move and app profile",
+      "unit": "px",
+      "cap": 535
+    },
+    "motion.tick.cpu": {
+      "group": "Motion",
+      "label": "Animator tick, 12 windows, color-fill, no SkyLight",
+      "unit": "ms",
+      "cap": 0.25
     }
   }
 }

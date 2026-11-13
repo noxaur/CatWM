@@ -3,7 +3,8 @@
 
 The caps are for the device in budgets.json. A fixed benchmark (CatWMPerf calibrate) measures how fast
 this machine is next to that device, and each CPU time in ms is scaled to that device before the check,
-so a faster or slower runner needs no new caps.
+so a faster or slower runner needs no new caps. A row marked `virtual` counts time on the motion benchmark's
+simulated clock, so it is not scaled.
 
 Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
 slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
@@ -37,7 +38,7 @@ sys.path.insert(0, str(ROOT / "Clients/python"))
 PERF = ROOT / ".build/release/CatWMPerf"
 APP = ROOT / "build/CatWM.app/Contents/MacOS/CatWM"
 BUDGETS = ROOT / "Tools/Perf/budgets.json"
-ENGINE_SCENARIOS = ["engine-idle", "engine-tile", "engine-actions", "config-load"]
+ENGINE_SCENARIOS = ["engine-idle", "engine-tile", "engine-actions", "config-load", "motion"]
 APP_LAUNCH_SECONDS, APP_IDLE_SECONDS, APP_MEASURED_SECONDS = 5, 20, 20
 LAUNCH_MEASURED = ("ApplicationLaunchExtendedResponsive", "Bailing responsive launch check")
 
@@ -177,7 +178,7 @@ def report(runner, samples, budgets):
     tables, failed = {}, []
     for metric, budget in budgets["rows"].items():
         values = samples.get(metric)
-        if values and budget["unit"] == "ms":
+        if values and budget["unit"] == "ms" and not budget.get("virtual"):
             values = [value * speed for value in values]
         row = stats(values) if values else None
         gate = budget.get("gate", "median")

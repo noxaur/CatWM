@@ -29,7 +29,7 @@ import QuartzCore
         placeLiveWindow()
         try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-            clock = WindowFrameClock(screen: nsScreen) { [weak self] in self?.tick($0) }
+            clock = WindowFrameClock(screen: nsScreen) { [weak self] in self?.tick($1) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
                 self?.finish(.failure(ResizeProbeError.displayStopped))
             }
@@ -117,7 +117,7 @@ import QuartzCore
         try detailShot.run(); detailShot.waitUntilExit()
         guard detailShot.terminationStatus == 0 else { throw ResizeProbeError.pixelMismatch }
         if let nsScreen = screen.nsScreen {
-            clock = WindowFrameClock(screen: nsScreen) { [weak self] in self?.tick($0) }
+            clock = WindowFrameClock(screen: nsScreen) { [weak self] in self?.tick($1) }
         }
     }
 

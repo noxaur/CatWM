@@ -70,16 +70,24 @@ import QuartzCore
         panel.contentView = view
     }
 
+    package static func fits(desired: CGRect, actual: CGRect, minimumSize: CGSize) -> Bool {
+        !desired.isNull && !actual.isNull && desired.width > 0 && desired.height > 0
+            && actual.width > 0 && actual.height > 0
+            && desired.width >= minimumSize.width && desired.height >= minimumSize.height
+            && actual.width >= minimumSize.width && actual.height >= minimumSize.height
+            && desired.minY == actual.minY && desired.intersects(actual)
+    }
+
+    package static func needed(desired: CGRect, actual: CGRect) -> Bool {
+        !actual.contains(desired) && !desired.approxEqual(actual, tolerance: 0.25)
+    }
+
     package func update(desired: CGRect, actual: CGRect, order: [CGWindowID]? = nil) {
-        guard !desired.isNull, !actual.isNull, desired.width > 0, desired.height > 0,
-              actual.width > 0, actual.height > 0,
-              desired.width >= appearance.minimumSize.width, desired.height >= appearance.minimumSize.height,
-              actual.width >= appearance.minimumSize.width, actual.height >= appearance.minimumSize.height,
-              desired.minY == actual.minY, desired.intersects(actual),
+        guard Self.fits(desired: desired, actual: actual, minimumSize: appearance.minimumSize),
               let screen = Screen.all().first(where: { $0.frame.contains(desired) && $0.frame.contains(actual) }),
               let native = screen.nsScreen,
               abs(outline.contentsScale - native.backingScaleFactor) < 0.01 else { close(); return }
-        if actual.contains(desired) || desired.approxEqual(actual, tolerance: 0.25) { close(); return }
+        guard Self.needed(desired: desired, actual: actual) else { close(); return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if panel.frame != native.frame { panel.setFrame(native.frame, display: false) }

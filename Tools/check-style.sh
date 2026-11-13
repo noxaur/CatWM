@@ -322,7 +322,7 @@ def main():
     try:
         digest_path = os.path.join(ROOT, "Resources/AgentDocs/config.catalog.sha256")
         if not os.path.exists(digest_path) or open(digest_path, encoding="utf-8").read() != generator.config_doc_digest():
-            failures.append(("Resources/AgentDocs/config.md", 1, "catalog: config docs are stale. Run ./build.sh --dev", ""))
+            failures.append(("Resources/AgentDocs/config.md", 1, "catalog: config docs are stale. Run ./build.sh --dev and commit the files it regenerates", ""))
         generator.gallery_examples()
         option_sources = [os.path.join(ROOT, "Sources/CatWMKit/Config/Options/Options.swift"), os.path.join(ROOT, "Sources/CatWMKit/Config/Options/FocusEffect.swift")]
         keys = set()

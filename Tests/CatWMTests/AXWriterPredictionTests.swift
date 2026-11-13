@@ -5,13 +5,11 @@ import CatWMFakes
 import os
 import QuartzCore
 import Testing
-import XCTest
 
 private final class SlowBackend: WindowBackend {
     private struct State {
         var time = 0.0, cost = 0.0, fails = false
         var failures = 0
-        var onApplied: (@Sendable () -> Void)?
         var frames: [CGRect] = []
     }
     let inner = FakeBackend()
@@ -21,9 +19,7 @@ private final class SlowBackend: WindowBackend {
     func advance(_ seconds: Double) { state.withLock { $0.time += seconds } }
     func set(cost: Double, fails: Bool = false) { state.withLock { $0.cost = cost; $0.fails = fails } }
 
-    func failNextWrite(onApplied: @escaping @Sendable () -> Void) {
-        state.withLock { $0.failures = 1; $0.onApplied = onApplied }
-    }
+    func failNextWrite() { state.withLock { $0.failures = 1 } }
 
     private func spend() -> Bool {
         state.withLock {
@@ -38,8 +34,7 @@ private final class SlowBackend: WindowBackend {
     private func apply(_ window: Window, _ write: () -> Bool) -> Bool {
         guard spend(), write() else { return false }
         let frame = inner.frame(of: window.id)
-        let applied = state.withLock { $0.frames.append(frame); return $0.onApplied }
-        applied?()
+        state.withLock { $0.frames.append(frame) }
         return true
     }
     func setPosition(_ window: Window, _ point: CGPoint) -> Bool { apply(window) { inner.setPosition(window, point) } }
@@ -153,17 +148,15 @@ private final class SlowBackend: WindowBackend {
 
     @MainActor @Test func aFailedFinalResizeStillRunsFrameRecovery() async {
         let target = CGRect(x: 100, y: 100, width: 900, height: 600)
-        let recovered = XCTestExpectation(description: "failed landing is retried")
-        let backend = backend
-        let window = window
-        backend.failNextWrite {
-            if backend.inner.frame(of: window.id) == target { recovered.fulfill() }
-        }
-        let animator = Animator(backend: backend)
+        let clock = FakeClock()
+        backend.failNextWrite()
+        let animator = Animator(backend: backend, now: clock.now, delay: clock.delay)
         defer { animator.cancel(window.id) }
         animator.animate([.init(window: window, to: target, bounds: target)], duration: 0)
-        let placed = await XCTWaiter.fulfillment(of: [recovered], timeout: 10)
-        #expect(placed == .completed)
+        await withCheckedContinuation { continuation in animator.afterPendingWrites { continuation.resume() } }
+        #expect(backend.inner.frame(of: window.id) != target)
+        clock.advance(by: 1)
+        await withCheckedContinuation { continuation in animator.afterPendingWrites { continuation.resume() } }
         #expect(backend.inner.frame(of: window.id) == target)
     }
 

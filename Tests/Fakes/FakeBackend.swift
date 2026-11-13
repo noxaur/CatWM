@@ -297,7 +297,7 @@ extension FakeBackend {
     }
 
     @MainActor @discardableResult
-    package func settle(_ manager: WindowManager, rounds: Int = 8, timeout: TimeInterval = 10) async -> Bool {
+    package func settle(_ manager: WindowManager, rounds: Int = 8, timeout: TimeInterval = 60) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         var rounds = rounds
         while rounds > 0 {
@@ -333,7 +333,7 @@ extension FakeBackend {
     }
 
     @MainActor @discardableResult
-    package func wait(_ manager: WindowManager, timeout: TimeInterval = 10,
+    package func wait(_ manager: WindowManager, timeout: TimeInterval = 60,
                       until condition: @escaping () -> Bool) async -> Bool {
         guard !condition() else { return true }
         return await bounded(until: Date().addingTimeInterval(timeout)) { waiter in

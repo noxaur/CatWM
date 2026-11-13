@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import os
 import Testing
@@ -9,7 +10,7 @@ private struct ReaderState { var reads = 0, completed = false }
 @MainActor @Suite struct PermissionWatcherTests {
     private final class Reader: Sendable {
         private let state = OSAllocatedUnfairLock(initialState: ReaderState())
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         var count: Int { state.withLock { $0.reads } }
         var finished: Bool { state.withLock { $0.completed } }
 
@@ -17,7 +18,7 @@ private struct ReaderState { var reads = 0, completed = false }
             let count = state.withLock { $0.reads += 1; return $0.reads }
             if count < 3 { return [.accessibility, .inputMonitoring] }
             if count == 3 {
-                _ = release.wait(timeout: .now() + 30)
+                release.block()
                 state.withLock { $0.completed = true }
                 return [.accessibility]
             }
@@ -32,7 +33,7 @@ private struct ReaderState { var reads = 0, completed = false }
             #expect(Thread.isMainThread)
             refreshes += 1
         })
-        defer { reader.release.signal() }
+        defer { reader.release.open() }
         var results: [(Set<Permission>, Set<Permission>)] = []
         watcher.subscribe { [weak watcher] granted, changed in
             #expect(Thread.isMainThread)
@@ -50,7 +51,7 @@ private struct ReaderState { var reads = 0, completed = false }
         watcher.tick()
         #expect(reader.count == 3)
         #expect(refreshes == 2)
-        reader.release.signal()
+        reader.release.open()
         #expect(await poll(15, every: 1_000_000) { results.count == 2 })
         #expect(reader.count == 4)
         #expect(refreshes == 3)

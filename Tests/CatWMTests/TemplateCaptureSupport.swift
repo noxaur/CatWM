@@ -26,47 +26,10 @@ struct TemplateScratch {
     func remove() { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 }
 
-final class CapturePause: @unchecked Sendable {
-    private let lock = NSLock()
-    private var released = false
-    private var continuation: CheckedContinuation<Void, Never>?
-
-    func wait() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            lock.lock()
-            if released {
-                lock.unlock()
-                continuation.resume()
-                return
-            }
-            self.continuation = continuation
-            lock.unlock()
-        }
-    }
-
-    func release() {
-        lock.lock()
-        released = true
-        let continuation = continuation
-        self.continuation = nil
-        lock.unlock()
-        continuation?.resume()
-    }
-}
-
 final class CaptureCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var stored = 0
     var value: Int { lock.withLock { stored } }
     @discardableResult
     func bump() -> Int { lock.withLock { stored += 1; return stored } }
-}
-
-final class CaptureFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored = false
-    var value: Bool {
-        get { lock.withLock { stored } }
-        set { lock.withLock { stored = newValue } }
-    }
 }

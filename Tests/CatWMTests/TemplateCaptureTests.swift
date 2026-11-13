@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -15,24 +16,19 @@ import Testing
 
     @Test func timeoutReturnsBeforeACaptureThatIgnoresCancellation() async {
         let slot = CaptureSlot<Int>()
-        let pause = CapturePause()
+        let pause = Gate()
         let calls = CaptureCounter()
-        defer { pause.release() }
-        let clock = ContinuousClock()
-        let started = clock.now
+        defer { pause.open() }
         let outcome = await slot.run(within: .milliseconds(80)) {
             calls.bump()
             await pause.wait()
             return 1
         }
         #expect(outcome == .timedOut)
-        #expect(clock.now - started < .seconds(2))
         #expect(calls.value == 1)
-        pause.release()
-        let deadline = Date().addingTimeInterval(2)
-        while !slot.isIdle, Date() < deadline { await Task.yield() }
-        #expect(slot.isIdle)
-        let next = await slot.run(within: .seconds(1)) {
+        pause.open()
+        await slot.settled()
+        let next = await slot.run(within: .seconds(60)) {
             calls.bump()
             return 2
         }
@@ -42,53 +38,49 @@ import Testing
 
     @Test func cancellationReturnsWhileTheCaptureKeepsRunning() async {
         let slot = CaptureSlot<Int>()
-        let pause = CapturePause()
-        let entered = CaptureFlag()
-        defer { pause.release() }
-        let clock = ContinuousClock()
-        let started = clock.now
+        let pause = Gate()
+        let entered = Gate()
+        defer { pause.open() }
         let task = Task {
             await slot.run(within: .seconds(30)) {
-                entered.value = true
+                entered.open()
                 await pause.wait()
                 return 1
             }
         }
-        let deadline = Date().addingTimeInterval(2)
-        while !entered.value, Date() < deadline { await Task.yield() }
+        await entered.wait()
         task.cancel()
         let outcome = await task.value
         #expect(outcome == .cancelled)
-        #expect(clock.now - started < .seconds(2))
         #expect(await slot.run(within: .milliseconds(50)) { 9 } == .busy)
     }
 
     @Test func occupiedSlotDoesNotReuseTheEarlierCapture() async {
         let slot = CaptureSlot<Int>()
-        let pause = CapturePause()
+        let pause = Gate()
         let calls = CaptureCounter()
-        defer { pause.release() }
+        defer { pause.open() }
+        let entered = Gate()
         let first = Task {
-            await slot.run(within: .seconds(2)) {
+            await slot.run(within: .seconds(60)) {
                 calls.bump()
+                entered.open()
                 await pause.wait()
                 return 1
             }
         }
-        let deadline = Date().addingTimeInterval(2)
-        while calls.value < 1, Date() < deadline { await Task.yield() }
-        let second = await slot.run(within: .seconds(2)) {
+        await entered.wait()
+        let second = await slot.run(within: .seconds(60)) {
             calls.bump()
             await pause.wait()
             return 2
         }
         #expect(second == .busy)
         #expect(calls.value == 1)
-        pause.release()
+        pause.open()
         #expect(await first.value == .finished(1))
-        let idleDeadline = Date().addingTimeInterval(2)
-        while !slot.isIdle, Date() < idleDeadline { await Task.yield() }
-        let third = await slot.run(within: .seconds(1)) {
+        await slot.settled()
+        let third = await slot.run(within: .seconds(60)) {
             calls.bump()
             return 3
         }

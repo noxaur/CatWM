@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -96,9 +97,9 @@ struct NativePlacementTests {
     @Test func aPendingWriteMustFinishBeforeTheUnchangedFrameCheck() async throws {
         let test = try fixture()
         let writer = AXWriter(pid: -1)
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         writer.run {
-            _ = release.wait(timeout: .now() + 30)
+            release.block()
             test.window.remember(test.frame.offsetBy(dx: 20, dy: 0))
         }
         test.manager.animator = Animator(makeWriter: { _ in writer })
@@ -106,9 +107,9 @@ struct NativePlacementTests {
         var released = false
         let delayedRelease = Task { @MainActor in
             released = true
-            release.signal()
+            release.open()
         }
-        defer { delayedRelease.cancel(); release.signal() }
+        defer { delayedRelease.cancel(); release.open() }
         try await test.manager.prepareNativeLayout(test.request, readFrames: { _ in
             #expect(released)
             #expect(test.window.cachedFrame != test.frame)

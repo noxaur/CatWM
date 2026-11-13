@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -7,7 +8,7 @@ import Testing
     private struct BlockedWriter {
         let animator: Animator
         let writer: AXWriter
-        let release: DispatchSemaphore
+        let release: Gate
     }
 
     @Test func noWritersCompleteImmediately() async {
@@ -16,16 +17,16 @@ import Testing
 
     @Test func timeoutReleasesTheWaitAndIgnoresLateCompletion() async {
         let blocked = blockedWriter()
-        defer { blocked.release.signal() }
+        defer { blocked.release.open() }
         #expect(await blocked.animator.waitForPendingWrites(pids: [-1], timeout: 0.02) == false)
-        blocked.release.signal()
+        blocked.release.open()
         await withCheckedContinuation { continuation in blocked.writer.run { continuation.resume() } }
         #expect(await blocked.animator.waitForPendingWrites(pids: [-1]) == true)
     }
 
     @Test func cancellationReleasesTheWaitBeforeTheWriter() async {
         let blocked = blockedWriter()
-        defer { blocked.release.signal() }
+        defer { blocked.release.open() }
         let waiting = Task { @MainActor in await blocked.animator.waitForPendingWrites(pids: [-1]) }
         await Task.yield()
         waiting.cancel()
@@ -34,7 +35,7 @@ import Testing
 
     @Test func anAlreadyCancelledTaskDoesNotStartWaiting() async {
         let blocked = blockedWriter()
-        defer { blocked.release.signal() }
+        defer { blocked.release.open() }
         let waiting = Task { @MainActor in await blocked.animator.waitForPendingWrites(pids: [-1]) }
         waiting.cancel()
         #expect(await waiting.value == false)
@@ -42,8 +43,8 @@ import Testing
 
     private func blockedWriter() -> BlockedWriter {
         let writer = AXWriter(pid: -1)
-        let release = DispatchSemaphore(value: 0)
-        writer.run { _ = release.wait(timeout: .now() + 2) }
+        let release = Gate()
+        writer.run { release.block() }
         let animator = Animator(makeWriter: { _ in writer })
         let window = Window(id: .max - 12, element: AXUIElementCreateApplication(-1), pid: -1, bundleID: nil)
         animator.position(window, at: CGRect(x: 10, y: 20, width: 300, height: 200))

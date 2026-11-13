@@ -200,13 +200,13 @@ private final class SlowBackend: WindowBackend {
     }
 
     @Test func aStepCancelledBeforeItRunsLeavesNothingLearned() async {
-        let gate = DispatchSemaphore(value: 0)
-        writer.run { _ = gate.wait(timeout: .now() + 2) }
+        let gate = Gate()
+        writer.run { gate.block() }
         backend.set(cost: 0.04)
         let skipped = SampleLog()
         writer.step(window) { time in skipped.record(time); return start.offsetBy(dx: 10, dy: 0) }
         writer.cancel(window.id)
-        gate.signal()
+        gate.open()
         await drain()
         #expect(skipped.last == nil)
         let now = backend.time

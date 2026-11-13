@@ -104,6 +104,14 @@ import Testing
         let manager: WindowManager
         let screen: Screen
         let ids: [CGWindowID]
+        let clock: FakeClock
+
+        @MainActor func settle() async {
+            #expect(await fake.settle(manager))
+            clock.advance(by: 1)
+            #expect(await fake.settle(manager))
+            clock.advance(by: 1)
+        }
     }
 
     private func threeTiles() async throws -> Tiles {
@@ -112,15 +120,12 @@ import Testing
         for pid in [-521, -522, -523] as [pid_t] {
             fake.addWindow(pid: pid, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
         }
-        var time: CFTimeInterval = 0
-        let manager = fake.makeManager({ $0.layouts = [.dwindle] }, now: {
-            time += 1
-            return time
-        })
-        #expect(await fake.settle(manager))
+        let clock = FakeClock()
+        let manager = fake.makeManager({ $0.layouts = [.dwindle] }, clock: clock)
+        await Tiles(fake: fake, manager: manager, screen: screen, ids: [], clock: clock).settle()
         let ids = manager.tiled(on: screen)
         try #require(ids.count == 3)
-        return Tiles(fake: fake, manager: manager, screen: screen, ids: ids)
+        return Tiles(fake: fake, manager: manager, screen: screen, ids: ids, clock: clock)
     }
 
     private func drag(_ id: CGWindowID, to frame: CGRect, in tiles: Tiles) async throws {
@@ -128,7 +133,7 @@ import Testing
         tiles.fake.userMoves(id, to: frame)
         tiles.manager.drags[id] = true
         tiles.manager.mouseUp()
-        #expect(await tiles.fake.settle(tiles.manager))
+        await tiles.settle()
     }
 
     private func ratios(_ tree: DwindleTree) -> [CGFloat] {
@@ -166,7 +171,7 @@ import Testing
         let tiles = try await threeTiles()
         let (fake, manager, screen, ids) = (tiles.fake, tiles.manager, tiles.screen, tiles.ids)
         manager.learnMinimum(ids[1], CGSize(width: 700, height: 100))
-        #expect(await fake.settle(manager))
+        await tiles.settle()
 
         try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 1200, height: 900), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle).first == 0.5625)

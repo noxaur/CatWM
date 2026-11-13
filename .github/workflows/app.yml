@@ -43,7 +43,7 @@ jobs:
       - id: perf
         if: steps.changes.outputs.perf != 'false'
         continue-on-error: true
-        run: python3 Tools/perf.py --runs 6 --out perf.md ${{ github.event_name != 'pull_request' && '--profile app-sample.txt' || '' }}
+        run: python3 Tools/perf.py --out perf.md ${{ github.event_name != 'pull_request' && '--profile app-sample.txt' || '' }}
       # Each suite starts its own instance and cleans up after itself.
       - id: smoke
         if: always()

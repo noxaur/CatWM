@@ -150,7 +150,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
             let writer = AXWriter(pid: pid, backend: backend, now: { backend.clock(pid) })
             made?(pid, writer)
             return writer
-        }, applyFocus: { _, _ in }, now: { backend.time }, makeClock: { screen, tick in
+        }, now: { backend.time }, makeClock: { screen, tick in
             let clock = Clock(screen?.displayID, tick)
             started?(clock)
             return clock
@@ -222,8 +222,9 @@ package final class LatencyBackend: WindowBackend, Sendable {
         func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
             for move in moves {
                 let id = move.window.id
-                guard spec.duration >= 0.08, appearances[id]?.canFill(from: move.from ?? move.window.cachedFrame,
-                                                                      to: move.target) == true else {
+                let from = move.from ?? move.window.cachedFrame
+                guard spec.duration >= MotionTiming.shortestFill,
+                      appearances[id]?.canFill(from: from, to: move.target) == true else {
                     cancel(id); continue
                 }
                 active.insert(id)
@@ -231,8 +232,8 @@ package final class LatencyBackend: WindowBackend, Sendable {
         }
 
         func sizing(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> ColorFillSizing? {
-            guard spec.duration >= 0.08, appearances[move.window.id]?.canFill(from: from, to: move.target) == true
-            else { return nil }
+            guard spec.duration >= MotionTiming.shortestFill,
+                  appearances[move.window.id]?.canFill(from: from, to: move.target) == true else { return nil }
             return ColorFillSizing(source: from, target: move.target)
         }
 

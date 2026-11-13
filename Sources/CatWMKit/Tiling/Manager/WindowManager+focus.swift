@@ -3,7 +3,7 @@ import AppKit
 extension WindowManager {
     package func focus(_ window: Window, warp: Bool = true) {
         let request = focusRequests.begin(id: window.id, pid: window.pid, origin: frontmostPID())
-        animator.focus(window) { [weak self] in
+        focusWriter.focus(window) { [weak self] in
             guard let self, self.focusRequests.executed(request) else { return }
             self.requestFocusObservation()
         }

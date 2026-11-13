@@ -79,7 +79,7 @@ import QuartzCore
     }
 
     package static func needed(desired: CGRect, actual: CGRect) -> Bool {
-        !actual.contains(desired) && !desired.approxEqual(actual, tolerance: 0.25)
+        !actual.contains(desired) && !desired.approxEqual(actual, tolerance: FrameTolerance.fill)
     }
 
     package func update(desired: CGRect, actual: CGRect, order: [CGWindowID]? = nil) {

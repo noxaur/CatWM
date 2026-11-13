@@ -18,7 +18,7 @@ import Testing
     }
 
     @Test func aTerminatedAppReleasesItsWriter() {
-        let animator = Animator(makeWriter: { AXWriter(pid: $0) }, applyFocus: { _, _ in })
+        let animator = Animator(makeWriter: { AXWriter(pid: $0) })
         let window = Window(id: 4101, element: AXUIElementCreateApplication(-41), pid: -41, bundleID: nil)
         animator.position(window, at: CGRect(x: 0, y: 0, width: 100, height: 100))
         #expect(animator.activeWriterPids == [-41])

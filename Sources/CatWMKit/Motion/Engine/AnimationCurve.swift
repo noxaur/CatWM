@@ -130,8 +130,4 @@ package enum AnimationCurve: Hashable {
         }
         return coord(param, firstY, secondY)
     }
-
-    package func arrival(bounce: Double) -> Double {
-        (0...500).lazy.map { Double($0) / 500 }.first { progress($0, bounce: bounce) >= 0.99 } ?? 1
-    }
 }

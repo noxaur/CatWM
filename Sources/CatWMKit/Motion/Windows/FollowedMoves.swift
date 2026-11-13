@@ -21,13 +21,12 @@ package struct FollowedMoves {
     }
 
     package mutating func minimum(after move: Animator.Move, actual: CGSize?) -> CGSize? {
-        let id = move.window.id, target = move.target.size
+        let id = move.window.id
         guard moves[id] != nil, let actual else { return nil }
-        let wider = actual.width > target.width + 1, taller = actual.height > target.height + 1
-        guard wider || taller else { refusals[id] = nil; return nil }
+        guard let minimum = LandingCheck.minimum(actual, for: move.target.size) else { refusals[id] = nil; return nil }
         defer { refusals[id] = actual }
-        guard let previous = refusals[id], abs(previous.width - actual.width) <= 1,
-              abs(previous.height - actual.height) <= 1 else { return nil }
-        return CGSize(width: wider ? actual.width : 0, height: taller ? actual.height : 0)
+        guard let previous = refusals[id], abs(previous.width - actual.width) <= FrameTolerance.refused,
+              abs(previous.height - actual.height) <= FrameTolerance.refused else { return nil }
+        return minimum
     }
 }

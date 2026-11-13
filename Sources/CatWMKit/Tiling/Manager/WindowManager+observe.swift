@@ -130,7 +130,7 @@ extension WindowManager {
         let focused = focusClock > 0 && focusStamps[id] == focusClock
         showHeir(of: id, focused: focused)
         if focusRequests.forget(id, refocusOn: !restoringTemplate && focused ? workspaceOf[id] : nil) {
-            animator.cancelFocus()
+            focusWriter.cancel()
         }
         windows[id] = nil
         surface.windowForgotten(id)

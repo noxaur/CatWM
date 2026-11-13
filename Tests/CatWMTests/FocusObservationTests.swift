@@ -165,7 +165,7 @@ import Testing
             return .focused(nil)
         }
         await withCheckedContinuation { continuation in
-            manager.animator = Animator(applyFocus: { [weak manager] focused, isCurrent in
+            manager.focusWriter = FocusWriter(apply: { [weak manager] focused, isCurrent in
                 #expect(focused.id == remaining.id && isCurrent())
                 DispatchQueue.main.async {
                     manager?.isStarted = false
@@ -209,7 +209,7 @@ import Testing
         manager.visible = [tracked.id]
         let release = DispatchSemaphore(value: 0)
         await withCheckedContinuation { continuation in
-            manager.animator = Animator(applyFocus: { _, _ in
+            manager.focusWriter = FocusWriter(apply: { _, _ in
                 continuation.resume()
                 _ = release.wait(timeout: .now() + 3)
             })
@@ -249,12 +249,13 @@ import Testing
         let release = DispatchSemaphore(value: 0)
         let focused = DispatchSemaphore(value: 0)
         writer.run { _ = release.wait(timeout: .now() + 3) }
-        let animator = Animator(makeWriter: { _ in writer }, applyFocus: { _, isCurrent in
+        let animator = Animator(makeWriter: { _ in writer })
+        let focusWriter = FocusWriter(apply: { _, isCurrent in
             #expect(!Thread.isMainThread && isCurrent())
             focused.signal()
         })
         animator.position(tracked, at: CGRect(x: 10, y: 20, width: 300, height: 200))
-        animator.focus(tracked)
+        focusWriter.focus(tracked)
         #expect(focused.wait(timeout: .now() + 2) == .success)
         release.signal()
     }

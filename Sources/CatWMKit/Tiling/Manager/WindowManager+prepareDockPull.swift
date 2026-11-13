@@ -118,13 +118,13 @@ extension WindowManager {
         prepareFocusSink()
         guard let sink = focusSink else { return }
         if sink.isKeyWindow, frontmostPID() == getpid() {
-            animator.focusSink(CGWindowID(sink.windowNumber))
+            focusWriter.focusSink(CGWindowID(sink.windowNumber))
             return
         }
         if let primary = NSScreen.screens.first { sink.setFrameOrigin(NSPoint(x: 0, y: primary.frame.maxY - 1)) }
         sink.orderFrontRegardless()
         sink.makeKey()
-        animator.focusSink(CGWindowID(sink.windowNumber))
+        focusWriter.focusSink(CGWindowID(sink.windowNumber))
     }
 
     package func parkFocus(on screen: Screen) {

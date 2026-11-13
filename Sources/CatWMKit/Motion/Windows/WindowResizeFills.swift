@@ -42,7 +42,7 @@ import QuartzCore
                     }
                     guard !busy(id),
                           WindowServerReads.currentFrame(id)?
-                            .approxEqual(snapshot.frame, tolerance: 0.25) == true else {
+                            .approxEqual(snapshot.frame, tolerance: FrameTolerance.fill) == true else {
                         return
                     }
                     self.cache[id] = Cached(appearance: appearance, frame: snapshot.frame, time: CACurrentMediaTime())
@@ -53,12 +53,15 @@ import QuartzCore
     }
 
     package func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
-        guard spec.duration >= 0.08 else { moves.forEach { cancel($0.window.id) }; return }
+        guard spec.duration >= MotionTiming.shortestFill else {
+            moves.forEach { cancel($0.window.id) }
+            return
+        }
         follow(moves)
     }
 
     package func sizing(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> ColorFillSizing? {
-        guard spec.duration >= 0.08, let cached = cache[move.window.id],
+        guard spec.duration >= MotionTiming.shortestFill, let cached = cache[move.window.id],
               cached.appearance.canFill(from: from, to: move.target),
               let screen = Screen.all().first(where: { $0.frame.contains(from) && $0.frame.contains(move.target) }),
               let native = screen.nsScreen,
@@ -99,7 +102,7 @@ import QuartzCore
             if fills[id]?.visible == true {
                 if stats[id]?.visible == 0 { Log.debug("window-fill: visible \(id)") }
                 stats[id, default: Stats()].visible += 1
-            } else if actual.contains(desired) || actual.approxEqual(desired, tolerance: 0.25) {
+            } else if actual.contains(desired) || actual.approxEqual(desired, tolerance: FrameTolerance.fill) {
                 stats[id, default: Stats()].caughtUp += 1
             } else if actual.minY != desired.minY { stats[id, default: Stats()].movedTop += 1 }
         }

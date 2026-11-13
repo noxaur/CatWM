@@ -13,7 +13,7 @@ import Testing
     }
 
     @Test func aForgottenWindowLeavesNoAnimatorState() {
-        let animator = Animator(makeWriter: { AXWriter(pid: $0) }, applyFocus: { _, _ in })
+        let animator = Animator(makeWriter: { AXWriter(pid: $0) })
         let window = Window(id: 4201, element: AXUIElementCreateApplication(-43), pid: -43, bundleID: nil)
         animator.position(window, at: CGRect(x: 0, y: 0, width: 100, height: 100))
         #expect(animator.isBusy(window.id))

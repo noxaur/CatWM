@@ -131,6 +131,7 @@ import AppKit
     package var mayTile: () -> Bool = { true }
     package var ignoreMouseUntil = Date.distantPast
     package var animator: Animator
+    package var focusWriter = FocusWriter()
     package var notificationObservers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     package var eventMonitors: [Any] = []
     package let scanner: WindowScanner

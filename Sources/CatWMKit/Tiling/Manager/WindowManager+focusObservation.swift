@@ -4,7 +4,7 @@ extension WindowManager {
     package func requestFocusObservation() {
         guard isStarted, let pid = frontmostPID() else { return }
         let observation = focusRequests.beginObservation(pid: pid)
-        if observation.cancelledRequest { animator.cancelFocus() }
+        if observation.cancelledRequest { focusWriter.cancel() }
         guard observation.shouldRead else { return }
         let generation = observation.generation
         focusRequests.focusReader.observe(pid) { [weak self] result in
@@ -61,7 +61,7 @@ extension WindowManager {
 
     package func cancelFocusRequest() {
         focusRequests.cancel()
-        animator.cancelFocus()
+        focusWriter.cancel()
     }
 
     package func readFrames(_ windows: [Window], completion: @escaping () -> Void) {

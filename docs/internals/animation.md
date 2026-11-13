@@ -8,6 +8,12 @@ CatWM animates real windows by writing AX frames, so the app's resize and redraw
 
 `Animator` steps on an `NSScreen` display link for the fastest display that holds an active destination. Each app writer samples at the link's `targetTimestamp`, or at its estimated write-completion time when it has fallen behind. Pending writes coalesce, so a slow app skips obsolete frames instead of replaying them. The estimate learns only from successful writes: samples are capped at 50 ms, it follows rising costs at 80% weight and falling costs at 40%, and it expires after one second idle. These are tuning heuristics. A successful AX write doesn't prove the app has drawn fresh pixels.
 
+## Landing
+
+A window that `Animator` writes stays busy for `MotionTiming.quietAfterWrite` after its last write, so the AX echo of CatWM's own move doesn't read as a user move. An app that ignores a write sends no event, so `LandingCheck` reads each landed window back after `MotionTiming.landingCheckDelay` and writes the target once more. A window that stays larger teaches the layout its minimum size, and one whose top edge stays lower teaches it the menu bar. One epoch per window says whether a landing callback or a check is still current, and a cancel bumps it.
+
+Focus writes don't belong to motion, so `FocusWriter` in `Tiling/Focus` owns them. They run on a queue per app apart from the frame writer's, so focus never waits behind a slow app's frame writes.
+
 ## One motion per screen
 
 A refresh animates each screen's moves with the motion of that screen's workspace (a workspace rule can change it), so `applyTileMoves` hands the animator one batch per screen, and `maxAnimatedMoves` counts per batch. Moves that must not animate go first in a batch of their own and land at once.

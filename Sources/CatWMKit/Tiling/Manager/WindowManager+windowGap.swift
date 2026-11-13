@@ -133,7 +133,7 @@ extension WindowManager {
         }) {
         case .none: break
         case .window(let id): return windows[id]
-        case .cancelled: animator.cancelFocus()
+        case .cancelled: focusWriter.cancel()
         }
         return reportedFocusedWindow()
     }

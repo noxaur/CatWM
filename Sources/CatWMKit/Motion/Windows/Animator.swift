@@ -1,22 +1,17 @@
 import AppKit
 import Foundation
-import os
 import QuartzCore
 
 @MainActor package final class Animator {
     private var items: [CGWindowID: Item] = [:]
-    private var landing: [CGWindowID: (move: Move, number: Int)] = [:]
-    private var landings = 0
+    private var landing: [CGWindowID: Move] = [:]
     private var quietUntil: [CGWindowID: CFTimeInterval] = [:]
     private var following = FollowedMoves()
     private var writers: [pid_t: AXWriter] = [:]
     private var owners: [CGWindowID: pid_t] = [:]
     private var epochs: [CGWindowID: Int] = [:], epochCount = 0
-    private let focusGeneration = OSAllocatedUnfairLock(initialState: 0)
-    private var focusQueues: [pid_t: DispatchQueue] = [:]
     private let backend: any WindowBackend
     private let makeWriter: (pid_t) -> AXWriter
-    private let applyFocus: @Sendable (Window, @Sendable () -> Bool) -> Void
     package var windowPresentation: (any WindowPresentation)?
     private var clock: (any FrameClock)?
     private let makeClock: MakeClock, now: () -> CFTimeInterval
@@ -26,12 +21,10 @@ import QuartzCore
     package var onLanded: (() -> Void)?
 
     package init(backend: any WindowBackend = AXBackend.shared, makeWriter: ((pid_t) -> AXWriter)? = nil,
-                 applyFocus: @escaping @Sendable (Window, @Sendable () -> Bool) -> Void = { $0.focus(ifCurrent: $1) },
                  now: @escaping () -> CFTimeInterval = CACurrentMediaTime,
                  makeClock: @escaping MakeClock = Animator.displayLink) {
         self.backend = backend
         self.makeWriter = makeWriter ?? { AXWriter(pid: $0, backend: backend) }
-        self.applyFocus = applyFocus
         (self.now, self.makeClock) = (now, makeClock)
         motionRun = MotionRun { backend.serverFrame(of: $0) }
     }
@@ -44,39 +37,6 @@ import QuartzCore
         }
     }
 
-    package func cancelFocus() { focusGeneration.withLock { $0 += 1 } }
-
-    package func focus(_ window: Window, done: @escaping @MainActor () -> Void = {}) {
-        let generation = focusGeneration.withLock { $0 += 1; return $0 }
-        let queue = focusQueues[window.pid]
-            ?? DispatchQueue(label: "catwm.focus-write.\(window.pid)", qos: .userInteractive)
-        focusQueues[window.pid] = queue
-        let focusGeneration = focusGeneration, applyFocus = applyFocus
-        queue.async {
-            let isCurrent = { @Sendable in focusGeneration.withLock { $0 == generation } }
-            guard isCurrent() else { return }
-            applyFocus(window, isCurrent)
-            DispatchQueue.main.async {
-                guard isCurrent() else { return }
-                done()
-            }
-        }
-    }
-
-    package func focusSink(_ window: CGWindowID) {
-        let generation = focusGeneration.withLock { $0 += 1; return $0 }
-        let focusGeneration = focusGeneration
-        DispatchQueue.global(qos: .userInteractive).async {
-            guard focusGeneration.withLock({ $0 == generation }) else { return }
-            if !WindowServerFocus.focus(pid: getpid(), window: window) {
-                DispatchQueue.main.async {
-                    guard focusGeneration.withLock({ $0 == generation }) else { return }
-                    NSApp.activate(ignoringOtherApps: true)
-                }
-            }
-        }
-    }
-
     package func isBusy(_ id: CGWindowID) -> Bool {
         isAnimating(id) || (quietUntil[id] ?? 0) > now()
     }
@@ -86,7 +46,7 @@ import QuartzCore
     }
 
     package func destination(_ id: CGWindowID) -> CGRect? {
-        items[id]?.move.target ?? landing[id]?.move.target ?? following[id]?.target
+        items[id]?.move.target ?? landing[id]?.target ?? following[id]?.target
     }
 
     package func isMoving(_ id: CGWindowID, to frame: CGRect) -> Bool { destination(id) == frame }
@@ -95,13 +55,14 @@ import QuartzCore
         windowPresentation?.cancel(id)
         nextEpoch(for: id)
         following.remove(id)
-        let item = items.removeValue(forKey: id), landed = landing.removeValue(forKey: id)
-        guard let pid = item?.move.window.pid ?? landed?.move.window.pid ?? owners[id] else { return }
+        items[id] = nil
+        landing[id] = nil
+        guard let pid = owners[id] else { return }
         writers[pid]?.cancel(id)
     }
 
-    package func quiet(_ id: CGWindowID, for seconds: Double = 0.4) {
-        quietUntil[id] = now() + seconds
+    package func quiet(_ id: CGWindowID) {
+        quietUntil[id] = now() + MotionTiming.quietAfterWrite
     }
 
     package func animate(_ moves: [Move], duration: Double, curve: AnimationCurve = .easeOut, bounce: Double = 0) {
@@ -126,7 +87,7 @@ import QuartzCore
             from = running.frame(at: now)
             velocity = running.velocity(at: now)
         } else if let landed = landing.removeValue(forKey: id) {
-            from = move.from ?? landed.move.target
+            from = move.from ?? landed.target
         } else if let followed = following[id] {
             from = move.from ?? followed.target
         } else {
@@ -134,8 +95,9 @@ import QuartzCore
         }
         cancel(id)
         owners[id] = move.window.pid
-        if spec.duration < 0.01 || from.isNull || from.approxEqual(move.target, tolerance: 2) {
-            items[id] = nil; land(move)
+        if spec.duration < MotionTiming.landsAtOnceBelow || from.isNull
+            || from.approxEqual(move.target, tolerance: FrameTolerance.landed) {
+            land(move)
         } else {
             items[id] = Item(move: move, from: from, start: now, spec: spec, velocity: velocity)
             items[id]?.colorSizing = windowPresentation?.sizing(for: move, from: from, spec: spec)
@@ -147,12 +109,11 @@ import QuartzCore
     package func position(_ window: Window, at frame: CGRect) {
         cancel(window.id)
         owners[window.id] = window.pid
-        landings += 1
-        let number = landings
-        landing[window.id] = (.init(window: window, to: frame, bounds: frame), number)
+        let epoch = epochs[window.id]
+        landing[window.id] = .init(window: window, to: frame, bounds: frame)
         quiet(window.id)
         writer(window.pid).position(window, at: frame.origin) { [weak self] _ in
-            guard let self, self.landing[window.id]?.number == number else { return }
+            guard let self, self.epochs[window.id] == epoch else { return }
             self.landing[window.id] = nil
             self.quiet(window.id)
         }
@@ -210,53 +171,35 @@ import QuartzCore
 
     private func land(_ move: Move) {
         let id = move.window.id
-        landings += 1
-        let number = landings
         let epoch = epochs[id] ?? nextEpoch(for: id)
-        landing[id] = (move, number)
-        quietUntil[id] = now() + 0.4
+        landing[id] = move
+        quiet(id)
         writer(move.window.pid).land(move.window, at: move.target) { [weak self] wrote in
-            guard let self, self.landing[id]?.number == number else { return }
+            guard let self, self.epochs[id] == epoch else { return }
             self.landing[id] = nil
             self.updateWindowPresentation()
             if wrote { self.onLanded?() }
-            self.quietUntil[id] = self.now() + 0.4
+            self.quiet(id)
             DispatchQueue.main.asyncAfter( // style-ok: an app that ignores a write sends no event
-                deadline: .now() + 0.12
-            ) { [weak self] in self?.verify(move, epoch: epoch) }
+                deadline: .now() + MotionTiming.landingCheckDelay
+            ) { [weak self] in self?.checkLanding(move, epoch: epoch) }
         }
     }
 
-    private func verify(_ move: Move, epoch: Int) {
-        let window = move.window
-        guard epochs[window.id, default: 0] == epoch, items[window.id] == nil, landing[window.id] == nil,
-              !window.placementSuspended else { return }
-        quietUntil[window.id] = now() + 0.4
-        let writer = writer(window.pid)
-        writer.run(for: window.id) { [weak self, backend] isCurrent in
-            var actual = window.frame
-            guard isCurrent(), !window.placementSuspended, !backend.blocksPlacement(window),
-                  !actual.isNull, !actual.approxEqual(move.target, tolerance: 2) else { return }
-            writer.suspendEnhancedUI()
-            defer { writer.resumeEnhancedUI() }
-            guard isCurrent(), !window.placementSuspended else { return }
-            window.setFrame(move.target)
-            actual = window.frame
-            guard isCurrent(), !window.placementSuspended else { return }
-            var minimum: CGSize?
-            if !actual.isNull, actual.width > move.target.width + 1 || actual.height > move.target.height + 1 {
-                minimum = CGSize(width: actual.width > move.target.width + 1 ? actual.width : 0,
-                                 height: actual.height > move.target.height + 1 ? actual.height : 0)
-                var origin = move.target.origin
-                origin.x = max(move.bounds.minX, min(origin.x, move.bounds.maxX - actual.width))
-                origin.y = max(move.bounds.minY, min(origin.y, move.bounds.maxY - actual.height))
-                window.setPosition(origin)
+    private func checkLanding(_ move: Move, epoch: Int) {
+        let id = move.window.id
+        guard epochs[id] == epoch, items[id] == nil, landing[id] == nil, !move.window.placementSuspended else { return }
+        quiet(id)
+        let writer = writer(move.window.pid)
+        writer.run(for: id) { [weak self, backend] isCurrent in
+            guard let refusal = LandingCheck.run(move, writer: writer, backend: backend, isCurrent: isCurrent) else {
+                return
             }
-            DispatchQueue.main.async { [actual] in
-                guard let self, self.epochs[window.id, default: 0] == epoch else { return }
-                self.quietUntil[window.id] = self.now() + 0.4
-                if let minimum { self.onMinimumSize?(window.id, minimum) }
-                if !actual.isNull, actual.minY > move.target.minY + 1 { self.onTopRefused?(move.target, actual) }
+            DispatchQueue.main.async {
+                guard let self, self.epochs[id] == epoch else { return }
+                self.quiet(id)
+                if let minimum = refusal.minimum { self.onMinimumSize?(id, minimum) }
+                if refusal.refusedTop { self.onTopRefused?(move.target, refusal.actual) }
             }
         }
     }
@@ -269,7 +212,7 @@ extension Animator {
             if items[id] != nil || landing[id] != nil { cancel(id) }
             owners[id] = move.window.pid
             following.add(move)
-            quietUntil[id] = now() + 0.4
+            quiet(id)
         }
         windowPresentation?.follow(moves)
         updateWindowPresentation()
@@ -288,7 +231,7 @@ extension Animator {
         let time = time ?? now()
         let samples = items.mapValues { $0.frame(at: time, aligned: false) }
         let moving = following.frames.merging(samples) { _, frame in frame }
-        windowPresentation.update(moving.merging(landing.mapValues { $0.move.target }) { frame, _ in frame })
+        windowPresentation.update(moving.merging(landing.mapValues(\.target)) { frame, _ in frame })
     }
 
     private func startClock() {
@@ -329,10 +272,7 @@ extension Animator {
         return epochCount
     }
 
-    package func terminated(_ pid: pid_t) {
-        writers[pid] = nil
-        focusQueues[pid] = nil
-    }
+    package func terminated(_ pid: pid_t) { writers[pid] = nil }
 }
 
 extension Animator {

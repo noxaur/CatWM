@@ -12,6 +12,7 @@ swiftc -package-name CatWM -D CATWM_FILL_PROBE \
   Sources/CatWMKit/Motion/Windows/WindowFillAppearance.swift \
   Sources/CatWMKit/Motion/Windows/WindowResizeFill.swift \
   Sources/CatWMKit/Motion/Windows/WindowServerReads.swift \
+  Sources/CatWMKit/Motion/Windows/MotionTiming.swift \
   Sources/CatWMKit/Chrome/CatWMPanel.swift \
   Sources/CatWMKit/App/MainThread.swift \
   Sources/CatWMKit/Tiling/Access/Screen.swift \

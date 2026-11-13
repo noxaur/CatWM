@@ -141,7 +141,7 @@ extension WindowManager {
                 focus(window, warp: false)
                 return
             }
-            if self?.focusRequests.pendingFocus == nil { self?.animator.cancelFocus() }
+            if self?.focusRequests.pendingFocus == nil { self?.focusWriter.cancel() }
             self?.requestFocusObservation()
         }
     }
@@ -182,6 +182,7 @@ extension WindowManager {
         observing.removeValue(forKey: pid)
         windows.values.filter { $0.pid == pid }.forEach { self.forget($0.id, keepRecovery: true) }
         animator.terminated(pid)
+        focusWriter.terminated(pid)
         focusRequests.focusReader.terminated(pid)
     }
 

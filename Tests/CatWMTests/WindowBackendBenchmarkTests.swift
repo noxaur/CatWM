@@ -54,7 +54,7 @@ struct WindowBackendBenchmarkTests {
             for step in 0..<Self.steps {
                 for (index, window) in windows.enumerated() {
                     let offset = CGFloat(step)
-                    writer.step(window) { _ in
+                    writer.step(window, .init(shown: 0, presentation: 0)) { _ in
                         CGRect(x: CGFloat(index) + offset, y: 10, width: 300 + offset, height: 200)
                     }
                 }

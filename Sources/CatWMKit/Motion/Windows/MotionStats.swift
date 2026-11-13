@@ -11,38 +11,6 @@ package struct Stat {
     }
 }
 
-package struct StepCost {
-    package static let limit = 0.05
-    private static let rise = 0.8, fall = 0.4
-
-    package private(set) var seconds: Double?
-
-    package var lead: Double { seconds ?? 0 }
-
-    package mutating func add(_ cost: Double) {
-        let cost = min(cost, Self.limit)
-        guard let seconds else { self.seconds = cost; return }
-        self.seconds = seconds + (cost > seconds ? Self.rise : Self.fall) * (cost - seconds)
-    }
-}
-
-package struct WindowWriteCost: Sendable {
-    private var cost = StepCost()
-    private var sampledAt: CFTimeInterval?
-    private static let lifetime: CFTimeInterval = 1
-
-    package func lead(at now: CFTimeInterval) -> Double {
-        guard let sampledAt, (0...Self.lifetime).contains(now - sampledAt) else { return 0 }
-        return cost.lead
-    }
-
-    package mutating func add(_ seconds: Double, at now: CFTimeInterval) {
-        if let sampledAt, !(0...Self.lifetime).contains(now - sampledAt) { cost = StepCost() }
-        cost.add(seconds)
-        sampledAt = now
-    }
-}
-
 package struct SlowApp {
     package let bundle: String
     package let stepMs: Double

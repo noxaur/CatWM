@@ -28,12 +28,12 @@ extension Animator {
 
     package struct Item {
         let move: Move
-        let start: CFTimeInterval
+        var start: CFTimeInterval?
         let duration: Double
         let tracks: [Trajectory]
         var colorSizing: ColorFillSizing?
 
-        package init(move: Move, from: CGRect, start: CFTimeInterval, spec: MotionSpec, velocity: [Double]? = nil) {
+        package init(move: Move, from: CGRect, start: CFTimeInterval?, spec: MotionSpec, velocity: [Double]? = nil) {
             self.move = move
             self.start = start
             duration = spec.duration
@@ -45,7 +45,7 @@ extension Animator {
             }
         }
 
-        package init(move: Move, tracks: [Trajectory], start: CFTimeInterval, duration: Double) {
+        package init(move: Move, tracks: [Trajectory], start: CFTimeInterval?, duration: Double) {
             self.move = move
             self.start = start
             self.duration = duration
@@ -55,18 +55,27 @@ extension Animator {
 }
 
 extension Animator.Item {
-    package func request(at predictedTime: CFTimeInterval, presentedAt time: CFTimeInterval) -> CGRect {
-        let predicted = frame(at: predictedTime)
+    package var end: CFTimeInterval? { start.map { $0 + duration } }
+
+    package func request(at times: WindowLead.Times, presentedAt time: CFTimeInterval) -> CGRect {
+        let predicted = frame(position: times.position, size: times.size)
         return colorSizing?.request(predicted: predicted, viewport: frame(at: time, aligned: false)) ?? predicted
     }
+
     package func frame(at now: CFTimeInterval, aligned: Bool = true) -> CGRect {
-        let elapsed = now - start
-        let values = tracks.map { $0.value(at: elapsed) }
+        frame(position: now, size: now, aligned: aligned)
+    }
+
+    private func frame(position: CFTimeInterval, size: CFTimeInterval, aligned: Bool = true) -> CGRect {
+        let values = tracks.indices.map { index in
+            let time = index < 2 ? position : size
+            return tracks[index].value(at: time - (start ?? time))
+        }
         let frame = CGRect(x: values[0], y: values[1], width: max(1, values[2]), height: max(1, values[3]))
         return aligned ? frame.pixelAligned : frame
     }
 
-    package func velocity(at now: CFTimeInterval) -> [Double] {
-        tracks.map { $0.velocity(at: now - start) }
+    package func velocity(at now: CFTimeInterval) -> [Double]? {
+        start.map { start in tracks.map { $0.velocity(at: now - start) } }
     }
 }

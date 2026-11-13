@@ -45,7 +45,7 @@ struct AnimationWriteTests {
             let frame = item.frame(at: Double(step) / 120)
             if frame != previous { changedFrames += 1 }
             previous = frame
-            writer.step(window) { _ in frame }
+            writer.step(window, .init(shown: 0, presentation: 0)) { _ in frame }
             await drain(writer)
             #expect(backend.frame(of: id) == frame)
         }
@@ -76,7 +76,9 @@ struct AnimationWriteTests {
         let target = start.offsetBy(dx: 600, dy: 0)
         let item = Animator.Item(move: .init(window: window, to: target, bounds: target), from: start,
                                  start: now, spec: .init(duration: 120, curve: .linear, bounce: 0))
-        writer.step(window, notBefore: presentation) { item.frame(at: $0) }
+        writer.step(window, .init(shown: presentation - 1.0 / 60, presentation: presentation)) {
+            item.frame(at: $0.position)
+        }
         await drain(writer)
         #expect(backend.frame(of: id) == item.frame(at: presentation))
         writer.cancel(id)
@@ -95,7 +97,7 @@ struct AnimationWriteTests {
         let target = start.offsetBy(dx: 600, dy: 0)
         let item = Animator.Item(move: .init(window: window, to: target, bounds: target), from: start,
                                  start: now - 120, spec: .init(duration: 120, curve: .linear, bounce: 0))
-        writer.step(window, notBefore: now - 60) { item.frame(at: $0) }
+        writer.step(window, .init(shown: now - 60 - 1.0 / 60, presentation: now - 60)) { item.frame(at: $0.position) }
         await drain(writer)
         #expect(backend.frame(of: id) == target)
         writer.cancel(id)
@@ -112,13 +114,13 @@ struct AnimationWriteTests {
         let writer = AXWriter(pid: window.pid, backend: backend)
         let target = start.offsetBy(dx: 20, dy: 0)
         backend.minimize(id)
-        writer.step(window) { _ in target }
+        writer.step(window, .init(shown: 0, presentation: 0)) { _ in target }
         await drain(writer)
         #expect(backend.placementChecks == 1)
         #expect(backend.writes.isEmpty)
         #expect(backend.frame(of: id) == start)
         backend.minimize(id, false)
-        writer.step(window) { _ in target }
+        writer.step(window, .init(shown: 0, presentation: 0)) { _ in target }
         await drain(writer)
         #expect(backend.placementChecks == 2)
         #expect(backend.frame(of: id) == target)
@@ -134,13 +136,13 @@ struct AnimationWriteTests {
         let window = Window(id: id, element: element, pid: -100, bundleID: nil, backend: backend)
         window.remember(frame)
         let writer = AXWriter(pid: window.pid, backend: backend)
-        writer.step(window) { _ in frame }
+        writer.step(window, .init(shown: 0, presentation: 0)) { _ in frame }
         await drain(writer)
         let moved = frame.offsetBy(dx: 40, dy: 0)
         backend.userMoves(id, to: moved)
         window.remember(moved)
         backend.clearWrites()
-        writer.step(window) { _ in frame }
+        writer.step(window, .init(shown: 0, presentation: 0)) { _ in frame }
         await drain(writer)
         #expect(backend.frame(of: id) == frame)
         #expect(backend.writes.contains(.position(id, frame.origin)))

@@ -89,7 +89,7 @@ import Testing
         let result = try #require(await MotionBench.measure(MotionBench.ratio(), .instant, mode: .live))
         let quality = try #require(result.quality)
         #expect(quality.samples > 3)
-        #expect(quality.error.p50 < 1)
+        #expect(quality.error.max < 1)
         #expect(quality.tail?.max == 0)
         print("instant: \(quality.text)")
     }
@@ -101,6 +101,18 @@ import Testing
         #expect(live.gap.max > 0)
         #expect(fill.filled > 0)
         #expect(fill.gap.max <= live.gap.max)
+    }
+
+    @Test func aLeadLearnedOnOneMoveTracksASlowAppOnTheNext() async throws {
+        for profile in ["fixed", "slow-resize"] {
+            for scene in MotionBench.moves {
+                let warm = try #require(await MotionBench.measure(scene, .named(profile), mode: .live, warm: true)?
+                    .quality)
+                #expect(warm.error.p95 < 2, "\(scene.name) \(profile)")
+                #expect(warm.overshoot.max < 1, "\(scene.name) \(profile)")
+                #expect((warm.tail?.max ?? 1) < 0.02, "\(scene.name) \(profile)")
+            }
+        }
     }
 
     @Test func colorFillDoesNotEngageWhenTheTopEdgeMoves() async throws {

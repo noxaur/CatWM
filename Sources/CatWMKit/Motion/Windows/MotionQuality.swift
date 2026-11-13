@@ -81,7 +81,7 @@ package struct MotionQuality {
     package static func overshoot(_ actual: CGRect, from: CGRect, to target: CGRect) -> Double {
         zip(edges(actual), zip(edges(from), edges(target))).map { value, span in
             let travel = span.1 - span.0
-            return travel == 0 ? 0 : max(0, (value - span.1) * (travel > 0 ? 1 : -1))
+            return travel == 0 ? 0 : max(0, travel > 0 ? value - span.1 : span.1 - value)
         }.max() ?? 0
     }
 
@@ -120,7 +120,6 @@ package struct MotionQuality {
         var arrived: CFTimeInterval?
     }
     package var measures = false
-    package var readFrame: @MainActor (CGWindowID) -> CGRect?
     package var beginRun: (String) -> (([SlowApp]) -> Void)? = { _ in nil }
     package var onEnd: ((_ ticks: Stat, _ quality: MotionQuality?) -> Void)?
     private var endRun: (([SlowApp]) -> Void)?
@@ -129,8 +128,6 @@ package struct MotionQuality {
     private var previous: [CGWindowID: (actual: CGRect, desired: CGRect)] = [:]
     private var arrivals: [CGWindowID: CFTimeInterval] = [:]
     private var settling: [CGWindowID: Settling] = [:]
-
-    init(readFrame: @escaping @MainActor (CGWindowID) -> CGRect?) { self.readFrame = readFrame }
 
     var isSettling: Bool { !settling.isEmpty }
 
@@ -145,20 +142,20 @@ package struct MotionQuality {
     func finished(_ item: Animator.Item) {
         guard quality != nil else { return }
         let id = item.move.window.id
-        settling[id] = Settling(target: item.move.target, end: item.start + item.duration, pid: item.move.window.pid,
+        settling[id] = Settling(target: item.move.target, end: item.end ?? 0, pid: item.move.window.pid,
                                 arrived: arrivals.removeValue(forKey: id))
         previous[id] = nil
     }
 
-    func measure(_ items: [CGWindowID: Animator.Item], at time: CFTimeInterval, shown: (any WindowPresentation)?) {
+    func measure(_ items: [CGWindowID: Animator.Item], observed: [CGWindowID: CGRect], at time: CFTimeInterval,
+                 shown: (any WindowPresentation)?, read: (CGWindowID) -> CGRect?) {
         guard quality != nil else { return }
         for (id, item) in items {
             settling[id] = nil
-            guard let actual = readFrame(id) else { continue }
+            guard let actual = observed[id], let start = item.start else { continue }
             let frame = { item.frame(at: $0, aligned: false) }
             let desired = frame(time), target = item.move.target
-            let lag = MotionQuality.lag(at: time, actual: actual, span: item.start...(item.start + item.duration),
-                                        frame: frame)
+            let lag = MotionQuality.lag(at: time, actual: actual, span: start...(start + item.duration), frame: frame)
             let stutter = previous[id].map { last in
                 MotionQuality.stutter(actual: (last.actual, actual), desired: (last.desired, desired))
             }
@@ -166,12 +163,12 @@ package struct MotionQuality {
             let resting = actual.approxEqual(target, tolerance: FrameTolerance.observed)
             arrivals[id] = resting ? arrivals[id] ?? time : nil
             quality?.add(.init(desired: desired, actual: actual, filled: shown?.isFilling(id) == true, lag: lag,
-                               overshoot: MotionQuality.overshoot(actual, from: frame(item.start), to: target),
+                               overshoot: MotionQuality.overshoot(actual, from: frame(start), to: target),
                                stutter: stutter),
                          pid: item.move.window.pid)
         }
         for (id, landing) in settling {
-            guard let actual = readFrame(id) else { continue }
+            guard let actual = read(id) else { continue }
             let resting = actual.approxEqual(landing.target, tolerance: FrameTolerance.observed)
             let arrived = resting ? landing.arrived ?? time : nil
             guard arrived != nil || time - landing.end >= MotionQuality.tailLimit else {

@@ -15,7 +15,8 @@ import QuartzCore
     package var windowPresentation: (any WindowPresentation)?
     private var clock: (any FrameClock)?
     private let makeClock: MakeClock, now: () -> CFTimeInterval
-    package let motionRun: MotionRun
+    package let motionRun = MotionRun()
+    package var readFrame: @MainActor (CGWindowID) -> CGRect?
     package var onMinimumSize: ((CGWindowID, CGSize) -> Void)?
     package var onTopRefused: ((_ target: CGRect, _ actual: CGRect) -> Void)?
     package var onLanded: (() -> Void)?
@@ -26,7 +27,7 @@ import QuartzCore
         self.backend = backend
         self.makeWriter = makeWriter ?? { AXWriter(pid: $0, backend: backend) }
         (self.now, self.makeClock) = (now, makeClock)
-        motionRun = MotionRun { backend.serverFrame(of: $0) }
+        readFrame = { backend.serverFrame(of: $0) }
     }
 
     deinit {
@@ -99,7 +100,7 @@ import QuartzCore
             || from.approxEqual(move.target, tolerance: FrameTolerance.landed) {
             land(move)
         } else {
-            items[id] = Item(move: move, from: from, start: now, spec: spec, velocity: velocity)
+            items[id] = Item(move: move, from: from, start: velocity == nil ? nil : now, spec: spec, velocity: velocity)
             items[id]?.colorSizing = windowPresentation?.sizing(for: move, from: from, spec: spec)
         }
     }
@@ -142,28 +143,39 @@ import QuartzCore
     }
 
     private func tick(shown: CFTimeInterval, presentation: CFTimeInterval) {
-        motionRun.measure(items, at: shown, shown: windowPresentation)
         let started = CACurrentMediaTime(), moving = !items.isEmpty
         if moving { motionRun.tick(at: now()) }
+        func timing(_ id: CGWindowID, observed: CGRect? = nil) -> AXWriter.Step {
+            .init(shown: shown, presentation: presentation, bias: windowPresentation?.leadBias(for: id) ?? 0,
+                  observed: observed)
+        }
+        for (id, item) in items where item.start == nil {
+            let step = timing(id), frames = writer(item.move.window.pid).leadFrames(id, at: now(), step)
+            items[id]?.start = shown + Double(frames) * step.period
+        }
+        let observed = items.keys.reduce(into: [CGWindowID: CGRect]()) { $0[$1] = readFrame($1) }
+        let reading = CACurrentMediaTime() - started
+        motionRun.measure(items, observed: observed, at: shown, shown: windowPresentation, read: readFrame)
+        let resumed = CACurrentMediaTime()
         let ordered = items.sorted {
             let left = $0.value.colorSizing?.releasesSpace == true
             let right = $1.value.colorSizing?.releasesSpace == true
             return left == right ? $0.key < $1.key : left
         }
         for (id, item) in ordered {
-            if presentation - item.start >= item.duration {
+            if let end = item.end, presentation >= end {
                 items[id] = nil
                 motionRun.finished(item)
                 land(item.move)
             } else {
-                writer(item.move.window.pid).step(item.move.window, notBefore: presentation,
+                writer(item.move.window.pid).step(item.move.window, timing(id, observed: observed[id]),
                                                   releasesSpace: item.colorSizing?.releasesSpace == true) {
                     item.request(at: $0, presentedAt: presentation)
                 }
             }
         }
         updateWindowPresentation(at: presentation)
-        if moving { motionRun.ticked(CACurrentMediaTime() - started) }
+        if moving { motionRun.ticked(reading + CACurrentMediaTime() - resumed) }
         if items.isEmpty && !motionRun.isSettling {
             clock?.stop(); clock = nil
             motionRun.end(writers.map { ($0.key, $0.value.takeStats()) })

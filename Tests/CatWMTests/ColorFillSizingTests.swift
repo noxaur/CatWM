@@ -22,7 +22,7 @@ struct ColorFillSizingTests {
         let item = try item(from: source, to: target)
         for time in [0.01, 0.2, 0.5, 0.9, 1.0] {
             let viewport = item.frame(at: time, aligned: false)
-            let native = item.request(at: time + 0.03, presentedAt: time)
+            let native = item.request(at: .init(position: time + 0.03, size: time + 0.03), presentedAt: time)
             #expect(native.size == item.frame(at: time + 0.03).size)
             #expect(viewport.contains(native))
         }
@@ -38,7 +38,9 @@ struct ColorFillSizingTests {
         let writer = AXWriter(pid: window.pid, backend: backend)
         backend.clearWrites()
         for time in [0.01, 0.2, 0.5, 0.9] {
-            writer.step(window) { _ in item.request(at: time + 0.03, presentedAt: time) }
+            writer.step(window, .init(shown: 0, presentation: 0)) { _ in
+                item.request(at: .init(position: time + 0.03, size: time + 0.03), presentedAt: time)
+            }
             await withCheckedContinuation { continuation in writer.run { continuation.resume() } }
         }
         await withCheckedContinuation { continuation in
@@ -55,8 +57,8 @@ struct ColorFillSizingTests {
     @Test func predictionShrinksAheadWithoutJumpingToTheDestination() throws {
         let item = try item(from: CGRect(x: 0, y: 38, width: 1000, height: 800),
                             to: CGRect(x: 0, y: 38, width: 700, height: 600))
-        let current = item.request(at: 0.25, presentedAt: 0.25)
-        let predicted = item.request(at: 0.30, presentedAt: 0.25)
+        let current = item.request(at: .init(position: 0.25, size: 0.25), presentedAt: 0.25)
+        let predicted = item.request(at: .init(position: 0.30, size: 0.30), presentedAt: 0.25)
         #expect(predicted.width < current.width && predicted.width > 700)
         #expect(predicted.height < current.height && predicted.height > 600)
         #expect(item.frame(at: 0.25, aligned: false).contains(predicted))
@@ -67,7 +69,7 @@ struct ColorFillSizingTests {
                             to: CGRect(x: 850, y: 38, width: 860, height: 600))
         for time in [0.01, 0.1, 0.25, 0.5, 0.9] {
             let viewport = item.frame(at: time, aligned: false)
-            let native = item.request(at: time + 0.05, presentedAt: time)
+            let native = item.request(at: .init(position: time + 0.05, size: time + 0.05), presentedAt: time)
             #expect(viewport.contains(native))
             #expect(native.maxX <= 1710)
         }
@@ -78,7 +80,7 @@ struct ColorFillSizingTests {
                             to: CGRect(x: 910, y: 38, width: 800, height: 600))
         for time in [0.01, 0.1, 0.25, 0.5, 0.9] {
             let viewport = item.frame(at: time, aligned: false)
-            let native = item.request(at: time + 0.05, presentedAt: time)
+            let native = item.request(at: .init(position: time + 0.05, size: time + 0.05), presentedAt: time)
             #expect(native.size == item.frame(at: time + 0.05).size)
             #expect(viewport.contains(native))
         }
@@ -87,6 +89,6 @@ struct ColorFillSizingTests {
     @Test func missingColorPresentationKeepsOrdinaryPredictiveMotion() throws {
         let item = try item(from: CGRect(x: 910, y: 38, width: 800, height: 600),
                             to: CGRect(x: 850, y: 38, width: 860, height: 600), fill: false)
-        #expect(item.request(at: 0.3, presentedAt: 0.25) == item.frame(at: 0.3))
+        #expect(item.request(at: .init(position: 0.3, size: 0.3), presentedAt: 0.25) == item.frame(at: 0.3))
     }
 }

@@ -92,38 +92,51 @@
       "group": "Motion",
       "label": "Live tracking error p50 per move and app profile",
       "unit": "px",
-      "cap": 235
+      "cap": 185
     },
     "motion.live.error.p95": {
       "group": "Motion",
       "label": "Live tracking error p95 per move and app profile",
       "unit": "px",
-      "cap": 700
+      "cap": 450
     },
     "motion.live.lag": {
       "group": "Motion",
       "label": "Live lag p50 per move and app profile",
       "unit": "ms",
       "virtual": true,
-      "cap": 37
+      "cap": 35
+    },
+    "motion.live.warm.error": {
+      "group": "Motion",
+      "label": "Live tracking error p50 on a move after one that taught the lead",
+      "unit": "px",
+      "cap": 8
+    },
+    "motion.live.warm.lag": {
+      "group": "Motion",
+      "label": "Live lag p50 on a move after one that taught the lead",
+      "unit": "ms",
+      "virtual": true,
+      "cap": 12
     },
     "motion.live.spill": {
       "group": "Motion",
       "label": "Live spill p95 per move and app profile",
       "unit": "px",
-      "cap": 600
+      "cap": 450
     },
     "motion.live.stutter": {
       "group": "Motion",
       "label": "Live stutter (per-frame velocity error) p95 per move and app profile",
       "unit": "px",
-      "cap": 420
+      "cap": 380
     },
     "motion.live.overshoot": {
       "group": "Motion",
       "label": "Live overshoot past the target, max per move and app profile",
       "unit": "px",
-      "cap": 360
+      "cap": 320
     },
     "motion.live.tail": {
       "group": "Motion",
@@ -136,19 +149,19 @@
       "group": "Motion",
       "label": "Color-fill uncovered gap p95 per move and app profile",
       "unit": "px",
-      "cap": 535
+      "cap": 420
     },
     "motion.tick.cpu": {
       "group": "Motion",
       "label": "Animator tick, 12 windows, color-fill, no SkyLight",
       "unit": "ms",
-      "cap": 0.25
+      "cap": 0.1
     },
     "motion.tick.live.cpu": {
       "group": "Motion",
       "label": "Animator tick, 12 windows, live, no SkyLight",
       "unit": "ms",
-      "cap": 0.25
+      "cap": 0.1
     }
   }
 }

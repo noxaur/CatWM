@@ -83,34 +83,42 @@ private final class SlowBackend: WindowBackend {
         await withCheckedContinuation { continuation in writer.run { continuation.resume() } }
     }
 
+    private let period = 1.0 / 60
+
+    private func timing() -> AXWriter.Step { .init(shown: backend.time - period, presentation: backend.time) }
+
+    private func step(_ frame: @escaping @Sendable (WindowLead.Times) -> CGRect) {
+        writer.step(window, timing(), to: frame)
+    }
+
     @discardableResult
     private func step(_ width: Double) async -> CFTimeInterval? {
         let sampled = SampleLog()
-        writer.step(window) { time in
-            sampled.record(time)
+        step { times in
+            sampled.record(times.position)
             return CGRect(x: 100, y: 100, width: width, height: 600)
         }
         await drain()
         return sampled.last
     }
 
-    @Test func aStepIsSampledWhenTheLastWriteSaysItWillLand() async {
+    @Test func aSlowWriteIsSampledAtTheVsyncItWillLandOn() async {
         backend.set(cost: 0.01)
         await step(810)
         let now = backend.time
         let sampled = await step(820)
-        #expect(abs((sampled ?? 0) - (now + 0.02)) < 1e-9)
+        #expect(abs((sampled ?? 0) - (now + period)) < 1e-9)
     }
 
-    @Test func aWriteThatGetsSlowerMovesTheNextSampleAtOnce() async {
+    @Test func aWriteThatGetsMuchSlowerMovesTheNextSampleAtOnce() async {
         backend.set(cost: 0.005)
         await step(810)
         await step(820)
-        backend.set(cost: 0.015)
+        backend.set(cost: 0.03)
         await step(830)
         let before = backend.time
         let sampled = await step(840)
-        #expect((sampled ?? 0) - before > 0.024)
+        #expect((sampled ?? 0) - before > 0.04)
     }
 
     @Test func aFailedWriteDoesNotTeachTheLead() async {
@@ -129,7 +137,7 @@ private final class SlowBackend: WindowBackend {
         }
         let now = backend.time
         let sampled = await step(820)
-        #expect(abs((sampled ?? 0) - (now + 0.02)) < 1e-9)
+        #expect(abs((sampled ?? 0) - (now + period)) < 1e-9)
     }
 
     @Test func anOldPredictionExpiresWhileTheAppIsIdle() async {
@@ -184,17 +192,17 @@ private final class SlowBackend: WindowBackend {
         _ = backend.inner.setPosition(window, source.origin)
         _ = backend.inner.setSize(window, source.size)
         window.remember(source)
-        writer.step(window) { _ in CGRect(x: 850, y: 38, width: 860, height: 600) }
+        step { _ in CGRect(x: 850, y: 38, width: 860, height: 600) }
         await drain()
         #expect(!backend.frames.isEmpty)
         #expect(backend.frames.allSatisfy { $0.maxX <= 1710 })
     }
 
     @Test func aShrinkingRightTileNeverMovesPastTheScreenEdge() async {
-        writer.step(window) { _ in CGRect(x: 840, y: 38, width: 870, height: 600) }
+        step { _ in CGRect(x: 840, y: 38, width: 870, height: 600) }
         await drain()
         backend.clearFrames()
-        writer.step(window) { _ in CGRect(x: 910, y: 38, width: 800, height: 600) }
+        step { _ in CGRect(x: 910, y: 38, width: 800, height: 600) }
         await drain()
         #expect(backend.frames.allSatisfy { $0.maxX <= 1710 })
     }
@@ -204,7 +212,7 @@ private final class SlowBackend: WindowBackend {
         writer.run { _ = gate.wait(timeout: .now() + 2) }
         backend.set(cost: 0.04)
         let skipped = SampleLog()
-        writer.step(window) { time in skipped.record(time); return start.offsetBy(dx: 10, dy: 0) }
+        step { times in skipped.record(times.size); return start.offsetBy(dx: 10, dy: 0) }
         writer.cancel(window.id)
         gate.signal()
         await drain()

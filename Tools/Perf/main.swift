@@ -151,6 +151,10 @@ struct Usage {
                     record("motion.live.stutter", live.stutter?.p95 ?? 0)
                     record("motion.live.overshoot", live.overshoot.max)
                     record("motion.live.tail", (live.tail?.max ?? 0) * 1000)
+                    if warm {
+                        record("motion.live.warm.error", live.error.p50)
+                        record("motion.live.warm.lag", (live.lag?.p50 ?? 0) * 1000)
+                    }
                 }
                 let fill = summary(await MotionBench.measure(scene, profile, mode: .colorFill))
                 record("motion.fill.gap", fill.gap.p95)

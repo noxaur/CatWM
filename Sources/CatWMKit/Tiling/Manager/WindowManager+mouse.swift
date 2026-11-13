@@ -79,15 +79,15 @@ extension WindowManager {
         refresh()
     }
 
-    private func applyMouseResize(_ window: Window, on screen: Screen) {
+    func applyMouseResize(_ window: Window, on screen: Screen) {
         let screenState = state(for: screen)
         let ids = tiled(on: screen)
         let rect = usableRect(screen), frame = window.cachedFrame
         guard !frame.isNull else { return }
         let layout = screenState.layout
-        let mains = SplitDivider.mains(layout, mainCount: screenState.mainCount, count: ids.count)
-        guard let idx = ids.firstIndex(of: window.id), ids.count > mains, var axis = layout.ratioAxis else { return }
-        if layout == .bsp { axis = (rect.width >= rect.height, true) }
+        guard let idx = ids.firstIndex(of: window.id),
+              let (mains, axis) = SplitDivider.split(layout, mainCount: screenState.mainCount, count: ids.count,
+                                                     in: rect) else { return }
         let isMain = idx < mains
         let touchesSplit = switch layout {
         case .widescreenTall: !isMain || mains == 1 || idx == mains - 1

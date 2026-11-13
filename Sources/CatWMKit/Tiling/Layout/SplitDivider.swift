@@ -13,11 +13,18 @@ package struct SplitDivider: Equatable {
         layout.singleMain ? 1 : max(1, min(mainCount, count))
     }
 
-    package init?(layout: Layout, slots: [CGRect], mainCount: Int, in rect: CGRect) {
+    package static func split(_ layout: Layout, mainCount: Int, count: Int, in rect: CGRect)
+        -> (mains: Int, axis: (horizontal: Bool, fromStart: Bool))? {
         guard var axis = layout.ratioAxis else { return nil }
         if layout == .bsp { axis = (rect.width >= rect.height, true) }
-        let mains = Self.mains(layout, mainCount: mainCount, count: slots.count)
-        guard slots.count > mains else { return nil }
+        let main = mains(layout, mainCount: mainCount, count: count)
+        guard count > main else { return nil }
+        return (main, axis)
+    }
+
+    package init?(layout: Layout, slots: [CGRect], mainCount: Int, in rect: CGRect) {
+        guard let (mains, axis) = Self.split(layout, mainCount: mainCount, count: slots.count, in: rect)
+        else { return nil }
         let main = slots[..<mains].reduce(CGRect.null) { $0.union($1) }
         let rest = slots[mains...].reduce(CGRect.null) { $0.union($1) }
         let (low, high) = switch (axis.horizontal, axis.fromStart) {

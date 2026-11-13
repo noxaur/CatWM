@@ -5,7 +5,7 @@ import os
 package struct AppLatency: Sendable {
     package struct Shift: Sendable { package let after: Double, moved: Double, resized: Double }
     package let name: String
-    package var position = 0.0, size = 0.0, moved = 0.0, resized = 0.0, jitter = 0.0
+    package var position = 0.0, size = 0.0, moved = 0.0, resized = 0.0, jitter = 0.0, resizeJitter = 0.0
     package var shift: Shift?
     package var ignoresEvery = 0
 
@@ -19,6 +19,8 @@ package struct AppLatency: Sendable {
                                              resized: 0.008, shift: Shift(after: 0.06, moved: 0.04, resized: 0.04))
     package static let ignoring = AppLatency(name: "ignoring", position: 0.001, size: 0.004, moved: 0.024,
                                              resized: 0.024, ignoresEvery: 3)
+    package static let electron = AppLatency(name: "electron", position: 0.0005, size: 0.003, moved: 0.002,
+                                             resized: 0.03, resizeJitter: 0.012)
 
     func delays(after elapsed: Double) -> (moved: Double, resized: Double) {
         guard let shift, elapsed >= shift.after else { return (moved, resized) }
@@ -79,7 +81,9 @@ package final class LatencyBackend: WindowBackend, Sendable {
             guard origin != nil || size != nil else { return }
             let delays = latency.delays(after: clock - state.began)
             let previous = state.shown[window.id]?.last { (origin == nil) == ($0.origin == nil) }?.time ?? 0
-            let time = max(previous, clock + max(0, (sized ? delays.resized : delays.moved) + noise() * latency.jitter))
+            let resize = sized && latency.resizeJitter > 0 ? noise() * latency.resizeJitter : 0
+            let spread = noise() * latency.jitter + resize
+            let time = max(previous, clock + max(0, (sized ? delays.resized : delays.moved) + spread))
             state.shown[window.id, default: []].append(Shown(time: time, origin: origin, size: size))
             state.shown[window.id]?.sort { $0.time < $1.time }
         }
@@ -151,7 +155,8 @@ package final class LatencyBackend: WindowBackend, Sendable {
                                   Profile(name: "shifting", app: .shifting),
                                   Profile(name: "dropped", app: .fixed, drops: [3]),
                                   Profile(name: "120hz", app: .fixed, rate: 120),
-                                  Profile(name: "ignoring", app: .ignoring)]
+                                  Profile(name: "ignoring", app: .ignoring),
+                                  Profile(name: "electron", app: .electron)]
         package static let slow = Array(all.dropFirst())
         package static func named(_ name: String) -> Profile { all.first { $0.name == name } ?? instant }
     }
@@ -226,7 +231,8 @@ package final class LatencyBackend: WindowBackend, Sendable {
         return window
     }
 
-    package func run(_ moves: [Animator.Move], spec: MotionSpec = MotionSpec(Config())) async -> Result? {
+    package func run(_ moves: [Animator.Move], spec: MotionSpec = MotionSpec(Config()),
+                     then: (after: Int, moves: [Animator.Move])? = nil) async -> Result? {
         ended = nil
         backend.begin()
         animator.animate(moves, spec: spec)
@@ -236,6 +242,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
             frames += 1
             time += period
             backend.advance(to: time)
+            if let then, frames == then.after { animator.animate(then.moves, spec: spec) }
             if !profile.drops.contains(frames) { clock.tick(time, time + period) }
             for (pid, gate) in gates.sorted(by: { $0.key > $1.key }) where backend.clock(pid) <= time {
                 backend.catchUp(pid)
@@ -313,6 +320,7 @@ extension MotionBench {
     package struct Scene {
         package let name: String
         package let windows: [(from: CGRect, to: CGRect)]
+        package var then: (after: Int, targets: [CGRect])?
     }
 
     package static let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
@@ -339,7 +347,19 @@ extension MotionBench {
         (CGRect(x: 960, y: 450, width: 480, height: 450), CGRect(x: 0, y: 0, width: 960, height: 900))
     ])
 
-    package static let moves = [ratio(), stackOpen, swap]
+    package static let grid = Scene(name: "grid", windows: [
+        (CGRect(x: 0, y: 0, width: 720, height: 450), CGRect(x: 0, y: 0, width: 480, height: 300)),
+        (CGRect(x: 720, y: 0, width: 720, height: 450), CGRect(x: 480, y: 0, width: 960, height: 300)),
+        (CGRect(x: 0, y: 450, width: 720, height: 450), CGRect(x: 0, y: 300, width: 480, height: 600)),
+        (CGRect(x: 720, y: 450, width: 720, height: 450), CGRect(x: 480, y: 300, width: 960, height: 600))
+    ])
+
+    package static let reversal = Scene(name: "reversal", windows: ratio().windows,
+                                        then: (after: 4, targets: [CGRect(x: 0, y: 0, width: 576, height: 900),
+                                                                   CGRect(x: 576, y: 0, width: 864, height: 900)]))
+
+    package static let moves = [ratio(), stackOpen, swap, grid]
+    package static let anchored = [ratio(), stackOpen, grid, reversal]
 
     package static func measure(_ scene: Scene, _ profile: Profile, mode: Mode, warm: Bool = false,
                                 unprepared: Set<Int> = [], obscured: Set<Int> = []) async -> Result? {
@@ -352,7 +372,10 @@ extension MotionBench {
             zip(windows, scene.windows).map { Animator.Move(window: $0, to: target($1.from, $1.to), bounds: screen) }
         }
         if warm { _ = await bench.run(moves { from, _ in from }) }
-        let result = await bench.run(moves { _, target in target })
+        let then = scene.then.map { then in
+            (then.after, zip(windows, then.targets).map { Animator.Move(window: $0, to: $1, bounds: screen) })
+        }
+        let result = await bench.run(moves { _, target in target }, then: then)
         await bench.close()
         return result
     }

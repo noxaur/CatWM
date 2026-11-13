@@ -145,6 +145,18 @@
       "virtual": true,
       "cap": 320
     },
+    "motion.live.drift": {
+      "group": "Motion",
+      "label": "Live anchored-edge drift p95 per move and app profile",
+      "unit": "px",
+      "cap": 240
+    },
+    "motion.fill.drift": {
+      "group": "Motion",
+      "label": "Color-fill anchored-edge drift p95 per move and app profile",
+      "unit": "px",
+      "cap": 240
+    },
     "motion.fill.gap": {
       "group": "Motion",
       "label": "Color-fill uncovered gap p95 per move and app profile",

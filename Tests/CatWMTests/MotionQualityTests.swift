@@ -31,6 +31,21 @@ import Testing
         #expect(sample.gap == 10 && sample.cover == 20)
     }
 
+    @Test func driftIsHowFarAStationaryEdgeShowsFromWhereItStays() {
+        let anchored = MotionQuality.anchored(from: CGRect(x: 300, y: 100, width: 200, height: 300), to: desired)
+        #expect(anchored == [1, 2, 3])
+        let late = CGRect(x: 80, y: 100, width: 400, height: 300)
+        #expect(MotionQuality.Sample(desired: desired, actual: late, anchored: anchored).drift == 20)
+        #expect(MotionQuality.Sample(desired: desired, actual: late).drift == nil)
+        let covered = MotionQuality.Sample(desired: desired, actual: desired, fill: CGRect(x: 100, y: 100, width: 370,
+                                                                                            height: 300),
+                                           anchored: anchored)
+        #expect(covered.drift == 30)
+        let spilled = MotionQuality.Sample(desired: desired, actual: desired.offsetBy(dx: 12, dy: 0),
+                                           fill: desired.offsetBy(dx: 12, dy: 0), anchored: anchored)
+        #expect(spilled.drift == 12)
+    }
+
     @Test func lagIsTheTimeTheTrajectoryTookToReachTheActualEdge() {
         let frame = { (time: Double) in CGRect(x: 1000 * time, y: 0, width: 100, height: 100) }
         let lag = MotionQuality.lag(at: 0.1, actual: frame(0.075), span: 0...0.2, frame: frame)
@@ -148,21 +163,23 @@ import Testing
     @Test func baseline() async {
         var lines = ["| move | profile | run | mode | error px p50/p95/max | lag ms p50/p95/max | spill px p50/p95/max "
             + "| gap px p50/p95/max | filled | cover px p50/p95/max | stutter px p50/p95/max | overshoot px max "
-            + "| tail ms p50/max | tick ms avg/max |",
-                     "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
-        for scene in MotionBench.moves {
+            + "| drift px p50/p95/max | tail ms p50/max | tick ms avg/max |",
+                     "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for scene in MotionBench.moves + [MotionBench.reversal] {
             for profile in MotionBench.Profile.all {
                 for warm in [false, true] {
                     for mode in MotionBench.Mode.allCases {
                         guard let result = await MotionBench.measure(scene, profile, mode: mode, warm: warm),
                               let quality = result.quality else { continue }
                         let average = result.ticks.total / Double(max(1, result.ticks.count))
+                        let drift: String = quality.drift.map { Self.text($0) } ?? "-"
                         let cells = [scene.name, profile.name, warm ? "warm" : "cold", mode.rawValue,
                                      Self.text(quality.error), quality.lag.map { Self.text($0, 1000) } ?? "-",
                                      Self.text(quality.spill), Self.text(quality.gap),
                                      "\(quality.filled)/\(quality.samples)", Self.text(quality.cover),
                                      quality.stutter.map { Self.text($0) } ?? "-",
                                      String(format: "%.1f", quality.overshoot.max),
+                                     drift,
                                      quality.tail.map { String(format: "%.0f/%.0f", $0.p50 * 1000, $0.max * 1000) }
                                          ?? "-",
                                      String(format: "%.3f/%.3f", average * 1000, result.ticks.max * 1000)]

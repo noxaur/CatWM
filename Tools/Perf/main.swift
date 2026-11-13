@@ -163,11 +163,27 @@ struct Usage {
                 }
             }
         }
+        await drift()
         for _ in 0..<20 {
             for (mode, metric) in [(MotionBench.Mode.colorFill, "motion.tick.cpu"), (.live, "motion.tick.live.cpu")] {
                 guard let ticks = await MotionBench.measure(MotionBench.ratio(rows: 6), .named("fixed"), mode: mode)?
                     .ticks, !ticks.isEmpty else { fail("the 12-window move ticked no frame") }
                 record(metric, ticks.total / Double(ticks.count) * 1000)
+            }
+        }
+    }
+
+    private func drift() async {
+        let modes = [(MotionBench.Mode.live, "motion.live.drift"), (.colorFill, "motion.fill.drift")]
+        for scene in MotionBench.anchored {
+            for profile in MotionBench.Profile.slow {
+                for warm in [false, true] {
+                    for (mode, metric) in modes {
+                        let result = await MotionBench.measure(scene, profile, mode: mode, warm: warm)
+                        guard let drift = result?.quality?.drift else { fail("\(scene.name) recorded no drift") }
+                        record(metric, drift.p95)
+                    }
+                }
             }
         }
     }

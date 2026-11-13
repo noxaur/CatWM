@@ -4,16 +4,13 @@ import Foundation
 package struct MotionQuality {
     package struct Sample: Equatable {
         package let error: Double, spill: Double, gap: Double, cover: Double, overshoot: Double
-        package let lag: Double?, stutter: Double?
+        package let lag: Double?, stutter: Double?, drift: Double?
         package var filled: Bool { fill != nil }
         private let fill: CGRect?
 
         package init(desired: CGRect, actual: CGRect, fill: CGRect? = nil, lag: Double? = nil, overshoot: Double = 0,
-                     stutter: Double? = nil) {
-            func outward(_ inner: CGRect) -> [Double] {
-                [inner.minX - actual.minX, actual.maxX - inner.maxX, inner.minY - actual.minY, actual.maxY - inner.maxY]
-                    .map(Double.init)
-            }
+                     stutter: Double? = nil, anchored: [Int] = []) {
+            func outward(_ inner: CGRect) -> [Double] { MotionQuality.beyond(actual, inner) }
             let edges = outward(desired), most = edges.max() ?? 0, least = edges.min() ?? 0
             let open = fill.map { hole -> Double in
                 let inner = desired.intersection(hole)
@@ -27,6 +24,7 @@ package struct MotionQuality {
             self.overshoot = overshoot
             self.stutter = stutter
             self.fill = fill
+            drift = MotionQuality.drift(desired: desired, actual: actual, fill: fill, anchored: anchored)
         }
     }
 
@@ -50,12 +48,13 @@ package struct MotionQuality {
     package struct Summary {
         package let samples: Int, filled: Int
         package let error: Spread, spill: Spread, gap: Spread, cover: Spread, overshoot: Spread
-        package let lag: Spread?, stutter: Spread?, tail: Spread?
+        package let lag: Spread?, stutter: Spread?, tail: Spread?, drift: Spread?
 
         package var text: String {
             "motion (p50/p95/max) error \(error.text(1, "px")) | lag \(lag?.text(1000, "ms") ?? "-") "
                 + "| spill \(spill.text(1, "px")) | gap \(gap.text(1, "px")) | cover \(cover.text(1, "px")) "
-                + "| stutter \(stutter?.text(1, "px") ?? "-") | overshoot \(overshoot.text(1, "px")) "
+                + "| stutter \(stutter?.text(1, "px") ?? "-") | drift \(drift?.text(1, "px") ?? "-") "
+                + "| overshoot \(overshoot.text(1, "px")) "
                 + "| tail \(tail?.text(1000, "ms") ?? "-") | \(samples) samples, \(filled) filled"
         }
     }
@@ -64,27 +63,51 @@ package struct MotionQuality {
     package static let tailLimit = 0.3
     private var samples: [pid_t: [Sample]] = [:]
     private var tails: [pid_t: [Double]] = [:]
+    private var drifts: [pid_t: [Double]] = [:]
 
     package init() {}
 
     package var pids: [pid_t] { Array(samples.keys) }
 
-    package mutating func add(_ sample: Sample, pid: pid_t) { samples[pid, default: []].append(sample) }
+    package mutating func add(_ sample: Sample, pid: pid_t) {
+        samples[pid, default: []].append(sample)
+        if let drift = sample.drift { add(drift: drift, pid: pid) }
+    }
+    package mutating func add(drift: Double, pid: pid_t) { drifts[pid, default: []].append(drift) }
     package mutating func add(tail: Double, pid: pid_t) { tails[pid, default: []].append(tail) }
 
     package func summary(_ pid: pid_t? = nil) -> Summary? {
         let all = pid.map { samples[$0] ?? [] } ?? samples.values.flatMap(\.self)
         let tail = pid.map { tails[$0] ?? [] } ?? tails.values.flatMap(\.self)
+        let drift = pid.map { drifts[$0] ?? [] } ?? drifts.values.flatMap(\.self)
         guard let error = Spread(all.map(\.error)), let spill = Spread(all.map(\.spill)),
               let gap = Spread(all.map(\.gap)), let cover = Spread(all.map(\.cover)),
               let overshoot = Spread(all.map(\.overshoot)) else { return nil }
         return Summary(samples: all.count, filled: all.filter(\.filled).count, error: error, spill: spill, gap: gap,
                        cover: cover, overshoot: overshoot, lag: Spread(all.compactMap(\.lag)),
-                       stutter: Spread(all.compactMap(\.stutter)), tail: Spread(tail))
+                       stutter: Spread(all.compactMap(\.stutter)), tail: Spread(tail),
+                       drift: Spread(drift))
     }
 
     private static func edges(_ frame: CGRect) -> [Double] {
         [frame.minX, frame.maxX, frame.minY, frame.maxY].map(Double.init)
+    }
+
+    private static func beyond(_ outer: CGRect, _ inner: CGRect) -> [Double] {
+        [inner.minX - outer.minX, outer.maxX - inner.maxX, inner.minY - outer.minY, outer.maxY - inner.maxY]
+            .map(Double.init)
+    }
+
+    package static func drift(desired: CGRect, actual: CGRect, fill: CGRect?, anchored: [Int]) -> Double? {
+        let edges = beyond(actual, desired)
+        let shown = fill.map { zip(edges, beyond($0, desired)).map { $0 > 0 ? $0 : min($0, $1) } } ?? edges
+        return anchored.isEmpty ? nil : anchored.map { abs(shown[$0]) }.max()
+    }
+
+    package static func anchored(from: CGRect, to target: CGRect) -> [Int] {
+        zip(edges(from), edges(target)).enumerated().compactMap { edge, span in
+            abs(span.0 - span.1) <= FrameTolerance.observed ? edge : nil
+        }
     }
 
     package static func overshoot(_ actual: CGRect, from: CGRect, to target: CGRect) -> Double {

@@ -84,7 +84,7 @@ After a crash, a small watchdog opens CatWM again when macOS has written the cra
 
 ## Performance budgets
 
-The `perf` workflow measures CPU and memory on each pull request and each push to `main`. It runs the engine scenarios in `CatWMPerf` against `FakeBackend`. It also starts the app idle as a scoped named instance, so the app manages no window. It posts one table as a comment on the pull request.
+The `perf` workflow measures CPU and memory on each pull request and each push to `main`, so a regression nobody expected shows before the merge. It runs the engine scenarios in `CatWMPerf` against `FakeBackend`. It also starts the app idle as a scoped named instance, so the app manages no window. It posts one table as a comment on the pull request.
 
 Run it on your Mac:
 
@@ -97,7 +97,7 @@ python3 Tools/perf.py
 
 ## Smoke tests
 
-The `smoke` workflow starts the real app on each pull request and each push to `main`. It runs three suites, each as its own job on its own VM: `windows` (layouts, focus, moves, floating, full screen, tabs, windows that open and close), `workspaces` (Desktops, displays, the Overview, the switcher, key modes and real key presses) and `app` (launch and quit, every config option, broken configs, events, many clients, bad requests and the agent display). After each step, CatWM must still run, answer `ping` within 5 s and leave no crash report. The check catches crashes and hangs, not logic bugs, so a refused command passes. Each job uploads the CatWM log, a screenshot and, after a failure, the crash report or a `sample` of the hung process.
+The `smoke` workflow starts the real app on each pull request and each push to `main`. It runs three suites one after another on one VM and one debug build: `windows` (layouts, focus, moves, floating, full screen, tabs, windows that open and close), `workspaces` (Desktops, displays, the Overview, the switcher, key modes and real key presses) and `app` (launch and quit, every config option, broken configs, events, many clients, bad requests and the agent display). After each step, CatWM must still run, answer `ping` within 5 s and leave no crash report. The check catches crashes and hangs, not logic bugs, so a refused command passes. The job uploads, for each suite, the CatWM log, a screenshot and, after a failure, the crash report or a `sample` of the hung process.
 
 The instance is unscoped, so it owns the whole VM: it tiles every window, drives the Desktops and reads key presses. On your Mac, pass `--scoped` so it manages only its own TextEdit windows. CatWM then refuses the commands that reach outside the scope, and the key presses are skipped:
 

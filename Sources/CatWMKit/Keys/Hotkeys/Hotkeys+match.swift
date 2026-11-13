@@ -60,7 +60,7 @@ extension Hotkeys {
             guard let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down) else { return }
             event.flags = eventFlags
             event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-            event.post(tap: .cghidEventTap)
+            RealInput.post(event, to: .cghidEventTap, "key \(code)")
         }
         let mods: [(CGEventFlags, UInt16)] = [(.maskControl, 59), (.maskAlternate, 58), (.maskShift, 56),
                                               (.maskCommand, 55)]

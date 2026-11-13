@@ -44,6 +44,7 @@ package struct Config: Sendable {
     package var removesEmptyWorkspaces = true
     package var workspacesPerDisplay = true
     package var sortNudge = 5
+    package var scratchpadSize = 80
     package var modeEffect: ModeEffect = .draw
     package var dimOtherWindows = false
     package var dimStrength: CGFloat = 0.5

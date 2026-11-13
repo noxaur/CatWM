@@ -314,6 +314,11 @@ extension Options {
             .setting(.windows, "windows.sortNudge", "Suggest Overview for a crowded workspace",
                      help: "A tip under the menu bar icon, at most once a day",
                      keywords: "tip packed many windows organize", range: 3...20, section: "Workspaces",
-                     enabled: { $0.virtualWorkspaces })
+                     enabled: { $0.virtualWorkspaces }),
+        .number("scratchpad-size", \.scratchpadSize, valid: 20...100, make: { Int($0) }, text: { "\($0)" },
+                number: { Double($0) }).script("scratchpad.size")
+            .documented("20–100 (percent)",
+                        "how much of the display's visible area a scratchpad window fills when `togglescratchpad` "
+                            + "shows it. A window that can't resize keeps its size")
     ]
 }

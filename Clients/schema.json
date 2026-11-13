@@ -368,6 +368,59 @@
     {
       "args" : [
         {
+          "name" : "name",
+          "required" : false,
+          "summary" : "The scratchpad's name. The default is `scratchpad`.",
+          "type" : "string"
+        }
+      ],
+      "group" : "window",
+      "name" : "movetoscratchpad",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Hide the focused window in a scratchpad and float it"
+    },
+    {
+      "args" : [
+        {
+          "name" : "name",
+          "required" : false,
+          "summary" : "The scratchpad's name. The default is `scratchpad`.",
+          "type" : "string"
+        }
+      ],
+      "group" : "window",
+      "name" : "togglescratchpad",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Show a scratchpad window floating over this workspace, or hide it again"
+    },
+    {
+      "args" : [
+        {
+          "choices" : [
+            "on",
+            "off",
+            "toggle"
+          ],
+          "name" : "mode",
+          "required" : false,
+          "summary" : "The default is `toggle`.",
+          "type" : "enum"
+        }
+      ],
+      "group" : "window",
+      "name" : "pin",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Float the focused window and keep it on every workspace of its display"
+    },
+    {
+      "args" : [
+        {
           "choices" : [
             "left",
             "right",
@@ -828,6 +881,16 @@
             "name" : "visible",
             "summary" : "The window is on a shown workspace",
             "type" : "bool"
+          },
+          {
+            "name" : "pinned",
+            "summary" : "The window is on every workspace of its display",
+            "type" : "bool"
+          },
+          {
+            "name" : "scratchpad",
+            "summary" : "Scratchpad name, set while the window belongs to one",
+            "type" : "string?"
           },
           {
             "name" : "workspace",

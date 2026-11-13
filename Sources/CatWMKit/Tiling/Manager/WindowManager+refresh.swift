@@ -41,6 +41,7 @@ extension WindowManager {
                 && Date().timeIntervalSince(since) < Self.restoreHold
         }
         observed.present.formUnion(restoredEarly.keys)
+        observed.present.subtract(scratchpads.hiddenIDs)
 
         let arrivals = placeArrivals(observed, onScreen: onScreen)
         forgetGoneWindows(present: observed.present)
@@ -186,6 +187,7 @@ extension WindowManager {
 
     private func resolveWorkspaces(screens: [Screen], arrivals: [Window], firstRun: Bool, timing: TilingTiming) {
         resolveWorkspaceConfigs(screens: screens)
+        followPinnedWindows()
         timing.checkpoint("workspace rules")
         guard !arrivals.isEmpty else { return }
         let toMain = firstRun ? [] : arrivals.filter { config(for: workspaceOf[$0.id]).newWindowsToMain }

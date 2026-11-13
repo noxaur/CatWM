@@ -84,7 +84,7 @@ package enum WindowActions {
     package static let all: [WindowAction] = [
         movefocus, cyclenext, focusmonitor, movewindow, movewindowtomonitor, swapwindow, swapnext,
         togglefloating, setfloating, settiled, resizeactive, moveactive, centerwindow,
-        fullscreen, nativefullscreen, minimize, killactive,
+        fullscreen, nativefullscreen, minimize, killactive, movetoscratchpad, togglescratchpad, pin,
         moveintogroup, moveoutofgroup, changegroupactive, movegroupwindow,
         layoutmsg, splitratio, cyclelayout, layout, toggletiling, retile,
         workspace, movetoworkspace, movetoworkspacesilent, sethomespace,

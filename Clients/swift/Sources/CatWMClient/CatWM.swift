@@ -185,6 +185,17 @@ public struct ConfigReloadedData: Codable, Equatable, Sendable {
     public let errors: [[String: JSONValue]]
 }
 
+public struct PluginWindow: Codable, Equatable, Sendable {
+    public let id: Int
+    public let app: String?
+    public let title: String?
+}
+
+public struct Invocation: Codable, Equatable, Sendable {
+    public let arg: String
+    public let window: PluginWindow?
+}
+
 public enum Event: Sendable {
     case focusChanged(FocusChangedData)
     case windowAdded(WindowAddedData)
@@ -261,7 +272,8 @@ public final class CatWM: @unchecked Sendable {
     }
 
     private let fd: Int32
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()
+    private var handlers: [String: @Sendable (Invocation) -> Void] = [:]
     private var buffer = Data()
     private var nextID = 1
     public private(set) var hello: JSONValue = .null
@@ -307,13 +319,50 @@ public final class CatWM: @unchecked Sendable {
         guard sent == line.count else { throw CatWMError(code: "closed", message: "Could not send the command") }
         while let data = try readLine() {
             guard let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  reply["id"] as? Int == id else { continue }
+                  reply["id"] as? Int == id else {
+                try invoke(data)
+                continue
+            }
             if reply["ok"] as? Bool == true { return reply["result"] ?? NSNull() }
             let error = reply["error"] as? [String: Any]
             throw CatWMError(code: error?["code"] as? String ?? "failed",
                             message: error?["message"] as? String ?? "The command failed")
         }
         throw CatWMError(code: "closed", message: "CatWM closed the connection")
+    }
+
+    /// Register a namespaced dispatcher, such as `myapp.toggle`. CatWM sends each run of it to this connection
+    /// and doesn't wait for the handler. The handler runs while this connection reads: in `serve`, or while
+    /// another call waits for its answer. The name goes away when the connection closes.
+    @discardableResult
+    public func register(_ name: String, handler: @escaping @Sendable (Invocation) -> Void) throws -> String {
+        let reply = try call("register", ["name": name]) as? [String: Any]
+        let registered = reply?["name"] as? String ?? name.lowercased()
+        lock.withLock { handlers[registered] = handler }
+        return registered
+    }
+
+    /// Remove a dispatcher that this connection registered.
+    public func unregister(_ name: String) throws {
+        _ = try call("unregister", ["name": name])
+        _ = lock.withLock { handlers.removeValue(forKey: name.lowercased()) }
+    }
+
+    /// Run the handlers of the registered dispatchers until the connection closes. Calls from other threads wait
+    /// while this runs, so use a second connection for them.
+    public func serve() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        var none = timeval(tv_sec: 0, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &none, socklen_t(MemoryLayout<timeval>.size))
+        while let data = try readLine() { try invoke(data) }
+    }
+
+    private func invoke(_ line: Data) throws {
+        guard let message = try JSONSerialization.jsonObject(with: line) as? [String: Any],
+              let name = message["invoke"] as? String, let handler = handlers[name] else { return }
+        let data = try JSONSerialization.data(withJSONObject: message["data"] ?? [:], options: .fragmentsAllowed)
+        handler(try JSONDecoder().decode(Invocation.self, from: data))
     }
 
     /// Subscribe and receive events until the stream ends. This opens a connection of its own.

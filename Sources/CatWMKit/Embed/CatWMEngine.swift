@@ -14,6 +14,7 @@ public final class CatWMEngine {
     private let readPermissions: @Sendable () -> Set<Permission>
     private let store: ConfigStore
     private var manager: WindowManager
+    private let plugins = PluginDispatchers()
     private var permissions: PermissionWatcher?
     private var claimed: WindowScope?
     private var streams: [UUID: AsyncStream<Event>.Continuation] = [:]
@@ -65,6 +66,7 @@ public final class CatWMEngine {
         let windowScope = scope.map { WindowScope(pids: Set($0.pids), display: $0.display) }
         Instance.embedding.scope = windowScope
         manager = Self.makeManager(backend: backend, config: loaded, scope: windowScope, store: store, paths: paths)
+        manager.plugins = plugins
         WindowManager.install(manager)
         Self.active.engine = self
         isRunning = true
@@ -191,6 +193,18 @@ public final class CatWMEngine {
             diagnostics: store.current.diagnostics.map(Diagnostic.init),
             windows: manager.windowsJSON(), workspaces: manager.workspacesJSON(), screens: manager.screensJSON(),
             mode: Hotkeys.shared.submap)
+    }
+
+    public func register(_ name: String, handler: @escaping @MainActor (PluginCall) -> Void) throws {
+        do {
+            try plugins.register(name, handler: handler)
+        } catch let error as ControlError {
+            throw EngineError.command(code: error.code, message: error.message)
+        }
+    }
+
+    public func unregister(_ name: String) {
+        plugins.unregisterHost(name)
     }
 
     public func events() -> AsyncStream<Event> {

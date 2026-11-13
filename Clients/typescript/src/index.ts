@@ -181,6 +181,19 @@ export class CatWMError extends Error {
 
 type Listener = (event: CatWMEvent) => void;
 
+export interface PluginWindow {
+  id: number;
+  app: string | null;
+  title: string | null;
+}
+
+export interface Invocation {
+  arg: string;
+  window: PluginWindow | null;
+}
+
+type Handler = (call: Invocation) => void | Promise<void>;
+
 export function defaultPath(): string {
   const instance = process.env.CATWM_INSTANCE;
   const folder = instance === undefined ? ".config/catwm" : `.config/catwm/instances/${instance}`;
@@ -192,6 +205,7 @@ export class CatWM {
   private buffer = "";
   private pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   private listeners = new Set<Listener>();
+  private handlers = new Map<string, Handler>();
   private ready: Promise<void>;
   hello: Record<string, unknown> = {};
 
@@ -230,6 +244,22 @@ export class CatWM {
       this.pending.set(id, { resolve, reject });
       this.socket.write(JSON.stringify({ id, command, args: clean }) + "\n");
     });
+  }
+
+  /**
+   * Register a namespaced dispatcher, such as "myapp.toggle". CatWM sends each run of it to this connection
+   * and doesn't wait for the handler. The name goes away when the connection closes.
+   */
+  async register(name: string, handler: Handler): Promise<string> {
+    const registered = ((await this.call("register", { name })) as { name: string }).name;
+    this.handlers.set(registered, handler);
+    return registered;
+  }
+
+  /** Remove a dispatcher that this connection registered. */
+  async unregister(name: string): Promise<void> {
+    await this.call("unregister", { name });
+    this.handlers.delete(name.toLowerCase());
   }
 
   /** Call the listener for each event this connection receives. Subscribe to events first. */
@@ -278,6 +308,8 @@ export class CatWM {
     if (message.hello) {
       this.hello = message.hello;
       this.onHello();
+    } else if (message.invoke) {
+      void this.handlers.get(message.invoke)?.(message.data as Invocation);
     } else if (message.event) {
       this.listeners.forEach((listener) => listener(message as CatWMEvent));
     } else if (this.pending.has(message.id)) {

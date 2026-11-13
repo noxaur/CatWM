@@ -25,6 +25,7 @@ The CLI, the Python, TypeScript and Swift libraries (`Clients/`) and the key bin
 | `reload` | run every module of `catwm.config.ts` again and apply what changed. A save applies by itself, so you rarely need it. Errors go to the log; a HUD shows "Config reloaded" or the error count. |
 | `dump` | print the tiling state. The app also writes it to `~/Library/Logs/CatWM.log`. |
 | `events [event ...]` | print one JSON line for each event until you stop it. With no names it prints every event. |
+| `register <name>`, `unregister <name>` | socket only (a library keeps the connection open). Add a dispatcher with a namespaced name, such as `myapp.toggle-notes`. See [Plugins](#plugins). |
 | `ping`, `commands` | check the app, or list the commands with their arguments as JSON |
 | `docs` | print the folder of bundled agent docs (works without CatWM running; exit 1 if missing) |
 | `modefx draw\|ripple\|corners\|none\|all` | preview a window-mode effect |
@@ -44,7 +45,19 @@ The `agent.*` commands belong to the connection that runs `agent.open`, and a cl
 
 ## Protocol
 
-One JSON object on each line. The app sends `{"hello": {...}}` when you connect. A request is `{"id": 1, "command": "movefocus", "args": {"direction": "left"}}`. The answer is `{"id": 1, "ok": true, "result": ...}` or `{"id": 1, "ok": false, "error": {"code": "invalid_args", "message": "..."}}`. Error codes: `bad_request`, `unknown_command`, `invalid_args`, `forbidden`, `failed`. `Clients/schema.json` lists every command, argument, result and event.
+One JSON object on each line. The app sends `{"hello": {...}}` when you connect. A request is `{"id": 1, "command": "movefocus", "args": {"direction": "left"}}`. The answer is `{"id": 1, "ok": true, "result": ...}` or `{"id": 1, "ok": false, "error": {"code": "invalid_args", "message": "..."}}`. An `invoke` line comes with no `id`. Error codes: `bad_request`, `unknown_command`, `invalid_args`, `forbidden`, `failed`. `Clients/schema.json` lists every command, argument, result and event.
+
+## Plugins
+
+An app adds its own dispatcher with `register` and a namespaced name: lowercase `a-z`, `0-9`, `-` and `_`, with at least one dot, such as `myapp.toggle-notes`. A built-in name, or a name that another connection registered, is refused. The name lasts as long as the connection. `unregister` removes it sooner.
+
+Then a key bind (`catwm.bind(["alt"], "n", "myapp.toggle-notes")`), `dispatch`, the CLI and window rules run it like a built-in. CatWM writes one line to the connection and does not wait for an answer:
+
+```json
+{"invoke": "myapp.toggle-notes", "data": {"arg": "", "window": {"id": 4021, "app": "com.apple.Safari", "title": "Docs"}}}
+```
+
+`arg` is the dispatcher argument. `window` is the window the action targets (the focused window for a bind), or `null`. A name that nobody registered does nothing and writes a line to the log. The libraries wrap this: `register(name, handler)` plus `serve()` in Python and Swift, and `register(name, handler)` in TypeScript. A host that embeds CatWMKit calls `CatWMEngine.register(_:handler:)`.
 
 ## Reading `dump` output
 

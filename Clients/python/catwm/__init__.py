@@ -5,7 +5,7 @@ import json
 import os
 import socket
 import threading
-from typing import Any, Iterator, Literal, TypedDict
+from typing import Any, Callable, Iterator, Literal, TypedDict
 
 PROTOCOL = 1
 
@@ -222,6 +222,17 @@ class ConfigReloaded(TypedDict):
     data: ConfigReloadedData
 
 
+
+class PluginWindow(TypedDict):
+    id: int
+    app: str | None
+    title: str | None
+
+
+class Invocation(TypedDict):
+    arg: str
+    window: PluginWindow | None
+
 Event = FocusChanged | WindowAdded | WindowRemoved | WorkspaceChanged | LayoutChanged | TilingChanged | ModeChanged | WindowNotifications | PermissionsChanged | ConfigReloaded
 EVENTS = ["focus.changed", "window.added", "window.removed", "workspace.changed", "layout.changed", "tiling.changed", "mode.changed", "window.notifications", "permissions.changed", "config.reloaded"]
 
@@ -244,8 +255,9 @@ class CatWM:
             self._socket.close()
             raise CatWMError("not_running", f"CatWM is not running: {error}") from error
         self._reader = self._socket.makefile("r", encoding="utf-8", newline="\n")
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._next_id = 1
+        self._handlers: dict[str, Callable[[Invocation], None]] = {}
         self.hello: dict[str, Any] = json.loads(self._reader.readline()).get("hello", {})
 
     def close(self) -> None:
@@ -276,11 +288,43 @@ class CatWM:
                     raise CatWMError("closed", "CatWM closed the connection")
                 reply = json.loads(text)
                 if reply.get("id") != request_id:
+                    self._invoke(reply)
                     continue
                 if reply.get("ok"):
                     return reply.get("result")
                 error = reply.get("error") or {}
                 raise CatWMError(error.get("code", "failed"), error.get("message", "The command failed"))
+
+    def register(self, name: str, handler: Callable[[Invocation], None]) -> str:
+        """Register a namespaced dispatcher, such as "myapp.toggle". CatWM sends each run of it to this connection.
+
+        The handler runs while this connection reads: in `serve`, or while another call waits for its answer.
+        CatWM never waits for the handler. The name goes away when the connection closes."""
+        registered = self.call("register", {"name": name})["name"]
+        self._handlers[registered] = handler
+        return registered
+
+    def unregister(self, name: str) -> None:
+        """Remove a dispatcher that this connection registered."""
+        self.call("unregister", {"name": name})
+        self._handlers.pop(name.lower(), None)
+
+    def serve(self) -> None:
+        """Run the handlers of the registered dispatchers until the connection closes.
+
+        Calls from other threads wait while this runs, so use a second connection for them."""
+        with self._lock:
+            self._socket.settimeout(None)
+            while True:
+                text = self._reader.readline()
+                if not text:
+                    return
+                self._invoke(json.loads(text))
+
+    def _invoke(self, message: dict[str, Any]) -> None:
+        handler = self._handlers.get(message.get("invoke", ""))
+        if handler:
+            handler(message["data"])
 
     @staticmethod
     def events(*names: str, path: str | None = None) -> Iterator[Event]:

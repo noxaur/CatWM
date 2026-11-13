@@ -128,6 +128,12 @@ extension CatWMEngine {
         public let data: JSON
     }
 
+    public struct PluginCall: Sendable, Equatable {
+        public let name: String
+        public let arg: String
+        public let window: JSON
+    }
+
     public struct Snapshot: Sendable, Equatable {
         public let isRunning: Bool
         public let isTiling: Bool

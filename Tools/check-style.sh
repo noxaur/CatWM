@@ -79,6 +79,9 @@ TEST_YIELD_POLL = re.compile(r"^\s*while\b.*\bDate\(\).*\bTask\.yield\(\)")
 TEST_RUNLOOP = re.compile(r"^\s*RunLoop\.(?:main|current)\.run\s*\(\s*until\s*:\s*Date\(\)\.addingTimeInterval\s*\(")
 DEFAULTS_LITERAL = re.compile(r'\bforKey: *"')
 DEFAULTS_KEYS = "Sources/CatWMKit/App/DefaultsKey.swift"
+DEFAULTS_KEY_CONSTANT = re.compile(r'\bstatic let (?:\w*Key|key)\b[^=\n]*= *"')
+with open(os.path.join(ROOT, DEFAULTS_KEYS), encoding="utf-8") as handle:
+    DEFAULTS_VALUES = re.compile('"(?:' + "|".join(re.escape(value) for value in re.findall(r'= "([^"]+)"', handle.read())) + ')"')
 STANDARD_DEFAULTS = re.compile(r"\bUserDefaults\.standard\b|\bUserDefaults *= *\.standard\b")
 INSTANCE = "Sources/CatWMKit/App/Instance.swift"
 TOOLS = "// swift-tools-version:"
@@ -207,6 +210,8 @@ def banned(path, code, uses_defaults=False):
         hits.append("UserDefaults.standard. Use Instance.defaults, which keeps each CatWM instance apart")
     if uses_defaults and path.startswith(SOURCES) and path != DEFAULTS_KEYS and DEFAULTS_LITERAL.search(code):
         hits.append("UserDefaults key literal. Add it to DefaultsKey")
+    if path.startswith(SOURCES) and path != DEFAULTS_KEYS and (DEFAULTS_KEY_CONSTANT.search(code) or DEFAULTS_VALUES.search(code)):
+        hits.append("UserDefaults key outside DefaultsKey. Add it to DefaultsKey and use DefaultsKey.<name>")
     return hits
 
 

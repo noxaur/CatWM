@@ -40,7 +40,7 @@ import ServiceManagement
     }
 
     func enableOnFirstLaunch() {
-        let key = "didSetUpLaunchAtLogin"
+        let key = DefaultsKey.didSetUpLaunchAtLogin
         guard !Instance.defaults.bool(forKey: key) else { return }
         Instance.defaults.set(true, forKey: key)
         set(true)

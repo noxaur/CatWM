@@ -23,7 +23,7 @@ extension WindowManager {
             if let id = CGWindowID(key) { floats.savedFloating[id] = value }
         }
         loadNativeMigration(defaults)
-        ["ws.windows", "ws.owners", "ws.floating"].forEach(defaults.removeObject(forKey:))
+        [DefaultsKey.wsWindows, DefaultsKey.wsOwners, DefaultsKey.wsFloating].forEach(defaults.removeObject(forKey:))
         loadWorkspaceLayouts(defaults)
         loadTilingRecovery(defaults: defaults)
         monitorOf = monitorOf.filter { isVirtual($0.key) }

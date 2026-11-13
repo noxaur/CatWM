@@ -1,7 +1,6 @@
 import AppKit
 
 extension WindowManager {
-    private static let tilingRecoveryKey = "ws.tilingRecovery"
     private static let relaunchWindow: TimeInterval = 60
     private static let powerOffWindow: TimeInterval = 120
 
@@ -14,7 +13,7 @@ extension WindowManager {
     package var isPoweringOff: Bool { Date().timeIntervalSince(poweringOffAt) < Self.powerOffWindow }
 
     package func loadTilingRecovery(defaults: UserDefaults = Instance.defaults) {
-        guard let data = defaults.data(forKey: Self.tilingRecoveryKey),
+        guard let data = defaults.data(forKey: DefaultsKey.wsTilingRecovery),
               let saved = try? JSONDecoder().decode(TilingRecovery.self, from: data) else { return }
         tilingRecovery = saved.validated
         lastSavedTilingRecovery = tilingRecovery
@@ -104,7 +103,7 @@ extension WindowManager {
             })
         tilingRecovery = saved
         guard saved != lastSavedTilingRecovery, let data = try? JSONEncoder().encode(saved) else { return }
-        defaults.set(data, forKey: Self.tilingRecoveryKey)
+        defaults.set(data, forKey: DefaultsKey.wsTilingRecovery)
         lastSavedTilingRecovery = saved
     }
 

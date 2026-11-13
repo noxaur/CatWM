@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import os
 import Testing
@@ -100,10 +101,10 @@ import Testing
     }
 
     @Test @MainActor func aSlowAppDoesNotBlockTheMainQueueOrOtherApps() async {
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let scanner = WindowScanner { job, _ in
             #expect(!Thread.isMainThread)
-            if job.pid == 1, !Thread.isMainThread { release.wait() }
+            if job.pid == 1, !Thread.isMainThread { release.block() }
             var scan = WindowScanner.AppScan()
             scan.listed = job.pid == 2 ? Array(1...50) : [51]
             return scan
@@ -117,15 +118,15 @@ import Testing
         #expect(mainQueueRan)
         #expect(scanner.results[1] == nil)
         #expect(scanner.results[2]?.listed.count == 50)
-        release.signal()
+        release.open()
         await drain(scanner, pid: 1)
         #expect(scanner.results[1]?.listed == [51])
     }
 
     @Test @MainActor func repeatedScansDoNotQueueMoreWorkForABusyApp() async {
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let scanner = WindowScanner { _, _ in
-            _ = release.wait(timeout: .now() + 3)
+            release.block()
             return WindowScanner.AppScan()
         }
         let jobs = [WindowScanner.Job(pid: 1, listWindows: true, known: [:])]
@@ -133,15 +134,15 @@ import Testing
         var completions = 0
         for _ in 0..<50 { scanner.scan(jobs, done: { completions += 1 }, updated: {}) }
         #expect(completions == 50)
-        release.signal()
+        release.open()
         await drain(scanner, pid: 1)
     }
 
     @Test @MainActor func aNewWindowDoesNotWaitForAnotherAppsScan() async {
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let tracked = window()
         let scanner = WindowScanner(read: { job, _ in
-            if job.pid == 1 { _ = release.wait(timeout: .now() + 60) }
+            if job.pid == 1 { release.block() }
             var scan = WindowScanner.AppScan()
             if job.pid == 2 {
                 scan.listed = [tracked.id]
@@ -158,7 +159,7 @@ import Testing
         #expect(scanner.results[2]?.found[tracked.id] != nil)
         #expect(updates == 1)
         #expect(!completed)
-        release.signal()
+        release.open()
         await drain(scanner, pid: 1)
     }
 
@@ -180,16 +181,16 @@ import Testing
     }
 
     @Test @MainActor func terminationDiscardsAnInFlightScan() async {
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let scanner = WindowScanner { _, _ in
-            _ = release.wait(timeout: .now() + 3)
+            release.block()
             var scan = WindowScanner.AppScan()
             scan.listed = [7]
             return scan
         }
         scanner.scan([.init(pid: 1, listWindows: true, known: [:])], done: {}, updated: {})
         scanner.forget(1)
-        release.signal()
+        release.open()
         await drain(scanner, pid: 1)
         #expect(scanner.results[1] == nil)
     }

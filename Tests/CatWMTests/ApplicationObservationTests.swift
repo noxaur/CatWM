@@ -1,13 +1,14 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import os
 import Testing
 
 @MainActor @Suite struct ApplicationObservationTests {
     @Test func applicationReadsDoNotBlockInputOrPublishAnIncompleteObservation() async {
-        let entered = DispatchSemaphore(value: 0)
-        let release = DispatchSemaphore(value: 0)
+        let entered = Gate()
+        let release = Gate()
         let reads = OSAllocatedUnfairLock(initialState: 0)
         let application = RunningApplicationSnapshot(pid: 42, bundleID: "test.app", regular: true, hidden: false)
         let scanner = WindowScanner(readDesktop: { _ in
@@ -16,8 +17,8 @@ import Testing
         }, readApplications: {
             #expect(!Thread.isMainThread)
             if reads.withLock({ $0 += 1; return $0 }) == 1 {
-                entered.signal()
-                _ = release.wait(timeout: .now() + 30)
+                entered.open()
+                release.block()
             }
             return [application]
         })
@@ -25,14 +26,14 @@ import Testing
         scanner.observeDesktop(known: [7]) { completed = true }
         await withCheckedContinuation { continuation in
             DispatchQueue.global().async {
-                _ = entered.wait(timeout: .now() + 30)
+                entered.block()
                 DispatchQueue.main.async { continuation.resume() }
             }
         }
         #expect(!completed)
         #expect(scanner.desktop.spaces.isEmpty)
         #expect(scanner.applications.isEmpty)
-        release.signal()
+        release.open()
         await withCheckedContinuation { continuation in
             scanner.observeDesktop(known: [7]) { continuation.resume() }
         }

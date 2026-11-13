@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -28,9 +29,9 @@ struct NativePreparationTests {
         let target = window(.max - 10, pid: -1)
         let blocked = window(.max - 11, pid: blockedPID)
         let writer = AXWriter(pid: blockedPID)
-        let release = DispatchSemaphore(value: 0)
-        writer.run { _ = release.wait(timeout: .now() + 2) }
-        defer { release.signal() }
+        let release = Gate()
+        writer.run { release.block() }
+        defer { release.open() }
         manager.animator = Animator(makeWriter: { $0 == blockedPID ? writer : AXWriter(pid: $0) })
         manager.animator.position(blocked, at: frame)
         manager.windows[target.id] = target
@@ -41,7 +42,7 @@ struct NativePreparationTests {
         let delayedRelease = Task { @MainActor in
             guard shouldWait else { return }
             released = true
-            release.signal()
+            release.open()
         }
         defer { delayedRelease.cancel() }
         let started = ProcessInfo.processInfo.systemUptime

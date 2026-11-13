@@ -1,4 +1,5 @@
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Foundation
 import Testing
@@ -50,29 +51,27 @@ import Testing
         var saved = sampleTemplate()
         saved.screenshot = Data([3])
         #expect(library.save(saved))
-        let pause = CapturePause()
-        defer { pause.release() }
-        let entered = CaptureFlag()
+        let pause = Gate()
+        defer { pause.open() }
+        let entered = Gate()
         library.captureWorkspace = {
             var copy = sampleTemplate()
             copy.windows[0].title = "Fresh"
             return copy
         }
         library.captureScreenshot = {
-            entered.value = true
+            entered.open()
             await pause.wait()
             return Data([7])
         }
         let task = library.update(saved)
-        let deadline = Date().addingTimeInterval(2)
-        while !entered.value, Date() < deadline { await Task.yield() }
-        #expect(entered.value)
+        await entered.wait()
         #expect(!library.updating)
         #expect(!library.restoring)
         #expect(library.templates[0].windows[0].title == "Fresh")
         #expect(library.templates[0].screenshot == Data([3]))
         #expect(library.templates[0].id == saved.id)
-        pause.release()
+        pause.open()
         await task.value
         #expect(library.templates[0].screenshot == Data([7]))
         #expect(library.templates[0].windows[0].title == "Fresh")
@@ -85,9 +84,11 @@ import Testing
         let library = scratch.library()
         let saved = sampleTemplate()
         #expect(library.save(saved))
-        let first = CapturePause()
-        let second = CapturePause()
-        defer { first.release(); second.release() }
+        let first = Gate()
+        let second = Gate()
+        defer { first.open(); second.open() }
+        let firstShot = Gate()
+        let secondShot = Gate()
         let shots = CaptureCounter()
         let phase = CaptureCounter()
         library.captureWorkspace = {
@@ -97,24 +98,25 @@ import Testing
         library.captureScreenshot = {
             let turn = shots.bump()
             if turn == 1 {
+                firstShot.open()
                 await first.wait()
                 return Data([1])
             }
+            secondShot.open()
             await second.wait()
             return Data([2])
         }
         let firstTask = library.update(saved)
-        let deadline = Date().addingTimeInterval(2)
-        while shots.value < 1, Date() < deadline { await Task.yield() }
+        await firstShot.wait()
         #expect(!library.updating)
         let secondTask = library.update(saved)
-        while shots.value < 2, Date() < deadline { await Task.yield() }
+        await secondShot.wait()
         #expect(library.templates[0].windows[0].title == "Snapshot 2")
-        first.release()
+        first.open()
         await firstTask.value
         #expect(library.templates[0].windows[0].title == "Snapshot 2")
         #expect(library.templates[0].screenshot == nil)
-        second.release()
+        second.open()
         await secondTask.value
         #expect(library.templates[0].screenshot == Data([2]))
         #expect(library.templates[0].windows[0].title == "Snapshot 2")
@@ -127,20 +129,19 @@ import Testing
         let library = scratch.library()
         let saved = sampleTemplate()
         #expect(library.save(saved))
-        let pause = CapturePause()
-        defer { pause.release() }
-        let entered = CaptureFlag()
+        let pause = Gate()
+        defer { pause.open() }
+        let entered = Gate()
         library.captureWorkspace = { sampleTemplate(title: "Fresh") }
         library.captureScreenshot = {
-            entered.value = true
+            entered.open()
             await pause.wait()
             return Data([5])
         }
         let task = library.update(saved)
-        let deadline = Date().addingTimeInterval(2)
-        while !entered.value, Date() < deadline { await Task.yield() }
+        await entered.wait()
         library.delete(saved)
-        pause.release()
+        pause.open()
         await task.value
         #expect(library.templates.isEmpty)
         #expect(TemplateLibrary(url: scratch.url).templates.isEmpty)
@@ -170,20 +171,19 @@ import Testing
         let library = scratch.library()
         let saved = sampleTemplate()
         #expect(library.save(saved))
-        let pause = CapturePause()
-        defer { pause.release() }
-        let entered = CaptureFlag()
+        let pause = Gate()
+        defer { pause.open() }
+        let entered = Gate()
         library.captureWorkspace = {
-            entered.value = true
+            entered.open()
             await pause.wait()
             return sampleTemplate(title: "Stale")
         }
         library.captureScreenshot = { Data([9]) }
         let deleted = library.update(saved)
-        let deadline = Date().addingTimeInterval(2)
-        while !entered.value, Date() < deadline { await Task.yield() }
+        await entered.wait()
         library.delete(saved)
-        pause.release()
+        pause.open()
         await deleted.value
         #expect(library.templates.isEmpty)
         #expect(TemplateLibrary(url: scratch.url).templates.isEmpty)
@@ -191,21 +191,20 @@ import Testing
         let renamedLibrary = scratch.library()
         var renamed = sampleTemplate()
         #expect(renamedLibrary.save(renamed))
-        let renamePause = CapturePause()
-        defer { renamePause.release() }
-        let renameEntered = CaptureFlag()
+        let renamePause = Gate()
+        defer { renamePause.open() }
+        let renameEntered = Gate()
         renamedLibrary.captureWorkspace = {
-            renameEntered.value = true
+            renameEntered.open()
             await renamePause.wait()
             return sampleTemplate(title: "Stale")
         }
         renamedLibrary.captureScreenshot = { Data([9]) }
         let renameTask = renamedLibrary.update(renamed)
-        let renameDeadline = Date().addingTimeInterval(2)
-        while !renameEntered.value, Date() < renameDeadline { await Task.yield() }
+        await renameEntered.wait()
         renamed.name = "Research"
         #expect(renamedLibrary.save(renamed))
-        renamePause.release()
+        renamePause.open()
         await renameTask.value
         #expect(renamedLibrary.templates.count == 1)
         #expect(renamedLibrary.templates[0].name == "Research")
@@ -220,36 +219,35 @@ import Testing
         let library = scratch.library()
         let saved = sampleTemplate()
         #expect(library.save(saved))
-        let shotPause = CapturePause()
-        let snapshotPause = CapturePause()
-        defer { shotPause.release(); snapshotPause.release() }
-        let shotEntered = CaptureFlag()
-        let snapshotEntered = CaptureFlag()
+        let shotPause = Gate()
+        let snapshotPause = Gate()
+        defer { shotPause.open(); snapshotPause.open() }
+        let shotEntered = Gate()
+        let snapshotEntered = Gate()
         let phase = CaptureCounter()
         library.captureWorkspace = {
             let turn = phase.bump()
             if turn == 1 { return sampleTemplate(title: "First") }
-            snapshotEntered.value = true
+            snapshotEntered.open()
             await snapshotPause.wait()
             return sampleTemplate(title: "Second")
         }
         library.captureScreenshot = {
-            shotEntered.value = true
+            shotEntered.open()
             await shotPause.wait()
             return Data([1])
         }
         let first = library.update(saved)
-        let deadline = Date().addingTimeInterval(2)
-        while !shotEntered.value, Date() < deadline { await Task.yield() }
+        await shotEntered.wait()
         #expect(!library.updating)
         let second = library.update(saved)
-        while !snapshotEntered.value, Date() < deadline { await Task.yield() }
+        await snapshotEntered.wait()
         #expect(library.updating)
-        shotPause.release()
+        shotPause.open()
         await first.value
         #expect(library.updating)
         #expect(library.templates[0].windows[0].title == "First")
-        snapshotPause.release()
+        snapshotPause.open()
         await second.value
         #expect(!library.updating)
         #expect(library.templates[0].windows[0].title == "Second")

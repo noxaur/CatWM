@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -12,7 +13,7 @@ import Testing
         let old = window(1), new = window(2)
         old.fullscreen = true
         old.minimized = true
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let scanner = WindowScanner(read: { job, discovered in
             var scan = WindowScanner.AppScan()
             scan.listed = [old.id, new.id]
@@ -21,7 +22,7 @@ import Testing
             scan.found[new.id] = .init(element: new.element,
                 frame: CGRect(x: 10, y: 20, width: 300, height: 200), title: nil, resizable: true)
             discovered(scan)
-            _ = release.wait(timeout: .now() + 30)
+            release.block()
             scan.fullscreen = []
             scan.minimized = []
             return scan
@@ -37,7 +38,7 @@ import Testing
         #expect(scanner.results[-1]?.found[old.id] == nil)
         #expect(scanner.results[-1]?.fullscreen == [old.id])
         #expect(scanner.results[-1]?.minimized == [old.id])
-        release.signal()
+        release.open()
         await drain(scanner)
         #expect(completed)
         #expect(scanner.results[-1]?.fullscreen.isEmpty == true)
@@ -45,12 +46,12 @@ import Testing
     }
 
     @Test func terminationDiscardsBothDiscoveryAndFinalResults() async {
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let scanner = WindowScanner(read: { _, discovered in
             var scan = WindowScanner.AppScan()
             scan.listed = [7]
             discovered(scan)
-            _ = release.wait(timeout: .now() + 30)
+            release.block()
             return scan
         }, deadline: 60)
         await withCheckedContinuation { continuation in
@@ -59,7 +60,7 @@ import Testing
         }
         #expect(scanner.results[-1]?.listed == [7])
         scanner.forget(-1)
-        release.signal()
+        release.open()
         await drain(scanner)
         #expect(scanner.results[-1] == nil)
     }

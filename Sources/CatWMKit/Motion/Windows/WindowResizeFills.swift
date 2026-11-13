@@ -105,6 +105,8 @@ import QuartzCore
         }
     }
 
+    package func isFilling(_ id: CGWindowID) -> Bool { fills[id]?.visible == true }
+
     package func cancel(_ id: CGWindowID) {
         active.remove(id)
         fills.removeValue(forKey: id)?.close()

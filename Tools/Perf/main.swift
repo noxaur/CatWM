@@ -71,6 +71,7 @@ struct Usage {
         case "engine-tile": await engineTile()
         case "engine-actions": await engineActions()
         case "config-load": try configLoad()
+        case "motion": await motion()
         case "calibrate": calibrate()
         default: fail("unknown scenario \(name)")
         }
@@ -132,6 +133,27 @@ struct Usage {
         guard writes > 0 else { fail("the actions moved no window") }
         guard RealInput.refusals == 0 else { fail("the actions tried to reach the real input or Desktops") }
         guard !fake.desktopSwitches.isEmpty else { fail("the workspace actions switched no Desktop in the fake") }
+    }
+
+    private func motion() async {
+        func summary(_ result: MotionBench.Result?) -> MotionQuality.Summary {
+            guard let quality = result?.quality else { fail("a move recorded no motion samples") }
+            return quality
+        }
+        for scene in MotionBench.moves {
+            for latency in AppLatency.profiles {
+                let live = summary(await MotionBench.measure(scene, latency, mode: .live))
+                record("motion.live.error", live.error.p50)
+                record("motion.live.lag", (live.lag?.p50 ?? 0) * 1000)
+                record("motion.live.spill", live.spill.p95)
+                record("motion.fill.gap", summary(await MotionBench.measure(scene, latency, mode: .colorFill)).gap.p95)
+            }
+        }
+        for _ in 0..<20 {
+            guard let ticks = await MotionBench.measure(MotionBench.ratio(rows: 6), .fixed, mode: .colorFill)?.ticks,
+                  !ticks.isEmpty else { fail("the 12-window move ticked no frame") }
+            record("motion.tick.cpu", ticks.total / Double(ticks.count) * 1000)
+        }
     }
 
     private func configLoad() throws {

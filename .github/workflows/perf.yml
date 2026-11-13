@@ -3,8 +3,10 @@ name: perf
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore: ["docs/**", "website/**"]
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "website/**"]
   workflow_dispatch:
 
 permissions:
@@ -16,8 +18,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/build-catwm
+        with:
+          config: release
+      # A tar keeps the executable bits that an artifact drops. The resource bundles sit at the
+      # absolute build path that SwiftPM's bundle accessor falls back to.
+      - run: |
+          bin=$(cd .build/release && pwd -P)
+          bin=${bin#"$PWD/"}
+          tar -cf perf-build.tar build/CatWM.app .build/release "$bin/CatWMPerf" "$bin"/*.bundle
+      - uses: actions/upload-artifact@v5
+        with:
+          name: perf-build
+          path: perf-build.tar
+          retention-days: 1
+
   measure:
     name: perf measure (${{ matrix.shard }})
+    needs: build
     runs-on: xcode-27
     timeout-minutes: 30
     strategy:
@@ -27,17 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
-      - run: sudo xcode-select -s /Applications/Xcode_27.2.app
-      - uses: actions/cache@v4
+          sparse-checkout: |
+            Tools
+            Clients/python
+          filter: blob:none
+      - uses: actions/download-artifact@v5
         with:
-          path: .build
-          key: perf-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: |
-            perf-${{ runner.os }}-${{ runner.arch }}-
-      - run: CATWM_INSTANCE=perf ./build.sh
+          name: perf-build
+      - run: tar -xf perf-build.tar && rm perf-build.tar
       # Each machine runs its share one at a time; the report job merges the three.
-      - run: python3 Tools/perf.py --runs 2 --json perf.json --no-check ${{ matrix.shard == 1 && '--profile app-sample.txt' || '' }}
+      - run: python3 Tools/perf.py --runs 2 --json perf.json --no-check ${{ matrix.shard == 1 && github.event_name != 'pull_request' && '--profile app-sample.txt' || '' }}
       - if: always()
         uses: actions/upload-artifact@v5
         with:
@@ -58,7 +80,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
         with:
-          pattern: perf-*
+          pattern: perf-[0-9]
           path: shards
       - id: perf
         continue-on-error: true

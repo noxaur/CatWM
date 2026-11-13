@@ -35,12 +35,10 @@ package struct SavedTabs: Equatable {
 }
 
 extension WindowManager {
-    private static let legacyTabsKey = "tabs.groups"
-
     package func loadTabs() {
         let defaults = Instance.defaults
-        tabUI.savedTabs = (defaults.stringArray(forKey: Self.legacyTabsKey) ?? []).compactMap(SavedTabs.init)
-        defaults.removeObject(forKey: Self.legacyTabsKey)
+        tabUI.savedTabs = (defaults.stringArray(forKey: DefaultsKey.legacyTabs) ?? []).compactMap(SavedTabs.init)
+        defaults.removeObject(forKey: DefaultsKey.legacyTabs)
         tabUI.savedTabsUntil = Date().addingTimeInterval(SavedTabs.wait)
     }
 

@@ -8,9 +8,6 @@ final class TutorialLesson: Lesson {
         let steps: [PlannedStep]
     }
 
-    static let savedKey = "tutorial.chapter"
-    private static let doneKey = "tutorial.done"
-
     private var chapters: [Chapter] = []
     private var plan: [(chapter: Int, step: PlannedStep)] = []
     private(set) var startIndex = 0
@@ -18,12 +15,12 @@ final class TutorialLesson: Lesson {
     var count: Int { plan.count }
 
     static var paused: (id: String, name: String)? {
-        guard let saved = Instance.defaults.string(forKey: savedKey) else { return nil }
+        guard let saved = Instance.defaults.string(forKey: DefaultsKey.tutorialChapter) else { return nil }
         let parts = saved.split(separator: "|", maxSplits: 1).map(String.init)
         return parts.count == 2 ? (parts[0], parts[1]) : nil
     }
-    static var finishedOnce: Bool { Instance.defaults.bool(forKey: doneKey) }
-    static func forget() { Instance.defaults.removeObject(forKey: savedKey) }
+    static var finishedOnce: Bool { Instance.defaults.bool(forKey: DefaultsKey.tutorialDone) }
+    static func forget() { Instance.defaults.removeObject(forKey: DefaultsKey.tutorialChapter) }
 
     func prepare(_ coach: Coach) {
         func chapter(_ id: String, _ name: String, _ steps: [PlannedStep?]) {
@@ -62,13 +59,13 @@ final class TutorialLesson: Lesson {
         switch how {
         case .finished, .tutorial:
             Self.forget()
-            defaults.set(true, forKey: Self.doneKey)
+            defaults.set(true, forKey: DefaultsKey.tutorialDone)
         case .paused, .skipped:
             let chapter = chapters[plan[min(index, plan.count - 1)].chapter]
             if chapter.id == "welcome" || chapter.id == "done" {
                 Self.forget()
             } else {
-                defaults.set("\(chapter.id)|\(chapter.name)", forKey: Self.savedKey)
+                defaults.set("\(chapter.id)|\(chapter.name)", forKey: DefaultsKey.tutorialChapter)
             }
         }
     }

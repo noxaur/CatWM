@@ -4,7 +4,6 @@ import SwiftUI
 
 @MainActor final class SortNudge {
     static let shared = SortNudge()
-    private static let key = "sort.nudged"
 
     private var panel: CatWMPanel?
     private var hideWork: DispatchWorkItem?
@@ -18,9 +17,9 @@ import SwiftUI
     }
 
     func markOffered(_ workspace: String) {
-        var days = Instance.defaults.dictionary(forKey: Self.key) as? [String: String] ?? [:]
+        var days = Instance.defaults.dictionary(forKey: DefaultsKey.sortNudged) as? [String: String] ?? [:]
         days[workspace] = Self.today()
-        Instance.defaults.set(days, forKey: Self.key)
+        Instance.defaults.set(days, forKey: DefaultsKey.sortNudged)
     }
 
     func offer(workspace: String, count: Int, on screen: NSScreen) {
@@ -28,7 +27,7 @@ import SwiftUI
         guard panel == nil, manager.tilingEnabled, manager.config.sortNudge > 0, count > manager.config.sortNudge,
               !Onboarding.shared.isRunning, !SortPanel.shared.isOpen, !StatusMenu.shared.isOpen,
               let button = Onboarding.shared.statusButton, let buttonWindow = button.window else { return }
-        let days = Instance.defaults.dictionary(forKey: Self.key) as? [String: String] ?? [:]
+        let days = Instance.defaults.dictionary(forKey: DefaultsKey.sortNudged) as? [String: String] ?? [:]
         guard days[workspace] != Self.today() else { return }
         markOffered(workspace)
 

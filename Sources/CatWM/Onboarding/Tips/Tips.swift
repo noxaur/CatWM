@@ -33,15 +33,13 @@ import SwiftUI
     static let paneDelay: TimeInterval = 8
 
     let defaults = Instance.defaults
-    static let seenKey = "tips.seen", offKey = "tips.off", clicksKey = "tips.clicks"
-    static let daysKey = "tips.days", lastKey = "tips.last", panesKey = "tips.panes"
 
     var enabled: Bool {
-        get { !defaults.bool(forKey: Self.offKey) }
+        get { !defaults.bool(forKey: DefaultsKey.tipsOff) }
         set {
-            defaults.set(!newValue, forKey: Self.offKey)
+            defaults.set(!newValue, forKey: DefaultsKey.tipsOff)
             if newValue {
-                for key in [Self.seenKey, Self.clicksKey, Self.panesKey, Self.lastKey] {
+                for key in [DefaultsKey.tipsSeen, DefaultsKey.tipsClicks, DefaultsKey.tipsPanes, DefaultsKey.tipsLast] {
                     defaults.removeObject(forKey: key)
                 }
             } else {
@@ -50,18 +48,20 @@ import SwiftUI
         }
     }
 
-    var seen: Set<String> { Set(defaults.stringArray(forKey: Self.seenKey) ?? []) }
+    var seen: Set<String> { Set(defaults.stringArray(forKey: DefaultsKey.tipsSeen) ?? []) }
 
     var daysUsed: Int {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        var days = Set(defaults.stringArray(forKey: Self.daysKey) ?? [])
-        if days.insert(formatter.string(from: Date())).inserted { defaults.set(Array(days), forKey: Self.daysKey) }
+        var days = Set(defaults.stringArray(forKey: DefaultsKey.tipsDays) ?? [])
+        if days.insert(formatter.string(from: Date())).inserted {
+            defaults.set(Array(days), forKey: DefaultsKey.tipsDays)
+        }
         return days.count
     }
 
     var rested: Bool {
-        Date().timeIntervalSince1970 - defaults.double(forKey: Self.lastKey) >= Self.cooldown
+        Date().timeIntervalSince1970 - defaults.double(forKey: DefaultsKey.tipsLast) >= Self.cooldown
     }
 }
 

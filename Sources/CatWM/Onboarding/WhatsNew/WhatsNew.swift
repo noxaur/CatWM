@@ -4,7 +4,6 @@ import SwiftUI
 
 @MainActor final class WhatsNew {
     static let shared = WhatsNew()
-    static let seenKey = "whatsNew.seen"
     static let launchDelay: TimeInterval = 4
     static let retryDelay: TimeInterval = 30
 
@@ -20,7 +19,7 @@ import SwiftUI
 
     var isOpen: Bool { panel != nil }
 
-    var seen: Set<String> { Set(defaults.stringArray(forKey: Self.seenKey) ?? []) }
+    var seen: Set<String> { Set(defaults.stringArray(forKey: DefaultsKey.whatsNewSeen) ?? []) }
 
     var unseen: [(version: String, feature: Release.Feature)] {
         let seen = seen
@@ -32,12 +31,12 @@ import SwiftUI
     var hasNews: Bool { !unseen.isEmpty }
 
     func adoptBaseline(onboarded: Bool) {
-        guard defaults.object(forKey: Self.seenKey) == nil, !onboarded else { return }
+        guard defaults.object(forKey: DefaultsKey.whatsNewSeen) == nil, !onboarded else { return }
         markSeen(releases.flatMap(\.features))
     }
 
     func markSeen(_ features: [Release.Feature]) {
-        defaults.set(Array(seen.union(features.map(\.id))), forKey: Self.seenKey)
+        defaults.set(Array(seen.union(features.map(\.id))), forKey: DefaultsKey.whatsNewSeen)
     }
 
     func launched() {

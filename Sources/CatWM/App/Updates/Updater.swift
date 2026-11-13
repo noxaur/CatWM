@@ -5,8 +5,6 @@ import Sparkle
 final class Updater: NSObject, SPUUpdaterDelegate, ObservableObject {
     static let shared = Updater()
 
-    private static let betaKey = "receiveBetaUpdates"
-
     private var controller: SPUStandardUpdaterController?
 
     let isConfigured: Bool = {
@@ -21,7 +19,7 @@ final class Updater: NSObject, SPUUpdaterDelegate, ObservableObject {
     func start() {
         guard isConfigured, controller == nil else { return }
         let channel = Bundle.main.infoDictionary?["CatWMUpdateChannel"] as? String
-        Instance.defaults.register(defaults: [Self.betaKey: channel == "beta"])
+        Instance.defaults.register(defaults: [DefaultsKey.receiveBetaUpdates: channel == "beta"])
         controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
         lastChecked = controller?.updater.lastUpdateCheckDate
     }
@@ -44,8 +42,8 @@ final class Updater: NSObject, SPUUpdaterDelegate, ObservableObject {
     }
 
     var receivesBeta: Bool {
-        get { Instance.defaults.bool(forKey: Self.betaKey) }
-        set { objectWillChange.send(); Instance.defaults.set(newValue, forKey: Self.betaKey) }
+        get { Instance.defaults.bool(forKey: DefaultsKey.receiveBetaUpdates) }
+        set { objectWillChange.send(); Instance.defaults.set(newValue, forKey: DefaultsKey.receiveBetaUpdates) }
     }
 
     func allowedChannels(for _: SPUUpdater) -> Set<String> {

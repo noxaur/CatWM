@@ -1,10 +1,9 @@
 import AppKit
 
 package enum DesktopMenuBar {
-    private static let freshKey = "ws.freshDesktops"
     @MainActor private static var fresh: Set<String> {
-        get { Set(Instance.defaults.stringArray(forKey: freshKey) ?? []) }
-        set { Instance.defaults.set(Array(newValue), forKey: freshKey) }
+        get { Set(Instance.defaults.stringArray(forKey: DefaultsKey.wsFreshDesktops) ?? []) }
+        set { Instance.defaults.set(Array(newValue), forKey: DefaultsKey.wsFreshDesktops) }
     }
 
     @MainActor package static func created(_ space: UInt64, in snapshot: Spaces.Snapshot) {

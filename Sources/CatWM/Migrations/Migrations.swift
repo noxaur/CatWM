@@ -56,7 +56,7 @@ enum Migrations {
             guard let old = defaults.persistentDomain(forName: domain) else { continue }
             for (key, value) in old where defaults.object(forKey: key) == nil
                 && !key.hasPrefix("NSWindow Frame")
-                && key != "didSetUpLaunchAtLogin" {
+                && key != DefaultsKey.didSetUpLaunchAtLogin {
                 defaults.set(value, forKey: key)
             }
             Log.info("migrated \(old.count) settings from \(domain)")

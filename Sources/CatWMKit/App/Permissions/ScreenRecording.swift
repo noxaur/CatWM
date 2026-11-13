@@ -4,7 +4,6 @@ import ScreenCaptureKit
 
 package final class ScreenRecording: Sendable {
     package static let shared = ScreenRecording()
-    private static let testDoneKey = "screenRecordingTestDone"
 
     private struct State {
         var granted = false
@@ -20,7 +19,7 @@ package final class ScreenRecording: Sendable {
     }
 
     package var isGranted: Bool { state.withLock { $0.granted } || CGPreflightScreenCaptureAccess() }
-    @MainActor package var isTestDone: Bool { Instance.defaults.bool(forKey: Self.testDoneKey) }
+    @MainActor package var isTestDone: Bool { Instance.defaults.bool(forKey: DefaultsKey.screenRecordingTestDone) }
 
     package func refresh() {
         let start = state.withLock { state in
@@ -52,7 +51,7 @@ package final class ScreenRecording: Sendable {
             configuration.width = 64
             configuration.height = 64
             _ = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
-            Instance.defaults.set(true, forKey: Self.testDoneKey)
+            Instance.defaults.set(true, forKey: DefaultsKey.screenRecordingTestDone)
             Log.info("screen recording test image taken")
             return true
         } catch {

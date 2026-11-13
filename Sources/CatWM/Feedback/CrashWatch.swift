@@ -6,11 +6,9 @@ import SwiftUI
     private static let marker = Instance.supportFolder.appendingPathComponent("running")
     private static let reports = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/DiagnosticReports")
-    private static let seenKey = "lastCrashReportSeen"
-    private static let pendingKey = "pendingCrashReport"
 
     private static var pending: URL? {
-        guard let path = Instance.defaults.string(forKey: pendingKey),
+        guard let path = Instance.defaults.string(forKey: DefaultsKey.pendingCrashReport),
               FileManager.default.fileExists(atPath: path) else { return nil }
         return URL(fileURLWithPath: path)
     }
@@ -27,13 +25,15 @@ import SwiftUI
         startWatchdog()
 
         let defaults = Instance.defaults
-        if defaults.object(forKey: seenKey) == nil { defaults.set(Date(), forKey: seenKey) }
+        if defaults.object(forKey: DefaultsKey.lastCrashReportSeen) == nil {
+            defaults.set(Date(), forKey: DefaultsKey.lastCrashReportSeen)
+        }
         if LaunchFlag.crashReport.isSet, let latest = newestReport(after: .distantPast) {
             return found(latest)
         }
         guard let previous else { return pending.map(send) ?? () }
         Log.info("crash watch: the last run didn't exit cleanly")
-        let since = max(previous, defaults.object(forKey: seenKey) as? Date ?? previous)
+        let since = max(previous, defaults.object(forKey: DefaultsKey.lastCrashReportSeen) as? Date ?? previous)
         poll(after: since, attempts: 12)
     }
 
@@ -46,15 +46,15 @@ import SwiftUI
     }
 
     private static func found(_ report: URL) {
-        Instance.defaults.set(Date(), forKey: seenKey)
-        Instance.defaults.set(report.path, forKey: pendingKey)
+        Instance.defaults.set(Date(), forKey: DefaultsKey.lastCrashReportSeen)
+        Instance.defaults.set(report.path, forKey: DefaultsKey.pendingCrashReport)
         Log.info("crash watch: found \(report.lastPathComponent)")
         send(report)
     }
 
     private static func send(_ report: URL) {
         Feedback.sendCrash(report) { success in
-            if success { Instance.defaults.removeObject(forKey: pendingKey) }
+            if success { Instance.defaults.removeObject(forKey: DefaultsKey.pendingCrashReport) }
         }
     }
 

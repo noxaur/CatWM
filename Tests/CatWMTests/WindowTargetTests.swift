@@ -123,6 +123,21 @@ import Testing
         #expect(await world.fake.wait(world.manager) { world.manager.focusRequests.reportedFocus?.id == id })
     }
 
+    @Test func aPluginDispatcherGetsTheTargetAndTheRestOfTheArgument() async throws {
+        let world = makeWorld()
+        let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")
+        let notes = world.fake.addWindow(pid: -101, bundleID: "test.notes", title: "Todo")
+        #expect(await world.fake.settle(world.manager))
+        try await focus(notes, world)
+        let peer = PluginDispatcherTests.Peer()
+        _ = try world.manager.plugins.register("myapp.look", for: peer.client)
+
+        world.manager.dispatch("myapp.look", "@app:test.mail left")
+        let data = try #require(peer.nextLine()?["data"])
+        #expect(data["arg"] == "left")
+        #expect(data["window"]?["id"] == .int(Int(mail)))
+    }
+
     @Test func aDispatcherActsOnTheTargetInsteadOfTheFocusedWindow() async throws {
         let world = makeWorld()
         let mail = world.fake.addWindow(bundleID: "test.mail", title: "Inbox")

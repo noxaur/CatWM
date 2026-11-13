@@ -110,7 +110,7 @@ extension WindowManager {
             return
         }
         guard let action = WindowActions.named(dispatcher) else {
-            if !plugins.invoke(dispatcher, arg: arg, window: focusedWindow()) {
+            if !plugins.invoke(dispatcher, arg: rest, window: target ?? focusedWindow()) {
                 Log.info("unknown dispatcher \(dispatcher)")
             }
             return

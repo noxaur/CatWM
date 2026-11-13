@@ -37,14 +37,15 @@ if [ -z "${CATWM_INSTANCE+set}" ]; then
   fi
 fi
 Tools/install-hooks.sh
-Tools/check-style.sh
-Tools/swiftlint.sh
 # The native build system recompiles only what changed; the default one recompiled the whole app for a
 # one-file edit. A local manifest cache lives in .build, so CI's cached .build keeps it too.
 swift build -c "$CONFIG" --build-system native --manifest-cache local
 ".build/$CONFIG/CatWM" --write-schema
 ".build/$CONFIG/CatWM" --write-config-docs
 python3 Tools/generate-clients.py
+# The checks run after the generated files, which they compare against the code.
+Tools/check-style.sh
+Tools/swiftlint.sh
 stop_catwm() {
   case "$(ps -o comm= -p "$1" 2>/dev/null)" in */CatWM) ;; *) return 0 ;; esac
   kill "$1" 2>/dev/null || return 0

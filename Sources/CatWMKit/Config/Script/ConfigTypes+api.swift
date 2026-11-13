@@ -1,6 +1,28 @@
 import Foundation
 
 extension ConfigTypes {
+    static let actionTypes = [
+        "/** A namespaced action that an app registers with `register`, such as `\"myapp.toggle\"`. */",
+        "export type PluginAction = `${string}.${string}`",
+        "",
+        "/** An action name, or the name and its arguments: `\"sort\"` or `[\"workspace\", \"2\"]`. */",
+        "export type Action = {",
+        "  [A in keyof Actions]: [] extends Actions[A] ? A | [A, ...Actions[A]] : [A, ...Actions[A]]",
+        "}[keyof Actions] | PluginAction | [PluginAction, ...(string | number)[]]",
+        "",
+        "/** A list you can change in place: `push`, or `remove` every copy of a value. */",
+        "export interface List<T> extends Array<T> {",
+        "  remove(value: T): void",
+        "}",
+        "",
+        "/** What you can assign to a group: an object that merges, a list that replaces, `undefined` to reset. */",
+        "export type Input<T> = {",
+        "  [K in keyof T]?: T[K] extends List<infer U> ? readonly U[] | undefined",
+        "    : T[K] extends object ? Input<T[K]> | undefined : T[K] | undefined",
+        "}",
+        ""
+    ]
+
     static func eventTypes() -> [String] {
         func type(_ text: String) -> String {
             var base = text, optional = false, array = false

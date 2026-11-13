@@ -5,7 +5,7 @@ extension WindowActions {
         "togglefloating", "setfloating", "settiled", "resizeactive", "moveactive", "centerwindow", "fullscreen",
         "nativefullscreen", "minimize", "killactive", "movewindow", "movewindowtomonitor", "moveintogroup",
         "moveoutofgroup", "changegroupactive", "movegroupwindow", "movetoworkspace", "movetoworkspacesilent",
-        "focuswindow"
+        "focuswindow", "unminimize", "pin", "movetoscratchpad"
     ]
 
     package static let focuswindow = WindowAction.text(
@@ -47,8 +47,10 @@ extension WindowManager {
     }
 
     func resolveTarget(of dispatcher: String, in arg: String) -> (window: Window?, arg: String)? {
-        guard let name = WindowActions.named(dispatcher)?.name, arg.hasPrefix("@") else { return (nil, arg) }
-        guard WindowActions.targetable.contains(name) else {
+        let plugin = PluginDispatchers.isNamespaced(dispatcher)
+        guard let name = WindowActions.named(dispatcher)?.name ?? (plugin ? dispatcher : nil), arg.hasPrefix("@")
+        else { return (nil, arg) }
+        guard plugin || WindowActions.targetable.contains(name) else {
             Log.info("`\(name)` doesn't take a window target")
             return nil
         }

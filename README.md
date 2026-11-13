@@ -72,6 +72,80 @@ catwm windows
 catwm events focus.changed
 ```
 
+## Configure CatWM
+
+CatWM works with no setup. To change it, edit `~/.config/catwm/catwm.config.ts`. CatWM writes a `catwm.d.ts` next to it, so your editor completes every option, key, dispatcher and event. A save applies at once. The Settings window writes into the same file, so the file and Settings always agree.
+
+```ts
+import { catwm } from "./catwm"
+
+catwm.gaps = { size: 8 }
+catwm.layouts = ["tall", "bsp", "floating"]
+
+// A key runs a dispatcher, or a function.
+catwm.bind(["alt"], "h", ["movefocus", "l"])
+catwm.bind(["alt"], "c", () => {
+  catwm.window.focused.float()
+  catwm.window.focused.center()
+})
+
+// A rule applies as a window appears. Text fields take a string, a trailing *, or a RegExp.
+catwm.windows({ app: "com.apple.calculator" }, (win) => win.float())
+catwm.windows({ title: /^Picture-in-Picture$/i }, (win) => win.pin())
+
+// A handler runs after something happens.
+catwm.on("display.removed", () => catwm.dispatch("workspace", "1"))
+```
+
+[docs/user/configuration.md](docs/user/configuration.md) explains every part: options, keys, window mode, rules, workspace rules, events and splitting the config into files.
+
+### Dispatchers
+
+A dispatcher is a named action. Keys, rules, `catwm.dispatch`, the CLI (`catwm <dispatcher> <args>`) and the libraries all run the same ones. [Resources/AgentDocs/dispatchers.md](Resources/AgentDocs/dispatchers.md) has the full arguments of each.
+
+| Group | Dispatchers |
+|---|---|
+| Focus | `movefocus` `l r u d` · `cyclenext` `[prev]` · `focuswindow` *target* · `focuslast` · `focusmonitor` *display* · `switcher` `[prev]` |
+| Move | `movewindow` / `swapwindow` `l r u d` or `mon:<display>` · `swapnext` `[prev]` · `movewindowtomonitor` *display* · `movetoworkspace` / `movetoworkspacesilent` *workspace* |
+| Size and place | `resizeactive` / `moveactive` `exact W H`, `50% 100%` or `+50 -20` · `centerwindow` · `splitratio` `±0.05` or `exact 0.6` · `balance` · `togglesplit` |
+| Window state | `togglefloating` · `setfloating` · `settiled` · `fullscreen` · `nativefullscreen` · `minimize` · `unminimize` · `killactive` · `pin` `[on off toggle]` |
+| Scratchpads | `movetoscratchpad` `[name]` · `togglescratchpad` `[name]` |
+| Tabs | `moveintogroup` `l r u d` · `moveoutofgroup` · `changegroupactive` `f b N` · `movegroupwindow` `f b` |
+| Layouts | `layout` *name* · `cyclelayout` `next prev` · `layoutmsg` *message* · `toggletiling` · `retile` · `toggledim` · `toggleblur` |
+| Workspaces and displays | `workspace` `N`, `name:foo`, `previous`, `+1`, `e+1` · `moveworkspacetomonitor` *display* · `swapworkspaces` *display display* · `sethomespace` |
+| Overview | `sort` · `sort-undo` |
+| App | `submap` *mode* or `reset` · `reload` · `exit` · `exec` *command* · `launch` *app, file or URL* · `sendshortcut` *mods key [bundle id]* |
+
+`exec`, `launch` and `sendshortcut` run only from your own keys and config, never over the socket.
+
+**Window targets.** A window dispatcher acts on the focused window. Start its argument with `@` and a target to act on another window: `catwm setfloating "@app:com.apple.Safari"` or `catwm movetoworkspacesilent "@title:/^Inbox/i 3"`. A target is `app:`, `title:`, `workspace:`, `display:`, `id:` or `pid:`, then a value. A value is exact text, ends with `*`, or is a regex in `/source/flags` form. `catwm windows` lists the window IDs.
+
+### Events
+
+`catwm.on(event, handler)` in the config, `catwm events` in a shell, and `events()` in the libraries all get the same events: `focus.changed`, `window.added`, `window.changed`, `window.removed`, `workspace.changed`, `workspace.created`, `workspace.removed`, `display.added`, `display.removed`, `layout.changed`, `tiling.changed`, `mode.changed`, `window.notifications`, `permissions.changed` and `config.reloaded`.
+
+### Plugins
+
+Another app can add its own dispatchers. It registers a namespaced name over the socket, and CatWM sends it each call, with the target window. Your config can bind the name like any built-in:
+
+```python
+from catwm import CatWM
+
+with CatWM() as catwm:
+    catwm.register("notes.toggle", lambda call: print("toggle", call["window"]))
+    catwm.serve()
+```
+
+```ts
+catwm.bind(["alt"], "n", "notes.toggle")
+```
+
+The name goes away when the app disconnects, and a press does nothing until it comes back. A plugin can't replace a built-in dispatcher. See [Clients](Clients/README.md) for Python, TypeScript and Swift.
+
+### For agents
+
+The app ships an agent guide: run `catwm docs` for its folder, or read [Resources/AgentDocs/README.md](Resources/AgentDocs/README.md). It covers the CLI, every option, keys, dispatchers and troubleshooting, so an agent can change a user's config without reading the source.
+
 
 ## Contributing
 

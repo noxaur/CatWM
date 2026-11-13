@@ -143,8 +143,8 @@ import QuartzCore
 
     private func tick(shown: CFTimeInterval, presentation: CFTimeInterval) {
         motionRun.measure(items, at: shown, shown: windowPresentation)
-        let started = CACurrentMediaTime()
-        motionRun.tick(at: now())
+        let started = CACurrentMediaTime(), moving = !items.isEmpty
+        if moving { motionRun.tick(at: now()) }
         let ordered = items.sorted {
             let left = $0.value.colorSizing?.releasesSpace == true
             let right = $1.value.colorSizing?.releasesSpace == true
@@ -153,6 +153,7 @@ import QuartzCore
         for (id, item) in ordered {
             if presentation - item.start >= item.duration {
                 items[id] = nil
+                motionRun.finished(item)
                 land(item.move)
             } else {
                 writer(item.move.window.pid).step(item.move.window, notBefore: presentation,
@@ -162,8 +163,8 @@ import QuartzCore
             }
         }
         updateWindowPresentation(at: presentation)
-        motionRun.ticked(CACurrentMediaTime() - started)
-        if items.isEmpty {
+        if moving { motionRun.ticked(CACurrentMediaTime() - started) }
+        if items.isEmpty && !motionRun.isSettling {
             clock?.stop(); clock = nil
             motionRun.end(writers.map { ($0.key, $0.value.takeStats()) })
         }

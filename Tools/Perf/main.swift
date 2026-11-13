@@ -141,18 +141,27 @@ struct Usage {
             return quality
         }
         for scene in MotionBench.moves {
-            for latency in AppLatency.profiles {
-                let live = summary(await MotionBench.measure(scene, latency, mode: .live))
-                record("motion.live.error", live.error.p50)
-                record("motion.live.lag", (live.lag?.p50 ?? 0) * 1000)
-                record("motion.live.spill", live.spill.p95)
-                record("motion.fill.gap", summary(await MotionBench.measure(scene, latency, mode: .colorFill)).gap.p95)
+            for profile in MotionBench.Profile.slow {
+                for warm in [false, true] {
+                    let live = summary(await MotionBench.measure(scene, profile, mode: .live, warm: warm))
+                    record("motion.live.error", live.error.p50)
+                    record("motion.live.error.p95", live.error.p95)
+                    record("motion.live.lag", (live.lag?.p50 ?? 0) * 1000)
+                    record("motion.live.spill", live.spill.p95)
+                    record("motion.live.stutter", live.stutter?.p95 ?? 0)
+                    record("motion.live.overshoot", live.overshoot.max)
+                    record("motion.live.tail", (live.tail?.max ?? 0) * 1000)
+                }
+                let fill = summary(await MotionBench.measure(scene, profile, mode: .colorFill))
+                record("motion.fill.gap", fill.gap.p95)
             }
         }
         for _ in 0..<20 {
-            guard let ticks = await MotionBench.measure(MotionBench.ratio(rows: 6), .fixed, mode: .colorFill)?.ticks,
-                  !ticks.isEmpty else { fail("the 12-window move ticked no frame") }
-            record("motion.tick.cpu", ticks.total / Double(ticks.count) * 1000)
+            for (mode, metric) in [(MotionBench.Mode.colorFill, "motion.tick.cpu"), (.live, "motion.tick.live.cpu")] {
+                guard let ticks = await MotionBench.measure(MotionBench.ratio(rows: 6), .named("fixed"), mode: mode)?
+                    .ticks, !ticks.isEmpty else { fail("the 12-window move ticked no frame") }
+                record(metric, ticks.total / Double(ticks.count) * 1000)
+            }
         }
     }
 

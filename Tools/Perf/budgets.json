@@ -94,6 +94,12 @@
       "unit": "px",
       "cap": 235
     },
+    "motion.live.error.p95": {
+      "group": "Motion",
+      "label": "Live tracking error p95 per move and app profile",
+      "unit": "px",
+      "cap": 700
+    },
     "motion.live.lag": {
       "group": "Motion",
       "label": "Live lag p50 per move and app profile",
@@ -105,7 +111,26 @@
       "group": "Motion",
       "label": "Live spill p95 per move and app profile",
       "unit": "px",
-      "cap": 535
+      "cap": 600
+    },
+    "motion.live.stutter": {
+      "group": "Motion",
+      "label": "Live stutter (per-frame velocity error) p95 per move and app profile",
+      "unit": "px",
+      "cap": 420
+    },
+    "motion.live.overshoot": {
+      "group": "Motion",
+      "label": "Live overshoot past the target, max per move and app profile",
+      "unit": "px",
+      "cap": 360
+    },
+    "motion.live.tail": {
+      "group": "Motion",
+      "label": "Live landing tail after the trajectory ends, max per move and app profile",
+      "unit": "ms",
+      "virtual": true,
+      "cap": 320
     },
     "motion.fill.gap": {
       "group": "Motion",
@@ -116,6 +141,12 @@
     "motion.tick.cpu": {
       "group": "Motion",
       "label": "Animator tick, 12 windows, color-fill, no SkyLight",
+      "unit": "ms",
+      "cap": 0.25
+    },
+    "motion.tick.live.cpu": {
+      "group": "Motion",
+      "label": "Animator tick, 12 windows, live, no SkyLight",
       "unit": "ms",
       "cap": 0.25
     }

@@ -3,8 +3,11 @@ import CatWMKit
 import os
 
 package struct AppLatency: Sendable {
+    package struct Shift: Sendable { package let after: Double, moved: Double, resized: Double }
     package let name: String
     package var position = 0.0, size = 0.0, moved = 0.0, resized = 0.0, jitter = 0.0
+    package var shift: Shift?
+    package var ignoresEvery = 0
 
     package static let instant = AppLatency(name: "instant")
     package static let fixed = AppLatency(name: "fixed", position: 0.001, size: 0.004, moved: 0.024, resized: 0.024)
@@ -12,7 +15,15 @@ package struct AppLatency: Sendable {
                                             jitter: 0.016)
     package static let slowResize = AppLatency(name: "slow-resize", position: 0.0005, size: 0.012, moved: 0.004,
                                                resized: 0.05)
-    package static let profiles = [fixed, jittery, slowResize]
+    package static let shifting = AppLatency(name: "shifting", position: 0.001, size: 0.004, moved: 0.008,
+                                             resized: 0.008, shift: Shift(after: 0.06, moved: 0.04, resized: 0.04))
+    package static let ignoring = AppLatency(name: "ignoring", position: 0.001, size: 0.004, moved: 0.024,
+                                             resized: 0.024, ignoresEvery: 3)
+
+    func delays(after elapsed: Double) -> (moved: Double, resized: Double) {
+        guard let shift, elapsed >= shift.after else { return (moved, resized) }
+        return (shift.moved, shift.resized)
+    }
 }
 
 package final class LatencyBackend: WindowBackend, Sendable {
@@ -22,6 +33,8 @@ package final class LatencyBackend: WindowBackend, Sendable {
         var clocks: [pid_t: Double] = [:]
         var base: [CGWindowID: CGRect] = [:]
         var shown: [CGWindowID: [Shown]] = [:]
+        var calls: [CGWindowID: [Int]] = [:]
+        var began = 1.0
         var seed: UInt64 = 0x5EED
     }
     package let inner = FakeBackend()
@@ -32,6 +45,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
 
     package var time: Double { state.withLock { $0.time } }
     package func advance(to time: Double) { state.withLock { $0.time = time } }
+    package func begin() { state.withLock { $0.began = $0.time } }
     package func clock(_ pid: pid_t) -> Double { state.withLock { $0.clocks[pid] ?? $0.time } }
     package func catchUp(_ pid: pid_t) { state.withLock { $0.clocks[pid] = max($0.clocks[pid] ?? 0, $0.time) } }
 
@@ -54,7 +68,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
         }
     }
 
-    private func spend(_ window: Window, cost: Double, delay: Double, origin: CGPoint?, size: CGSize?) {
+    private func spend(_ window: Window, cost: Double, sized: Bool, origin: CGPoint?, size: CGSize?) {
         state.withLock { state in
             func noise() -> Double {
                 state.seed = state.seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
@@ -62,24 +76,46 @@ package final class LatencyBackend: WindowBackend, Sendable {
             }
             let clock = (state.clocks[window.pid] ?? state.time) + cost * (1 + noise() * min(1, latency.jitter * 30))
             state.clocks[window.pid] = clock
+            guard origin != nil || size != nil else { return }
+            let delays = latency.delays(after: clock - state.began)
             let previous = state.shown[window.id]?.last { (origin == nil) == ($0.origin == nil) }?.time ?? 0
-            let time = max(previous, clock + max(0, delay + noise() * latency.jitter))
+            let time = max(previous, clock + max(0, (sized ? delays.resized : delays.moved) + noise() * latency.jitter))
             state.shown[window.id, default: []].append(Shown(time: time, origin: origin, size: size))
             state.shown[window.id]?.sort { $0.time < $1.time }
         }
     }
 
+    private func ignores(_ window: Window, sized: Bool) -> Bool {
+        guard latency.ignoresEvery > 0 else { return false }
+        return state.withLock { state in
+            var calls = state.calls[window.id] ?? [0, 0]
+            calls[sized ? 1 : 0] += 1
+            state.calls[window.id] = calls
+            return calls[sized ? 1 : 0].isMultiple(of: latency.ignoresEvery)
+        }
+    }
+
     package func setPosition(_ window: Window, _ point: CGPoint) -> Bool {
+        if ignores(window, sized: false) {
+            spend(window, cost: latency.position, sized: false, origin: nil, size: nil)
+            return true
+        }
         guard inner.setPosition(window, point) else { return false }
-        spend(window, cost: latency.position, delay: latency.moved, origin: point, size: nil)
+        spend(window, cost: latency.position, sized: false, origin: point, size: nil)
         return true
     }
 
     package func setSize(_ window: Window, _ size: CGSize) -> Bool {
+        if ignores(window, sized: true) {
+            spend(window, cost: latency.size, sized: true, origin: nil, size: nil)
+            return true
+        }
         guard inner.setSize(window, size) else { return false }
-        spend(window, cost: latency.size, delay: latency.resized, origin: nil, size: inner.frame(of: window.id).size)
+        spend(window, cost: latency.size, sized: true, origin: nil, size: inner.frame(of: window.id).size)
         return true
     }
+
+    @MainActor package func serverFrame(of id: CGWindowID) -> CGRect? { shownFrame(id) }
 
     package func applications() -> [RunningApplicationSnapshot] { inner.applications() }
     package func desktop(known: Set<CGWindowID>) -> WindowServerObservation { inner.desktop(known: known) }
@@ -103,10 +139,25 @@ package final class LatencyBackend: WindowBackend, Sendable {
 
 @MainActor package final class MotionBench {
     package enum Mode: String, CaseIterable { case live, colorFill = "color-fill" }
+    package struct Profile: Sendable {
+        package let name: String
+        package let app: AppLatency
+        package var rate = 60.0
+        package var drops: Set<Int> = []
+
+        package static let instant = Profile(name: "instant", app: .instant)
+        package static let all = [instant, Profile(name: "fixed", app: .fixed), Profile(name: "jitter", app: .jittery),
+                                  Profile(name: "slow-resize", app: .slowResize),
+                                  Profile(name: "shifting", app: .shifting),
+                                  Profile(name: "dropped", app: .fixed, drops: [3]),
+                                  Profile(name: "120hz", app: .fixed, rate: 120),
+                                  Profile(name: "ignoring", app: .ignoring)]
+        package static let slow = Array(all.dropFirst())
+        package static func named(_ name: String) -> Profile { all.first { $0.name == name } ?? instant }
+    }
     package struct Result {
         package let quality: MotionQuality.Summary?
         package let ticks: Stat
-        package let settle: Double
     }
     private final class Clock: FrameClock {
         let displayID: CGDirectDisplayID?
@@ -130,7 +181,6 @@ package final class LatencyBackend: WindowBackend, Sendable {
         }
     }
 
-    package static let frame = 1.0 / 60
     package let backend: LatencyBackend
     package let animator: Animator
     private var gates: [pid_t: Gate] = [:]
@@ -138,9 +188,11 @@ package final class LatencyBackend: WindowBackend, Sendable {
     private var ended: (ticks: Stat, quality: MotionQuality?)?
     private var ids: [CGWindowID] = []
     private let fills: Fills?
+    private let profile: Profile
 
-    package init(_ latency: AppLatency, mode: Mode) {
-        let backend = LatencyBackend(latency)
+    package init(_ profile: Profile, mode: Mode) {
+        self.profile = profile
+        let backend = LatencyBackend(profile.app)
         backend.inner.addScreen()
         self.backend = backend
         fills = mode == .colorFill ? Fills(read: backend.shownFrame) : nil
@@ -158,7 +210,6 @@ package final class LatencyBackend: WindowBackend, Sendable {
         made = { [unowned self] pid, writer in gates[pid] = Gate(writer) }
         started = { [unowned self] in clock = $0 }
         animator.motionRun.measures = true
-        animator.motionRun.readFrame = backend.shownFrame
         animator.windowPresentation = fills
         animator.motionRun.onEnd = { [unowned self] ticks, quality in ended = (ticks, quality) }
     }
@@ -175,29 +226,34 @@ package final class LatencyBackend: WindowBackend, Sendable {
 
     package func run(_ moves: [Animator.Move], spec: MotionSpec = MotionSpec(Config())) async -> Result? {
         ended = nil
+        backend.begin()
         animator.animate(moves, spec: spec)
-        var frames = 0, time = backend.time - Self.frame / 2
+        let period = 1 / profile.rate
+        var frames = 0, time = backend.time - period / 2
         while let clock, clock.running, frames < 600 {
             frames += 1
-            time += Self.frame
+            time += period
             backend.advance(to: time)
-            clock.tick(time, time + Self.frame)
+            if !profile.drops.contains(frames) { clock.tick(time, time + period) }
             for (pid, gate) in gates.sorted(by: { $0.key > $1.key }) where backend.clock(pid) <= time {
                 backend.catchUp(pid)
                 await gate.release()
             }
         }
-        let end = backend.time + Self.frame
         for (pid, gate) in gates.sorted(by: { $0.key > $1.key }) {
             backend.advance(to: max(backend.time, backend.clock(pid)))
             backend.catchUp(pid)
-            await gate.release(hold: false)
+            await gate.release()
         }
-        gates = [:]
+        backend.advance(to: backend.time + MotionQuality.tailLimit)
         clock = nil
         guard let ended else { return nil }
-        let shown = ids.compactMap(backend.lastShown).max() ?? end
-        return Result(quality: ended.quality?.summary(), ticks: ended.ticks, settle: max(0, shown - end))
+        return Result(quality: ended.quality?.summary(), ticks: ended.ticks)
+    }
+
+    package func close() async {
+        for gate in gates.values { await gate.release(hold: false) }
+        gates = [:]
     }
 
     @MainActor private final class Fills: WindowPresentation {
@@ -286,12 +342,17 @@ extension MotionBench {
 
     package static let moves = [ratio(), stackOpen, swap]
 
-    package static func measure(_ scene: Scene, _ latency: AppLatency, mode: Mode) async -> Result? {
-        let bench = MotionBench(latency, mode: mode)
-        let moves = scene.windows.enumerated().map { index, frames in
-            Animator.Move(window: bench.window(pid: pid_t(-100 - index), frame: frames.from), to: frames.to,
-                          bounds: screen)
+    package static func measure(_ scene: Scene, _ profile: Profile, mode: Mode, warm: Bool = false) async -> Result? {
+        let bench = MotionBench(profile, mode: mode)
+        let windows = scene.windows.enumerated().map { index, frames in
+            bench.window(pid: pid_t(-100 - index), frame: warm ? frames.to : frames.from)
         }
-        return await bench.run(moves)
+        func moves(_ target: (CGRect, CGRect) -> CGRect) -> [Animator.Move] {
+            zip(windows, scene.windows).map { Animator.Move(window: $0, to: target($1.from, $1.to), bounds: screen) }
+        }
+        if warm { _ = await bench.run(moves { from, _ in from }) }
+        let result = await bench.run(moves { _, target in target })
+        await bench.close()
+        return result
     }
 }

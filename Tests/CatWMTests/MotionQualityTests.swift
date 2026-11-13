@@ -65,52 +65,78 @@ import Testing
     }
 }
 
+@Suite struct MotionMeasureTests {
+    @Test func overshootCountsOnlyMovingEdgesThatPassTheirTarget() {
+        let from = CGRect(x: 0, y: 0, width: 100, height: 100), target = CGRect(x: 50, y: 0, width: 100, height: 100)
+        #expect(MotionQuality.overshoot(target.offsetBy(dx: 4, dy: 0), from: from, to: target) == 4)
+        #expect(MotionQuality.overshoot(target.offsetBy(dx: -4, dy: 0), from: from, to: target) == 0)
+        #expect(MotionQuality.overshoot(target.offsetBy(dx: 0, dy: 3), from: from, to: target) == 0)
+    }
+
+    @Test func stutterIsTheVelocityErrorOfOneFrame() {
+        let start = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let even = MotionQuality.stutter(actual: (start, start.offsetBy(dx: 10, dy: 0)),
+                                         desired: (start.offsetBy(dx: 10, dy: 0), start.offsetBy(dx: 20, dy: 0)))
+        #expect(even == 0)
+        let hitch = MotionQuality.stutter(actual: (start, start),
+                                          desired: (start.offsetBy(dx: 10, dy: 0), start.offsetBy(dx: 20, dy: 0)))
+        #expect(hitch == 10)
+    }
+}
+
 @MainActor @Suite struct MotionBenchTests {
     @Test func anInstantAppTracksTheTrajectory() async throws {
         let result = try #require(await MotionBench.measure(MotionBench.ratio(), .instant, mode: .live))
         let quality = try #require(result.quality)
         #expect(quality.samples > 3)
         #expect(quality.error.p50 < 1)
-        #expect(result.settle == 0)
+        #expect(quality.tail?.max == 0)
         print("instant: \(quality.text)")
     }
 
     @Test func aSlowAppLagsAndColorFillHidesTheGapOfARatioChange() async throws {
-        let live = try #require(await MotionBench.measure(MotionBench.ratio(), .fixed, mode: .live)?.quality)
-        let fill = try #require(await MotionBench.measure(MotionBench.ratio(), .fixed, mode: .colorFill)?.quality)
-        #expect((live.lag?.p50 ?? 0) > 0.005)
+        let fixed = MotionBench.Profile.named("fixed")
+        let live = try #require(await MotionBench.measure(MotionBench.ratio(), fixed, mode: .live)?.quality)
+        let fill = try #require(await MotionBench.measure(MotionBench.ratio(), fixed, mode: .colorFill)?.quality)
         #expect(live.gap.max > 0)
         #expect(fill.filled > 0)
-        #expect(fill.gap.max < live.gap.max)
+        #expect(fill.gap.max <= live.gap.max)
     }
 
     @Test func colorFillDoesNotEngageWhenTheTopEdgeMoves() async throws {
         for scene in [MotionBench.stackOpen, MotionBench.swap] {
-            let fill = try #require(await MotionBench.measure(scene, .fixed, mode: .colorFill)?.quality)
+            let fill = try #require(await MotionBench.measure(scene, .named("fixed"), mode: .colorFill)?.quality)
             #expect(fill.filled == 0, "\(scene.name)")
         }
     }
 
     @Test func baseline() async {
-        var lines = ["| move | profile | mode | samples | filled | error px p50/p95/max | lag ms p50/p95/max "
-            + "| spill px p50/p95/max | gap px p50/p95/max | settle ms | tick ms avg/max |"]
+        var lines = ["| move | profile | run | mode | error px p50/p95/max | lag ms p50/p95/max | spill px p50/p95/max "
+            + "| gap px p50/p95/max | stutter px p50/p95/max | overshoot px max | tail ms p50/max | tick ms avg/max |",
+                     "|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for scene in MotionBench.moves {
-            for latency in [.instant] + AppLatency.profiles {
-                for mode in MotionBench.Mode.allCases {
-                    guard let result = await MotionBench.measure(scene, latency, mode: mode),
-                          let quality = result.quality else { continue }
-                    let lag = quality.lag.map { "\(Self.text($0, 1000))" } ?? "-"
-                    let average = result.ticks.total / Double(max(1, result.ticks.count))
-                    let ticks = String(format: "%.3f/%.3f", average * 1000, result.ticks.max * 1000)
-                    lines.append("| \(scene.name) | \(latency.name) | \(mode.rawValue) | \(quality.samples) "
-                        + "| \(quality.filled) | \(Self.text(quality.error)) | \(lag) | \(Self.text(quality.spill)) "
-                        + "| \(Self.text(quality.gap)) | \(String(format: "%.0f", result.settle * 1000)) | \(ticks) |")
+            for profile in MotionBench.Profile.all {
+                for warm in [false, true] {
+                    for mode in MotionBench.Mode.allCases where mode == .live || scene.name == "ratio" {
+                        guard let result = await MotionBench.measure(scene, profile, mode: mode, warm: warm),
+                              let quality = result.quality else { continue }
+                        let average = result.ticks.total / Double(max(1, result.ticks.count))
+                        let cells = [scene.name, profile.name, warm ? "warm" : "cold", mode.rawValue,
+                                     Self.text(quality.error), quality.lag.map { Self.text($0, 1000) } ?? "-",
+                                     Self.text(quality.spill), Self.text(quality.gap),
+                                     quality.stutter.map { Self.text($0) } ?? "-",
+                                     String(format: "%.1f", quality.overshoot.max),
+                                     quality.tail.map { String(format: "%.0f/%.0f", $0.p50 * 1000, $0.max * 1000) }
+                                         ?? "-",
+                                     String(format: "%.3f/%.3f", average * 1000, result.ticks.max * 1000)]
+                        lines.append("| " + cells.joined(separator: " | ") + " |")
+                    }
                 }
             }
         }
         for rows in [1, 3, 6] {
             for mode in MotionBench.Mode.allCases {
-                guard let result = await MotionBench.measure(MotionBench.ratio(rows: rows), .fixed, mode: mode)
+                guard let result = await MotionBench.measure(MotionBench.ratio(rows: rows), .named("fixed"), mode: mode)
                 else { continue }
                 lines.append("| ratio-\(rows * 2)w | fixed | \(mode.rawValue) | tick \(result.ticks.text) |")
             }

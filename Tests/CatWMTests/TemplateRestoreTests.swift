@@ -18,7 +18,7 @@ private func savedWindow(title: String = "Draft", document: String? = nil, windo
                          launchDate: Date? = launch, bundleID: String = bundle) -> SavedWindow {
     SavedWindow(
         bundleID: bundleID, appName: "Editor", title: title, document: document, display: "main",
-        frame: .zero, floating: false, minimized: false, fullscreen: false, zoomed: false,
+        frame: .zero, floating: false, minimized: false, maximised: false, zoomed: false,
         focused: false, windowID: windowID, launchDate: launchDate
     )
 }

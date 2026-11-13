@@ -13,7 +13,7 @@ extension WindowManager {
     package func moveNativeWindow(_ window: Window, to workspace: String, follow: Bool, from origin: String?? = nil) {
         updateNativeCatalog(backend.screens())
         guard !nativeMoves.isMoving(window.id) else { return }
-        guard !window.fullscreenUnlessStalled else { nativeMoves.cancelRequest(window.id); return }
+        guard !window.maximisedUnlessStalled else { nativeMoves.cancelRequest(window.id); return }
         guard !desktops.nativeCreationBusy, let target = desktops.nativeCatalog.entry(workspace) else {
             createWorkspaceThenMove(window, to: workspace, follow: follow)
             return

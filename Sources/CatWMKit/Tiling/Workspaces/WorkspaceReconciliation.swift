@@ -19,7 +19,7 @@ package struct WorkspaceReconciliation {
             model.show(WindowManager.spaceWorkspace(display: display.id, space: display.space), on: display.id)
             if let workspace = model.shown[display.id] { model.monitorOf[workspace] = display.id }
         }
-        hostFullscreen(observation, in: &model)
+        hostMaximised(observation, in: &model)
         followMovedWindows(observation, in: &model, displayOf: &displayOf, uuids: uuids)
         var moves: [CGWindowID: String] = [:]
         for id in observation.present where !model.isShown(model.workspaceOf[id]) {
@@ -31,14 +31,14 @@ package struct WorkspaceReconciliation {
         return Self(model: model, displayOf: displayOf, visible: visible)
     }
 
-    private static func hostFullscreen(_ observation: WorkspaceObservation, in model: inout WorkspaceModel) {
-        model.fullscreenHost = [:]
-        for (id, space) in observation.fullscreen.sorted(by: { $0.key < $1.key }) {
+    private static func hostMaximised(_ observation: WorkspaceObservation, in model: inout WorkspaceModel) {
+        model.maximisedHost = [:]
+        for (id, space) in observation.maximised.sorted(by: { $0.key < $1.key }) {
             guard let owner = observation.displays.first(where: { $0.spaces.contains(space) }) else { continue }
             let workspace = WindowManager.spaceWorkspace(display: owner.id, space: space)
             model.hostMaximised(id, in: workspace)
             model.monitorOf[workspace] = owner.id
-            model.fullscreenHost[workspace] = id
+            model.maximisedHost[workspace] = id
         }
     }
 

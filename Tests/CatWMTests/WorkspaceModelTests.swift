@@ -59,15 +59,15 @@ import Testing
         #expect(model.workspaceOf[1] == "2" && model.workspaceOf[2] == "1")
     }
 
-    @Test func forgettingAWindowReleasesItsFullscreenWorkspace() {
+    @Test func forgettingAWindowReleasesItsMaximisedWorkspace() {
         var model = WorkspaceModel()
         let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
-        model.assign(7, to: workspace); model.fullscreenHost[workspace] = 7
+        model.assign(7, to: workspace); model.maximisedHost[workspace] = 7
         model.forget(7)
-        #expect(model.fullscreenHost[workspace] == nil && model.workspaceOf[7] == nil)
-        model.fullscreenHost[workspace] = 8
+        #expect(model.maximisedHost[workspace] == nil && model.workspaceOf[7] == nil)
+        model.maximisedHost[workspace] = 8
         model.resetWorkspaces()
-        #expect(model.fullscreenHost.isEmpty)
+        #expect(model.maximisedHost.isEmpty)
     }
 
     @Test func resetKeepsOrderAndFocusHistory() {

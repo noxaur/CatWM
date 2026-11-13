@@ -1,7 +1,7 @@
 import AppKit
 
 package struct WindowAttributes {
-    package let fullscreen: Bool
+    package let maximised: Bool
     package let minimized: Bool
     package let subrole: String?
     package let frame: CGRect
@@ -23,7 +23,7 @@ package struct WindowAttributes {
     }
 
     private init(values: [Any]) {
-        fullscreen = values[0] as? Bool ?? false
+        maximised = values[0] as? Bool ?? false
         minimized = values[1] as? Bool ?? false
         subrole = values[2] as? String
         frame = Self.frame(position: values[3], size: values[4])

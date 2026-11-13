@@ -15,7 +15,7 @@ extension SortPanel {
         guard !isOpen, manager.config.virtualWorkspaces, !manager.nativeDesktop.isRunning,
               !manager.desktops.nativeCreationBusy else { return }
         let displays = manager.sortDisplays()
-        func hasWindows(_ display: SortDisplay) -> Bool { !display.items.isEmpty || !display.fullscreen.isEmpty }
+        func hasWindows(_ display: SortDisplay) -> Bool { !display.items.isEmpty || !display.maximised.isEmpty }
         guard displays.contains(where: hasWindows) else {
             HUD.shared.show("No windows to show", on: nil)
             return
@@ -28,7 +28,7 @@ extension SortPanel {
             ?? displays.first(where: hasWindows) ?? displays[0]
         manager.beginSort()
         model.finish = { [weak self] workspace in self?.finish(goTo: workspace, focus: true) }
-        model.openFullscreen = { [weak self] id in self?.finish(opening: id) }
+        model.openMaximised = { [weak self] id in self?.finish(opening: id) }
         model.revert = { [weak self] in self?.revert() }
         model.changed = { [weak self] in self?.scheduleLive() }
         active = true
@@ -122,14 +122,14 @@ extension SortPanel {
         manager.revertSort()
     }
 
-    func finish(goTo: String? = nil, focus: Bool = false, opening fullscreen: CGWindowID? = nil) {
+    func finish(goTo: String? = nil, focus: Bool = false, opening maximised: CGWindowID? = nil) {
         guard active else { return }
         flushLive()
         let done = model.result()
-        let leaving = model.fullscreenMoves()
+        let leaving = model.maximisedMoves()
         close()
-        manager.finishSort(closing: done.closing, goTo: goTo, focus: focus, opening: fullscreen,
-                           leavingFullscreen: leaving)
+        manager.finishSort(closing: done.closing, goTo: goTo, focus: focus, opening: maximised,
+                           leavingMaximised: leaving)
         guard done.changed else { return manager.dropSortSnapshot() }
         keepUndo()
     }

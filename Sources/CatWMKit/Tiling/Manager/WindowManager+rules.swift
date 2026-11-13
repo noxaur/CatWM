@@ -114,7 +114,7 @@ extension WindowManager {
     func ruleFacts(of window: Window) -> Facts {
         var facts: Facts = [
             .pid: .int(Int(window.pid)), .floating: .bool(window.isFloating),
-            .minimized: .bool(window.minimized), .fullscreen: .bool(window.fullscreen)
+            .minimized: .bool(window.minimized), .fullscreen: .bool(window.maximised)
         ]
         if let bundle = window.bundleID { facts[.app] = .string(bundle) }
         if let title = window.title { facts[.title] = .string(title) }

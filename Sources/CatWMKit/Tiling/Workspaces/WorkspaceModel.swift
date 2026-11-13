@@ -10,7 +10,7 @@ package struct WorkspaceModel {
     package var virtualShown: [String: String] = [:]
     package var states: [String: ScreenState] = [:]
     package var lastFocused: [String: CGWindowID] = [:]
-    package var fullscreenHost: [String: CGWindowID] = [:]
+    package var maximisedHost: [String: CGWindowID] = [:]
     package var focusStamps: [CGWindowID: Int] = [:]
     package var focusClock = 0
     package var focusOrder: [CGWindowID] = []
@@ -51,7 +51,7 @@ package struct WorkspaceModel {
         focusStamps[id] = nil
         focusOrder.removeAll { $0 == id }
         lastFocused = lastFocused.filter { $0.value != id }
-        fullscreenHost = fullscreenHost.filter { $0.value != id }
+        maximisedHost = maximisedHost.filter { $0.value != id }
         maximisedTabs[id] = nil
     }
 
@@ -59,7 +59,7 @@ package struct WorkspaceModel {
 
     package mutating func resetWorkspaces() {
         workspaceOf = [:]; monitorOf = [:]; shown = [:]; virtualShown = [:]
-        states = [:]; lastFocused = [:]; fullscreenHost = [:]; tabs = TabGroups(); maximisedTabs = [:]
+        states = [:]; lastFocused = [:]; maximisedHost = [:]; tabs = TabGroups(); maximisedTabs = [:]
     }
 
     package mutating func noteFocus(_ id: CGWindowID) {

@@ -54,7 +54,7 @@ import Testing
         var holds = PlacementHolds()
         holds.hold(window, since: held)
         #expect(window.placementSuspended)
-        for (date, minimized, fullscreen, restoring) in [
+        for (date, minimized, maximised, restoring) in [
             (held.addingTimeInterval(-1), false, false, false),
             (held, false, false, false),
             (held.addingTimeInterval(1), true, false, false),
@@ -62,12 +62,12 @@ import Testing
             (held.addingTimeInterval(1), false, false, true)
         ] {
             let released = holds.observe(window, scanStarted: date, minimized: minimized,
-                                         fullscreen: fullscreen, restoring: restoring)
+                                         maximised: maximised, restoring: restoring)
             #expect(!released)
             #expect(window.placementSuspended)
         }
         let released = holds.observe(window, scanStarted: held.addingTimeInterval(1),
-                                     minimized: false, fullscreen: false, restoring: false)
+                                     minimized: false, maximised: false, restoring: false)
         #expect(released)
         #expect(!window.placementSuspended)
     }

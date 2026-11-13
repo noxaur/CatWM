@@ -16,7 +16,7 @@ package struct ObservedWindow: Sendable {
     package var document: String?
     package var frame: CGRect
     package var minimized: Bool
-    package var fullscreen: Bool
+    package var maximised: Bool
     package var resizable: Bool
     package var windowID: CGWindowID
     package var launchDate: Date?
@@ -135,7 +135,7 @@ package enum WindowCapture {
               let id = element.windowNumber else { return .missing }
         guard case .value(let minimized) = flag(element, kAXMinimizedAttribute) else { return .stalled }
         guard WindowKind.includes(subrole: subrole, minimized: minimized) else { return .missing }
-        guard case .value(let fullscreen) = flag(element, "AXFullScreen") else { return .stalled }
+        guard case .value(let maximised) = flag(element, "AXFullScreen") else { return .stalled }
         let title: String
         switch element.readString(kAXTitleAttribute) {
         case .stalled: return .stalled
@@ -161,7 +161,7 @@ package enum WindowCapture {
         case .value(let value): frame = value
         }
         return .value(ObservedWindow(pid: app.pid, bundleID: app.bundleID, appName: app.name, title: title,
-                                     document: document, frame: frame, minimized: minimized, fullscreen: fullscreen,
+                                     document: document, frame: frame, minimized: minimized, maximised: maximised,
                                      resizable: resizable, windowID: id, launchDate: app.launchDate))
     }
 

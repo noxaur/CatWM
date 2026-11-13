@@ -56,7 +56,7 @@ extension WindowManager {
         focus(window, warp: false)
     }
 
-    package func toggleNativeFullscreen() {
+    package func toggleMaximised() {
         guard let app = NSWorkspace.shared.frontmostApplication else { return }
         let pid = app.processIdentifier
         let known = focusedWindow().map { AXReference($0.element) }
@@ -73,12 +73,12 @@ extension WindowManager {
             }
             let id = element.windowID
             DispatchQueue.main.async {
-                self?.finishNativeFullscreen(id, app: app.bundleIdentifier, wasOn: isOn, done: done)
+                self?.finishMaximisedToggle(id, app: app.bundleIdentifier, wasOn: isOn, done: done)
             }
         }
     }
 
-    private func finishNativeFullscreen(_ id: CGWindowID?, app: String?, wasOn isOn: Bool, done: Bool) {
+    private func finishMaximisedToggle(_ id: CGWindowID?, app: String?, wasOn isOn: Bool, done: Bool) {
         Log.info(
             "native fullscreen \(isOn ? "off" : "on") for \(id.map(String.init) ?? "?") \(app ?? ""): "
                 + (done ? "ok" : "refused")
@@ -113,7 +113,7 @@ extension WindowManager {
     }
 
     package func showMaximised(_ window: Window) -> Bool {
-        guard config.virtualWorkspaces, window.fullscreen, let space = Spaces.of(window: window.id).first,
+        guard config.virtualWorkspaces, window.maximised, let space = Spaces.of(window: window.id).first,
               let screen = backend.screens().first(where: {
                   Spaces.list(display: $0.uuid)?.ids.contains(space) == true
               }),

@@ -81,7 +81,7 @@ import AppKit
     package var snapNextPlacement: Set<CGWindowID> = []
     package var restoredEarly: [CGWindowID: Date] = [:]
     package var present: Set<CGWindowID> = []
-    package var leavingFullscreen: [CGWindowID: Date] = [:]
+    package var leavingMaximised: [CGWindowID: Date] = [:]
     package var focusRequests = FocusRequests()
     package var closeAndSort = CloseAndSortState()
     package var floats = FloatState()

@@ -119,7 +119,7 @@ import Testing
         #expect(found.isEmpty && reads == 0)
     }
 
-    @Test func fullscreenTilesAndWallSpacesUseTheirManagedDesktop() throws {
+    @Test func maximisedTilesAndWallSpacesUseTheirManagedDesktop() throws {
         let raw: WindowServerQuery.Membership = [1: [398], 2: [397, 4], 3: [398, 396], 4: []]
         let managed: [UInt64: UInt64] = [4: 4, 396: 396, 397: 396, 398: 396]
         let found = WindowServerQuery.memberships(for: [1, 2, 3, 4], query: { _ in raw }, fallback: { _ in

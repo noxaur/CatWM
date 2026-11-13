@@ -15,7 +15,7 @@ import Testing
         ], windows: [
             .init(bundleID: "com.example.editor", appName: "Editor", title: "Draft", document: "file:///tmp/draft.txt",
                   display: "external", frame: CGRect(x: 0, y: 24, width: 1300, height: 1176), floating: false,
-                  minimized: true, fullscreen: false, zoomed: true, focused: false, windowID: 42,
+                  minimized: true, maximised: false, zoomed: true, focused: false, windowID: 42,
                   launchDate: Date(timeIntervalSince1970: 100))
         ])
     }

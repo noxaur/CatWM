@@ -31,10 +31,10 @@ package struct PlacementHolds {
 
     package mutating func forget(_ id: CGWindowID) { held[id] = nil }
 
-    package mutating func observe(_ window: Window, scanStarted: Date, minimized: Bool, fullscreen: Bool,
+    package mutating func observe(_ window: Window, scanStarted: Date, minimized: Bool, maximised: Bool,
                                   restoring: Bool) -> Bool {
         guard let since = held[window.id] else { return true }
-        guard !restoring, scanStarted > since, !minimized, !fullscreen else { return false }
+        guard !restoring, scanStarted > since, !minimized, !maximised else { return false }
         resume(window)
         return true
     }

@@ -18,8 +18,8 @@ extension TemplateRestorer {
 
         let exitingDisplays = unhide(pairs, screens: screens, restoreHidden: &restoreHidden)
         _ = try await settlePlacement(timeout: 3) {
-            pairs.allSatisfy { !$0.1.fullscreenUnlessStalled && !$0.1.minimizedUnlessStalled } &&
-                exitingDisplays.allSatisfy { !Spaces.isFullscreen(display: $0) }
+            pairs.allSatisfy { !$0.1.maximisedUnlessStalled && !$0.1.minimizedUnlessStalled } &&
+                exitingDisplays.allSatisfy { !Spaces.isMaximised(display: $0) }
         }
         pairs = dropStillHidden(pairs, restoreHidden: &restoreHidden)
         manager.syncWorkspaces(screens: screens, present: manager.present)
@@ -44,7 +44,7 @@ extension TemplateRestorer {
                   let original = template.displays.first(where: { $0.id == saved.display }) else { return nil }
             let frame = WorkspaceTemplate.restoredFrame(saved.frame, from: original.visible, to: screen.visible)
             return .init(window: window, screen: screen, frame: frame,
-                         floating: saved.floating, hidden: saved.minimized || saved.fullscreen,
+                         floating: saved.floating, hidden: saved.minimized || saved.maximised,
                          zoomed: saved.zoomed && saved.display == preferred[screen.uuid])
         }
         let frames = manager.registerPlacements(placements, displays: displays,
@@ -64,19 +64,19 @@ extension TemplateRestorer {
         var exitingDisplays = Set<String>()
         for (saved, window) in pairs {
             AXUIElementSetMessagingTimeout(window.element, axTimeout)
-            var clearedFullscreen = false
+            var clearedMaximised = false
             var clearedMinimized = false
-            if window.isNativeFullscreen {
+            if window.isMaximised {
                 if let screen = manager.screen(containing: window.frame, in: screens),
                    Spaces.of(window: window.id).contains(Spaces.current(display: screen.uuid)) {
                     exitingDisplays.insert(screen.uuid)
                 }
-                clearedFullscreen = window.element.set("AXFullScreen", kCFBooleanFalse)
+                clearedMaximised = window.element.set("AXFullScreen", kCFBooleanFalse)
             }
             if window.element.flag(kAXMinimizedAttribute) {
                 clearedMinimized = window.element.set(kAXMinimizedAttribute, kCFBooleanFalse)
             }
-            if (saved.minimized || saved.fullscreen) && (clearedMinimized || clearedFullscreen) {
+            if (saved.minimized || saved.maximised) && (clearedMinimized || clearedMaximised) {
                 restoreHidden.append((saved, window))
             }
         }
@@ -85,7 +85,7 @@ extension TemplateRestorer {
 
     private func dropStillHidden(_ pairs: [TemplatePair], restoreHidden: inout [TemplatePair]) -> [TemplatePair] {
         pairs.filter { saved, window in
-            guard !window.isNativeFullscreen, !window.element.flag(kAXMinimizedAttribute) else {
+            guard !window.isMaximised, !window.element.flag(kAXMinimizedAttribute) else {
                 failures.insert(saved.appName)
                 matched[saved.id] = nil
                 restoreHidden.removeAll { $0.1.id == window.id }
@@ -131,7 +131,7 @@ extension TemplateRestorer {
     }
 
     private func rehide(_ ready: [TemplatePair]) async throws {
-        for (saved, window) in ready where saved.minimized || saved.fullscreen {
+        for (saved, window) in ready where saved.minimized || saved.maximised {
             try Task.checkCancellation()
             let changed = manager.hideForPlacement(window, minimized: saved.minimized)
             if !changed { failures.insert(saved.appName) }
@@ -139,13 +139,13 @@ extension TemplateRestorer {
         _ = try await settlePlacement(timeout: 3) {
             ready.allSatisfy { saved, window in
                 (!saved.minimized || window.minimizedUnlessStalled) &&
-                    (!saved.fullscreen || saved.minimized || window.fullscreenUnlessStalled)
+                    (!saved.maximised || saved.minimized || window.maximisedUnlessStalled)
             }
         }
-        for (saved, window) in ready where saved.minimized || saved.fullscreen {
+        for (saved, window) in ready where saved.minimized || saved.maximised {
             let confirmed = saved.minimized
                 ? window.minimizedUnlessStalled
-                : window.fullscreenUnlessStalled
+                : window.maximisedUnlessStalled
             if confirmed {
                 manager.holdPlacement(window)
             } else {
@@ -156,7 +156,7 @@ extension TemplateRestorer {
     }
 
     private func putBackHidden(_ items: [TemplatePair]) {
-        for (saved, window) in items where saved.minimized || saved.fullscreen {
+        for (saved, window) in items where saved.minimized || saved.maximised {
             manager.hideForPlacement(window, minimized: saved.minimized)
         }
     }

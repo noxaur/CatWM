@@ -24,7 +24,7 @@ extension SortModel {
         let source = plan.lane(of: item.id).map { SortZone.lane(plan.lanes[$0].id) }
             ?? (plan.isClosing(item.id) ? .close : nil)
         let landable: Bool = {
-            guard unplacedFullscreen(item.id) != nil else { return true }
+            guard unplacedMaximised(item.id) != nil else { return true }
             if case .lane = zone { return true }
             return zone == .add
         }()
@@ -35,7 +35,7 @@ extension SortModel {
     func dropZone(at point: CGPoint) -> SortZone? {
         guard let drag else { return zone(at: point) }
         for (zone, frame) in zones where frame.contains(point) {
-            guard case .tabs(let lead) = zone, drag.group.isEmpty, unplacedFullscreen(drag.id) == nil,
+            guard case .tabs(let lead) = zone, drag.group.isEmpty, unplacedMaximised(drag.id) == nil,
                   !plan.tabs(of: lead).contains(drag.id) else { continue }
             return zone
         }
@@ -55,7 +55,7 @@ extension SortModel {
         drag = nil
         over = nil
         hover = nil
-        let unplaced = unplacedFullscreen(ended.id) != nil
+        let unplaced = unplacedMaximised(ended.id) != nil
         let ids = ended.group.isEmpty ? [ended.id] : ended.group.map(\.id)
         switch landing {
         case .display(let uuid): if !unplaced { moveToDisplay(ids, uuid) }

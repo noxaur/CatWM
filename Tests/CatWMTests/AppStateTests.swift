@@ -86,11 +86,21 @@ import Testing
 
     @Test func keepsAppStateAndLaunchThroughASave() throws {
         var window = SavedWindow(bundleID: "com.apple.Safari", appName: "Safari", title: "News", document: nil,
-                                 display: "desk", frame: .zero, floating: false, minimized: false, fullscreen: false,
+                                 display: "desk", frame: .zero, floating: false, minimized: false, maximised: false,
                                  zoomed: false, focused: false, windowID: 3, launchDate: nil)
         window.state = AppState(tabs: ["https://a.example", "https://b.example"], selected: 1)
         window.launch = LaunchSpec(arguments: ["--profile", "work"])
         let copy = try JSONDecoder().decode(SavedWindow.self, from: JSONEncoder().encode(window))
         #expect(copy == window)
+    }
+
+    @Test func keepsTheSavedNamesOfMaximisedAndFullscreenState() throws {
+        let window = SavedWindow(bundleID: "a", appName: "A", title: "T", document: nil, display: "desk",
+                                 frame: .zero, floating: false, minimized: false, maximised: true,
+                                 zoomed: false, focused: false, windowID: 1, launchDate: nil)
+        let keys = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(window)) as? [String: Any])
+        #expect(keys["fullscreen"] as? Bool == true)
+        #expect(keys["zoomed"] as? Bool == false)
+        #expect(keys["maximised"] == nil)
     }
 }

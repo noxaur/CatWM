@@ -38,7 +38,7 @@ extension WindowManager {
         guard config.virtualWorkspaces else { return }
         let identities = recoveryIdentities
         order = tilingRecovery.restoredOrder(order, arriving: arriving, windows: identities)
-        let eligible = Set(fresh.filter { !$0.isFloating && !$0.minimized && !$0.fullscreen }.map(\.id))
+        let eligible = Set(fresh.filter { !$0.isFloating && !$0.minimized && !$0.maximised }.map(\.id))
         let zooms = tilingRecovery.restoredZooms(arriving: arriving, windows: identities,
                                                 workspaces: workspaceOf, eligible: eligible)
         for (workspace, id) in zooms where isVirtual(workspace) && !isPending(workspace) {
@@ -90,7 +90,7 @@ extension WindowManager {
         let zooms = states.compactMapValues(\.zoomed).filter { workspace, id in
             guard isVirtual(workspace), !isPending(workspace), workspaceOf[id] == workspace,
                   let window = windows[id] else { return false }
-            return !window.isFloating && !window.fullscreen && !window.minimized
+            return !window.isFloating && !window.maximised && !window.minimized
         }
         let available = scanner.lastScan == 0 ? nil : Dictionary(
             scanner.desktop.allWindows.map { ($0.id, $0.pid) }, uniquingKeysWith: { first, _ in first })

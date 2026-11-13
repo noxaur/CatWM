@@ -1,19 +1,11 @@
 import AppKit
 
 @MainActor package protocol WindowPresentation: AnyObject, Sendable {
-    func prepare(_ moves: [Animator.Move], spec: MotionSpec)
+    func plan(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> WindowFillPlan?
+    func prepare(_ plans: [CGWindowID: WindowFillPlan], moving: Set<CGWindowID>) -> Set<CGWindowID>
     func follow(_ moves: [Animator.Move])
-    func sizing(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> ColorFillSizing?
-    func update(_ frames: [CGWindowID: CGRect])
+    func update(_ frames: [CGWindowID: CGRect], observed: [CGWindowID: CGRect], expected: [CGWindowID: CGRect])
     func cancel(_ id: CGWindowID)
     func close()
-    func isFilling(_ id: CGWindowID) -> Bool
-    func leadBias(for id: CGWindowID) -> Double
-}
-
-extension WindowPresentation {
-    package func follow(_ moves: [Animator.Move]) { prepare(moves, spec: .instant) }
-    package func sizing(for _: Animator.Move, from _: CGRect, spec _: MotionSpec) -> ColorFillSizing? { nil }
-    package func isFilling(_: CGWindowID) -> Bool { false }
-    package func leadBias(for _: CGWindowID) -> Double { 0 }
+    func fill(of id: CGWindowID) -> CGRect?
 }

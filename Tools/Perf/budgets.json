@@ -149,7 +149,13 @@
       "group": "Motion",
       "label": "Color-fill uncovered gap p95 per move and app profile",
       "unit": "px",
-      "cap": 420
+      "cap": 340
+    },
+    "motion.fill.warm.spill": {
+      "group": "Motion",
+      "label": "Color-fill spill p95 on a move after one that taught the lead",
+      "unit": "px",
+      "cap": 380
     },
     "motion.tick.cpu": {
       "group": "Motion",

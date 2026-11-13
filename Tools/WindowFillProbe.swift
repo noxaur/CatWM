@@ -193,6 +193,8 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
                               size: CGSize(width: actual.width, height: actual.height + 100))),
             ("left", CGRect(x: actual.minX - 80, y: actual.minY,
                             width: actual.width + 80, height: actual.height)),
+            ("top", CGRect(x: actual.minX, y: actual.minY - 60,
+                           width: actual.width, height: actual.height + 60)),
             ("fractional", CGRect(x: actual.minX - 0.5, y: actual.minY,
                                   width: actual.width + 100.5, height: actual.height + 60.5))
         ]
@@ -211,9 +213,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
         }
         fill.update(desired: actual.insetBy(dx: 80, dy: 0), actual: actual)
         guard !fill.visible else { throw FillProbeError.pixels("shrink left stale fill") }
-        fill.update(desired: actual.offsetBy(dx: 0, dy: -20), actual: actual)
-        guard !fill.visible else { throw FillProbeError.pixels("vertical move repeated the titlebar") }
-        print("retarget_shrink_and_unsupported_geometry_dismiss true")
+        print("retarget_shrink_dismiss true")
     }
 
     private func landing(_ fill: WindowResizeFill, child: Process, id: CGWindowID,
@@ -245,7 +245,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
         } while CACurrentMediaTime() < deadline
         if FillProbeFixture.style == .browser, CommandLine.arguments.contains("--background") {
             let own = Set(NSApp.windows.filter { $0.windowNumber > 0 }.map { CGWindowID($0.windowNumber) })
-            if !WindowServerReads.canPresent([desired], participants: [id], excluding: own) {
+            if !WindowServerReads.canPresent(desired, of: id, excluding: own) {
                 throw FillProbeError.interrupted
             }
         }
@@ -288,7 +288,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
             return try FillProbeCapture.background(area, label: label, window: id)
         }
         let own = Set(NSApp.windows.filter { $0.windowNumber > 0 }.map { CGWindowID($0.windowNumber) })
-        guard WindowServerReads.canPresent([area], participants: [id], excluding: own) else {
+        guard WindowServerReads.canPresent(area, of: id, excluding: own) else {
             throw FillProbeError.interrupted
         }
         CATransaction.flush()

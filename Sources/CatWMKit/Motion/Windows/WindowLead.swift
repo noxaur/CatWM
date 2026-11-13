@@ -121,7 +121,7 @@ package struct WindowLead: Sendable {
         return learned
     }
 
-    package func plan(at now: CFTimeInterval, presentation: CFTimeInterval, period: Double, bias: Double = 0,
+    package func plan(at now: CFTimeInterval, presentation: CFTimeInterval, period: Double,
                       order: Order? = nil) -> Plan {
         let order = order ?? self.order
         guard period > 0 else {
@@ -135,7 +135,7 @@ package struct WindowLead: Sendable {
         }
         let frames = axes.indices.map { axis in
             let delay = delays[axis] ?? delays[1 - axis] ?? 0
-            let lead = min(MotionTiming.leadLimit, max(0, done[axis] + delay + bias))
+            let lead = min(MotionTiming.leadLimit, max(0, done[axis] + delay))
             let due = (now + lead - presentation) / period
             let held = axes[axis].frames.flatMap {
                 abs(due - Double($0)) <= 0.5 + MotionTiming.leadHysteresis ? $0 : nil

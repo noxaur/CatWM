@@ -157,6 +157,7 @@ package final class LatencyBackend: WindowBackend, Sendable {
     }
     package struct Result {
         package let quality: MotionQuality.Summary?
+        package let windows: [pid_t: MotionQuality.Summary]
         package let ticks: Stat
     }
     private final class Clock: FrameClock {
@@ -214,12 +215,13 @@ package final class LatencyBackend: WindowBackend, Sendable {
         animator.motionRun.onEnd = { [unowned self] ticks, quality in ended = (ticks, quality) }
     }
 
-    package func window(pid: pid_t, frame: CGRect) -> Window {
+    package func window(pid: pid_t, frame: CGRect, prepared: Bool = true, obscured: Bool = false) -> Window {
         let id = backend.addWindow(pid: pid, frame: frame)
         guard let element = backend.inner.element(id) else { preconditionFailure("the fake window has no element") }
         let window = Window(id: id, element: element, pid: pid, bundleID: nil, backend: backend)
         window.remember(frame)
-        fills?.add(id, size: frame.size)
+        if prepared { fills?.add(id, size: frame.size) }
+        if obscured { fills?.obscured.insert(id) }
         ids.append(id)
         return window
     }
@@ -248,7 +250,10 @@ package final class LatencyBackend: WindowBackend, Sendable {
         backend.advance(to: backend.time + MotionQuality.tailLimit)
         clock = nil
         guard let ended else { return nil }
-        return Result(quality: ended.quality?.summary(), ticks: ended.ticks)
+        let windows = (ended.quality?.pids ?? []).reduce(into: [pid_t: MotionQuality.Summary]()) {
+            $0[$1] = ended.quality?.summary($1)
+        }
+        return Result(quality: ended.quality?.summary(), windows: windows, ticks: ended.ticks)
     }
 
     package func close() async {
@@ -258,9 +263,11 @@ package final class LatencyBackend: WindowBackend, Sendable {
 
     @MainActor private final class Fills: WindowPresentation {
         private var appearances: [CGWindowID: WindowFillAppearance] = [:]
-        private var active: Set<CGWindowID> = []
-        private var filling: Set<CGWindowID> = []
+        private var active: [CGWindowID: WindowFillPlan] = [:]
+        private var holes: [CGWindowID: CGRect] = [:]
+        var obscured: Set<CGWindowID> = []
         private let read: (CGWindowID) -> CGRect?
+        private let displays = [WindowFillPlan.Display(frame: MotionBench.screen, scale: 1)]
 
         init(read: @escaping (CGWindowID) -> CGRect?) { self.read = read }
 
@@ -275,38 +282,30 @@ package final class LatencyBackend: WindowBackend, Sendable {
             appearances[id] = context.makeImage().flatMap { WindowFillAppearance(image: $0, size: size) }
         }
 
-        func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
-            for move in moves {
-                let id = move.window.id
-                let from = move.from ?? move.window.cachedFrame
-                guard spec.duration >= MotionTiming.shortestFill,
-                      appearances[id]?.canFill(from: from, to: move.target) == true else {
-                    cancel(id); continue
-                }
-                active.insert(id)
+        func plan(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> WindowFillPlan? {
+            appearances[move.window.id].flatMap {
+                WindowFillPlan(from: from, to: move.target, appearance: $0, displays: displays, duration: spec.duration)
             }
         }
 
-        func sizing(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> ColorFillSizing? {
-            guard spec.duration >= MotionTiming.shortestFill,
-                  appearances[move.window.id]?.canFill(from: from, to: move.target) == true else { return nil }
-            return ColorFillSizing(source: from, target: move.target)
+        func prepare(_ plans: [CGWindowID: WindowFillPlan], moving _: Set<CGWindowID>) -> Set<CGWindowID> {
+            for (id, plan) in plans where !obscured.contains(id) { active[id] = plan }
+            return Set(plans.keys).subtracting(obscured)
         }
 
-        func update(_ frames: [CGWindowID: CGRect]) {
-            for id in active where frames[id] == nil { cancel(id) }
-            filling = Set(active.filter { id in
-                guard let desired = frames[id], let actual = read(id), let appearance = appearances[id] else {
-                    return false
-                }
-                return WindowResizeFill.fits(desired: desired, actual: actual, minimumSize: appearance.minimumSize)
-                    && WindowResizeFill.needed(desired: desired, actual: actual)
-            })
+        func follow(_: [Animator.Move]) {}
+
+        func update(_ frames: [CGWindowID: CGRect], observed: [CGWindowID: CGRect], expected: [CGWindowID: CGRect]) {
+            for id in active.keys where frames[id] == nil { cancel(id) }
+            for (id, plan) in active {
+                guard let desired = frames[id], let actual = observed[id] ?? read(id) else { cancel(id); continue }
+                holes[id] = plan.hole(desired: desired, actual: actual, expected: expected[id])
+            }
         }
 
-        func isFilling(_ id: CGWindowID) -> Bool { filling.contains(id) }
-        func cancel(_ id: CGWindowID) { active.remove(id); filling.remove(id) }
-        func close() { active.removeAll(); filling.removeAll() }
+        func fill(of id: CGWindowID) -> CGRect? { holes[id] }
+        func cancel(_ id: CGWindowID) { active[id] = nil; holes[id] = nil }
+        func close() { active.removeAll(); holes.removeAll() }
     }
 }
 
@@ -342,10 +341,12 @@ extension MotionBench {
 
     package static let moves = [ratio(), stackOpen, swap]
 
-    package static func measure(_ scene: Scene, _ profile: Profile, mode: Mode, warm: Bool = false) async -> Result? {
+    package static func measure(_ scene: Scene, _ profile: Profile, mode: Mode, warm: Bool = false,
+                                unprepared: Set<Int> = [], obscured: Set<Int> = []) async -> Result? {
         let bench = MotionBench(profile, mode: mode)
         let windows = scene.windows.enumerated().map { index, frames in
-            bench.window(pid: pid_t(-100 - index), frame: warm ? frames.to : frames.from)
+            bench.window(pid: pid_t(-100 - index), frame: warm ? frames.to : frames.from,
+                         prepared: !unprepared.contains(index), obscured: obscured.contains(index))
         }
         func moves(_ target: (CGRect, CGRect) -> CGRect) -> [Animator.Move] {
             zip(windows, scene.windows).map { Animator.Move(window: $0, to: target($1.from, $1.to), bounds: screen) }

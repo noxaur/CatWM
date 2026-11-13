@@ -8,6 +8,7 @@ import QuartzCore
     private let profile = CALayer()
     private let leftProfile = CALayer()
     private let leftTail = CALayer()
+    private let topTail = CALayer()
     private let bottomProfile = CALayer()
     private let outline = CALayer()
     private let border = CALayer()
@@ -17,6 +18,7 @@ import QuartzCore
     private let movingCorners = CAShapeLayer()
     private let appearance: WindowFillAppearance
     private let window: CGWindowID
+    private var screen: (frame: CGRect, native: NSScreen)?
     private var dismiss: DismissMonitor?
     package var onDismiss: (@MainActor () -> Void)?
 
@@ -32,6 +34,7 @@ import QuartzCore
         root.masksToBounds = true
         fill.backgroundColor = appearance.rightColor
         leftTail.backgroundColor = appearance.leftColor
+        topTail.backgroundColor = appearance.topColor
         fill.addSublayer(leftTail)
         profile.contents = appearance.rightEdge
         leftProfile.contents = appearance.leftEdge
@@ -42,7 +45,7 @@ import QuartzCore
             layer.magnificationFilter = .nearest
             layer.minificationFilter = .nearest
         }
-        for layer in [profile, leftProfile, bottomProfile] { fill.addSublayer(layer) }
+        for layer in [profile, leftProfile, bottomProfile, topTail] { fill.addSublayer(layer) }
         outline.contents = appearance.outline
         outline.contentsCenter = appearance.center
         outline.contentsScale = CGFloat(appearance.rightEdge.height) / appearance.sourceSize.height
@@ -70,30 +73,21 @@ import QuartzCore
         panel.contentView = view
     }
 
-    package static func fits(desired: CGRect, actual: CGRect, minimumSize: CGSize) -> Bool {
-        !desired.isNull && !actual.isNull && desired.width > 0 && desired.height > 0
-            && actual.width > 0 && actual.height > 0
-            && desired.width >= minimumSize.width && desired.height >= minimumSize.height
-            && actual.width >= minimumSize.width && actual.height >= minimumSize.height
-            && desired.minY == actual.minY && desired.intersects(actual)
-    }
-
-    package static func needed(desired: CGRect, actual: CGRect) -> Bool {
-        !actual.contains(desired) && !desired.approxEqual(actual, tolerance: FrameTolerance.fill)
-    }
-
-    package func update(desired: CGRect, actual: CGRect, order: [CGWindowID]? = nil) {
-        guard Self.fits(desired: desired, actual: actual, minimumSize: appearance.minimumSize),
-              let screen = Screen.all().first(where: { $0.frame.contains(desired) && $0.frame.contains(actual) }),
-              let native = screen.nsScreen,
+    package func update(desired: CGRect, actual: CGRect) {
+        if let screen, !screen.frame.contains(desired) || !screen.frame.contains(actual) { self.screen = nil }
+        if screen == nil {
+            screen = Screen.all().first { $0.frame.contains(desired) && $0.frame.contains(actual) }
+                .flatMap { screen in screen.nsScreen.map { (screen.frame, $0) } }
+        }
+        guard WindowFillPlan.shows(desired: desired, actual: actual, minimum: appearance.minimumSize),
+              let (frame, native) = screen,
               abs(outline.contentsScale - native.backingScaleFactor) < 0.01 else { close(); return }
-        guard Self.needed(desired: desired, actual: actual) else { close(); return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if panel.frame != native.frame { panel.setFrame(native.frame, display: false) }
         for layer in [root, fill, gap, outside, movingCorners] { layer.contentsScale = native.backingScaleFactor }
         let bounds = CGRect(origin: .zero, size: desired.size)
-        root.frame = CGRect(x: desired.minX - screen.frame.minX, y: screen.frame.maxY - desired.maxY,
+        root.frame = CGRect(x: desired.minX - frame.minX, y: frame.maxY - desired.maxY,
                             width: desired.width, height: desired.height)
         fill.frame = bounds
         outline.frame = bounds
@@ -101,11 +95,7 @@ import QuartzCore
         updateProfiles(desired: desired, actual: actual)
         updateMask(desired: desired, actual: actual, bounds: bounds)
         CATransaction.commit()
-        let stack = order ?? WindowServerReads.windowOrder() ?? []
-        let above = stack.firstIndex(of: windowID).flatMap { helper in
-            stack.firstIndex(of: window).map { helper < $0 }
-        } ?? false
-        if !panel.isVisible || !above { panel.order(.above, relativeTo: Int(window)) }
+        if !panel.isVisible { panel.order(.above, relativeTo: Int(window)) }
         panel.displayIfNeeded()
         if dismiss == nil {
             let dismiss = DismissMonitor()
@@ -120,8 +110,10 @@ import QuartzCore
     private func updateProfiles(desired: CGRect, actual: CGRect) {
         let cap = CGFloat(appearance.outline.width - 1) / 2 / outline.contentsScale
         let overlap = (ceil(outline.contentsScale) + 2) / outline.contentsScale
-        let left = actual.minX - desired.minX
-        let top = desired.height - appearance.sourceSize.height
+        let left = actual.minX - desired.minX, above = max(0, actual.minY - desired.minY)
+        let top = desired.height - (actual.minY - desired.minY) - appearance.sourceSize.height
+        let band = above > 0 ? above + overlap : 0
+        topTail.frame = CGRect(x: 0, y: desired.height - band, width: desired.width, height: band)
         profile.frame = CGRect(x: 0, y: top, width: desired.width, height: appearance.sourceSize.height)
         leftProfile.frame = CGRect(x: 0, y: top, width: max(0, left + cap + overlap),
                                    height: appearance.sourceSize.height)
@@ -163,6 +155,7 @@ import QuartzCore
         if desired.minX < actual.minX { hole.origin.x += inset; hole.size.width -= inset }
         if desired.maxX > actual.maxX { hole.size.width -= inset }
         if desired.maxY > actual.maxY { hole.size.height -= inset }
+        if desired.minY < actual.minY { hole.origin.y += inset; hole.size.height -= inset }
         hole.origin.y = desired.height - hole.maxY
         return hole
     }

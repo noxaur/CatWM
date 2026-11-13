@@ -27,12 +27,9 @@ package struct WindowFillAppearance {
     package let minimumSize: CGSize
     package let leftColor: CGColor
     package let rightColor: CGColor
+    package let topColor: CGColor
 
-    package func canFill(from: CGRect, to target: CGRect) -> Bool {
-        !from.isNull && !target.isNull && sourceSize.height == from.height && from.minY == target.minY
-            && target.size != from.size && from.intersects(target)
-            && [from, target].allSatisfy { $0.width >= minimumSize.width && $0.height >= minimumSize.height }
-    }
+    package var scale: CGFloat { CGFloat(rightEdge.height) / sourceSize.height }
 
     package init?(image: CGImage, size: CGSize) {
         guard image.width > 4, image.height > 4, size.width > 0, size.height > 0,
@@ -59,13 +56,15 @@ package struct WindowFillAppearance {
               let bottom = Self.image(edges.bottom, width: width, height: 1, space: space),
               let contours = Self.contours(pixels, image: image, sourceSize: size, cap: cap, space: space),
               let leftColor = Self.color(edges.left, space: space),
-              let rightColor = Self.color(edges.right, space: space) else { return nil }
+              let rightColor = Self.color(edges.right, space: space),
+              let topColor = Self.color(Array(edges.right[(cap * 4)..<(cap * 4 + 4)]), space: space) else { return nil }
         leftEdge = left
         rightEdge = right
         bottomEdge = bottom
         bottomCenter = Self.stretch(edges.bottom)
         self.leftColor = leftColor
         self.rightColor = rightColor
+        self.topColor = topColor
         outline = contours.outline
         inverseOutline = contours.inverse
         border = contours.border

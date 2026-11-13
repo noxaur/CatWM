@@ -3,22 +3,30 @@ import Foundation
 
 package struct MotionQuality {
     package struct Sample: Equatable {
-        package let error: Double, spill: Double, gap: Double, overshoot: Double
+        package let error: Double, spill: Double, gap: Double, cover: Double, overshoot: Double
         package let lag: Double?, stutter: Double?
-        package let filled: Bool
+        package var filled: Bool { fill != nil }
+        private let fill: CGRect?
 
-        package init(desired: CGRect, actual: CGRect, filled: Bool, lag: Double? = nil, overshoot: Double = 0,
+        package init(desired: CGRect, actual: CGRect, fill: CGRect? = nil, lag: Double? = nil, overshoot: Double = 0,
                      stutter: Double? = nil) {
-            let outward = [desired.minX - actual.minX, actual.maxX - desired.maxX,
-                           desired.minY - actual.minY, actual.maxY - desired.maxY].map(Double.init)
-            let most = outward.max() ?? 0, least = outward.min() ?? 0
+            func outward(_ inner: CGRect) -> [Double] {
+                [inner.minX - actual.minX, actual.maxX - inner.maxX, inner.minY - actual.minY, actual.maxY - inner.maxY]
+                    .map(Double.init)
+            }
+            let edges = outward(desired), most = edges.max() ?? 0, least = edges.min() ?? 0
+            let open = fill.map { hole -> Double in
+                let inner = desired.intersection(hole)
+                return max(0, inner.isNull ? -least : -(outward(inner).min() ?? 0))
+            }
             error = max(most, -least, 0)
             spill = most > 0 ? most : 0
-            gap = filled || least >= 0 ? 0 : -least
+            gap = open ?? max(0, -least)
+            cover = fill == nil ? 0 : max(0, -least)
             self.lag = lag
             self.overshoot = overshoot
             self.stutter = stutter
-            self.filled = filled
+            self.fill = fill
         }
     }
 
@@ -41,12 +49,12 @@ package struct MotionQuality {
 
     package struct Summary {
         package let samples: Int, filled: Int
-        package let error: Spread, spill: Spread, gap: Spread, overshoot: Spread
+        package let error: Spread, spill: Spread, gap: Spread, cover: Spread, overshoot: Spread
         package let lag: Spread?, stutter: Spread?, tail: Spread?
 
         package var text: String {
             "motion (p50/p95/max) error \(error.text(1, "px")) | lag \(lag?.text(1000, "ms") ?? "-") "
-                + "| spill \(spill.text(1, "px")) | gap \(gap.text(1, "px")) "
+                + "| spill \(spill.text(1, "px")) | gap \(gap.text(1, "px")) | cover \(cover.text(1, "px")) "
                 + "| stutter \(stutter?.text(1, "px") ?? "-") | overshoot \(overshoot.text(1, "px")) "
                 + "| tail \(tail?.text(1000, "ms") ?? "-") | \(samples) samples, \(filled) filled"
         }
@@ -68,9 +76,10 @@ package struct MotionQuality {
         let all = pid.map { samples[$0] ?? [] } ?? samples.values.flatMap(\.self)
         let tail = pid.map { tails[$0] ?? [] } ?? tails.values.flatMap(\.self)
         guard let error = Spread(all.map(\.error)), let spill = Spread(all.map(\.spill)),
-              let gap = Spread(all.map(\.gap)), let overshoot = Spread(all.map(\.overshoot)) else { return nil }
+              let gap = Spread(all.map(\.gap)), let cover = Spread(all.map(\.cover)),
+              let overshoot = Spread(all.map(\.overshoot)) else { return nil }
         return Summary(samples: all.count, filled: all.filter(\.filled).count, error: error, spill: spill, gap: gap,
-                       overshoot: overshoot, lag: Spread(all.compactMap(\.lag)),
+                       cover: cover, overshoot: overshoot, lag: Spread(all.compactMap(\.lag)),
                        stutter: Spread(all.compactMap(\.stutter)), tail: Spread(tail))
     }
 
@@ -162,7 +171,7 @@ package struct MotionQuality {
             previous[id] = (actual, desired)
             let resting = actual.approxEqual(target, tolerance: FrameTolerance.observed)
             arrivals[id] = resting ? arrivals[id] ?? time : nil
-            quality?.add(.init(desired: desired, actual: actual, filled: shown?.isFilling(id) == true, lag: lag,
+            quality?.add(.init(desired: desired, actual: actual, fill: shown?.fill(of: id), lag: lag,
                                overshoot: MotionQuality.overshoot(actual, from: frame(start), to: target),
                                stutter: stutter),
                          pid: item.move.window.pid)

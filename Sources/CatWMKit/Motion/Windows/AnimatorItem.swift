@@ -31,7 +31,7 @@ extension Animator {
         var start: CFTimeInterval?
         let duration: Double
         let tracks: [Trajectory]
-        var colorSizing: ColorFillSizing?
+        var fill: WindowFillPlan?
 
         package init(move: Move, from: CGRect, start: CFTimeInterval?, spec: MotionSpec, velocity: [Double]? = nil) {
             self.move = move
@@ -57,9 +57,10 @@ extension Animator {
 extension Animator.Item {
     package var end: CFTimeInterval? { start.map { $0 + duration } }
 
-    package func request(at times: WindowLead.Times, presentedAt time: CFTimeInterval) -> CGRect {
-        let predicted = frame(position: times.position, size: times.size)
-        return colorSizing?.request(predicted: predicted, viewport: frame(at: time, aligned: false)) ?? predicted
+    package func request(at times: WindowLead.Times) -> CGRect {
+        guard let fill else { return frame(position: times.position, size: times.size) }
+        func inner(_ time: CFTimeInterval) -> CGRect { fill.request { frame(at: time + $0, aligned: false) } }
+        return CGRect(origin: inner(times.position).origin, size: inner(times.size).size)
     }
 
     package func frame(at now: CFTimeInterval, aligned: Bool = true) -> CGRect {

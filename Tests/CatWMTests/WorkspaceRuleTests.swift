@@ -14,12 +14,16 @@ private struct RecordedBatch {
     private final class Recorder: WindowPresentation {
         var refreshes = 0
         var batches: [RecordedBatch] = []
-        func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
-            batches.append(RecordedBatch(ids: moves.map(\.window.id), spec: spec, refresh: refreshes))
+        func plan(for move: Animator.Move, from _: CGRect, spec: MotionSpec) -> WindowFillPlan? {
+            batches.append(RecordedBatch(ids: [move.window.id], spec: spec, refresh: refreshes))
+            return nil
         }
-        func update(_: [CGWindowID: CGRect]) {}
+        func prepare(_: [CGWindowID: WindowFillPlan], moving _: Set<CGWindowID>) -> Set<CGWindowID> { [] }
+        func follow(_: [Animator.Move]) {}
+        func update(_: [CGWindowID: CGRect], observed _: [CGWindowID: CGRect], expected _: [CGWindowID: CGRect]) {}
         func cancel(_: CGWindowID) {}
         func close() {}
+        func fill(of _: CGWindowID) -> CGRect? { nil }
 
         func spec(of id: CGWindowID) -> MotionSpec? { batches.first { $0.ids.contains(id) }?.spec }
     }

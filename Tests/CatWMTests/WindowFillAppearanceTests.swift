@@ -25,19 +25,20 @@ struct WindowFillAppearanceTests {
         #expect(try #require(border.colorAt(x: middle, y: 0)).alphaComponent == 1)
     }
 
-    @Test func repeatedHorizontalResizeReusesThePreparedColors() throws {
-        let appearance = try #require(WindowFillAppearance(image: image(), size: CGSize(width: 20, height: 15)))
-        #expect(appearance.canFill(from: CGRect(x: 0, y: 0, width: 24, height: 15),
-                                   to: CGRect(x: 0, y: 0, width: 28, height: 15)))
-    }
-
-    @Test func unsupportedGeometryCannotEnableEarlyNativeShrinking() throws {
+    @Test func thePreparedColorsFillAnyResizeOnADisplayOfTheirScale() throws {
         let appearance = try #require(WindowFillAppearance(image: image(), size: CGSize(width: 20, height: 15)))
         let from = CGRect(x: 0, y: 0, width: 20, height: 15)
-        #expect(!appearance.canFill(from: from, to: CGRect(x: 0, y: 1, width: 18, height: 15)))
-        #expect(!appearance.canFill(from: from, to: CGRect(x: 0, y: 0, width: 1, height: 15)))
-        #expect(!appearance.canFill(from: from, to: CGRect(x: 50, y: 0, width: 18, height: 15)))
-        #expect(appearance.canFill(from: from, to: CGRect(x: 0, y: 0, width: 18, height: 15)))
+        let displays = [WindowFillPlan.Display(frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                                               scale: appearance.scale)]
+        func fills(_ target: CGRect, on screens: [WindowFillPlan.Display] = displays) -> Bool {
+            WindowFillPlan(from: from, to: target, appearance: appearance, displays: screens) != nil
+        }
+        #expect(fills(CGRect(x: 0, y: 0, width: 28, height: 15)))
+        #expect(fills(CGRect(x: 0, y: 1, width: 18, height: 30)))
+        #expect(fills(CGRect(x: 50, y: 20, width: 18, height: 15)))
+        #expect(!fills(CGRect(x: 0, y: 0, width: 1, height: 15)))
+        #expect(!fills(CGRect(x: 0, y: 0, width: 18, height: 15),
+                       on: [.init(frame: displays[0].frame, scale: appearance.scale + 1)]))
     }
 
     @Test(arguments: [false, true]) func translucentContentCannotBePaintedOverAsAnOpaqueGap(edge: Bool) throws {

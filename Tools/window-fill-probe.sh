@@ -11,6 +11,7 @@ swiftc -package-name CatWM -D CATWM_FILL_PROBE \
   Tools/WindowFillProbeFixture.swift \
   Sources/CatWMKit/Motion/Windows/WindowFillAppearance.swift \
   Sources/CatWMKit/Motion/Windows/WindowResizeFill.swift \
+  Sources/CatWMKit/Motion/Windows/WindowFillPlan.swift \
   Sources/CatWMKit/Motion/Windows/WindowServerReads.swift \
   Sources/CatWMKit/Motion/Windows/MotionTiming.swift \
   Sources/CatWMKit/Chrome/CatWMPanel.swift \

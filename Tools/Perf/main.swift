@@ -156,8 +156,11 @@ struct Usage {
                         record("motion.live.warm.lag", (live.lag?.p50 ?? 0) * 1000)
                     }
                 }
-                let fill = summary(await MotionBench.measure(scene, profile, mode: .colorFill))
-                record("motion.fill.gap", fill.gap.p95)
+                for warm in [false, true] {
+                    let fill = summary(await MotionBench.measure(scene, profile, mode: .colorFill, warm: warm))
+                    record("motion.fill.gap", fill.gap.p95)
+                    if warm { record("motion.fill.warm.spill", fill.spill.p95) }
+                }
             }
         }
         for _ in 0..<20 {

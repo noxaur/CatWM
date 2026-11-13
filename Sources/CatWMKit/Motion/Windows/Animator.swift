@@ -52,6 +52,8 @@ import QuartzCore
 
     package func isMoving(_ id: CGWindowID, to frame: CGRect) -> Bool { destination(id) == frame }
 
+    package var isMoving: Bool { !items.isEmpty }
+
     package func cancel(_ id: CGWindowID) {
         windowPresentation?.cancel(id)
         nextEpoch(for: id)
@@ -76,7 +78,13 @@ import QuartzCore
         guard !batches.isEmpty else { return }
         let now = now()
         for batch in batches { batch.moves.forEach { start($0, spec: batch.spec, at: now) } }
-        for batch in batches { windowPresentation?.prepare(batch.moves, spec: batch.spec) }
+        if let windowPresentation {
+            let plans = batches.flatMap(\.moves).reduce(into: [CGWindowID: WindowFillPlan]()) {
+                $0[$1.window.id] = items[$1.window.id]?.fill
+            }
+            let shown = windowPresentation.prepare(plans, moving: Set(items.keys).union(following.frames.keys))
+            for id in plans.keys where !shown.contains(id) { items[id]?.fill = nil }
+        }
         startClock()
     }
 
@@ -101,7 +109,7 @@ import QuartzCore
             land(move)
         } else {
             items[id] = Item(move: move, from: from, start: velocity == nil ? nil : now, spec: spec, velocity: velocity)
-            items[id]?.colorSizing = windowPresentation?.sizing(for: move, from: from, spec: spec)
+            items[id]?.fill = windowPresentation?.plan(for: move, from: from, spec: spec)
         }
     }
 
@@ -145,12 +153,11 @@ import QuartzCore
     private func tick(shown: CFTimeInterval, presentation: CFTimeInterval) {
         let started = CACurrentMediaTime(), moving = !items.isEmpty
         if moving { motionRun.tick(at: now()) }
-        func timing(_ id: CGWindowID, observed: CGRect? = nil) -> AXWriter.Step {
-            .init(shown: shown, presentation: presentation, bias: windowPresentation?.leadBias(for: id) ?? 0,
-                  observed: observed)
+        func timing(observed: CGRect? = nil) -> AXWriter.Step {
+            .init(shown: shown, presentation: presentation, observed: observed)
         }
         for (id, item) in items where item.start == nil {
-            let step = timing(id), frames = writer(item.move.window.pid).leadFrames(id, at: now(), step)
+            let step = timing(), frames = writer(item.move.window.pid).leadFrames(id, at: now(), step)
             items[id]?.start = shown + Double(frames) * step.period
         }
         let observed = items.keys.reduce(into: [CGWindowID: CGRect]()) { $0[$1] = readFrame($1) }
@@ -158,8 +165,8 @@ import QuartzCore
         motionRun.measure(items, observed: observed, at: shown, shown: windowPresentation, read: readFrame)
         let resumed = CACurrentMediaTime()
         let ordered = items.sorted {
-            let left = $0.value.colorSizing?.releasesSpace == true
-            let right = $1.value.colorSizing?.releasesSpace == true
+            let left = $0.value.fill?.releasesSpace == true
+            let right = $1.value.fill?.releasesSpace == true
             return left == right ? $0.key < $1.key : left
         }
         for (id, item) in ordered {
@@ -168,13 +175,13 @@ import QuartzCore
                 motionRun.finished(item)
                 land(item.move)
             } else {
-                writer(item.move.window.pid).step(item.move.window, timing(id, observed: observed[id]),
-                                                  releasesSpace: item.colorSizing?.releasesSpace == true) {
-                    item.request(at: $0, presentedAt: presentation)
+                writer(item.move.window.pid).step(item.move.window, timing(observed: observed[id]),
+                                                  releasesSpace: item.fill?.releasesSpace == true) {
+                    item.request(at: $0)
                 }
             }
         }
-        updateWindowPresentation(at: presentation)
+        updateWindowPresentation(at: presentation, observed: observed, period: presentation - shown)
         if moving { motionRun.ticked(reading + CACurrentMediaTime() - resumed) }
         if items.isEmpty && !motionRun.isSettling {
             clock?.stop(); clock = nil
@@ -239,12 +246,16 @@ extension Animator {
         }
     }
 
-    private func updateWindowPresentation(at time: CFTimeInterval? = nil) {
+    private func updateWindowPresentation(at time: CFTimeInterval? = nil, observed: [CGWindowID: CGRect] = [:],
+                                          period: Double = 0) {
         guard let windowPresentation else { return }
-        let time = time ?? now()
+        let time = time ?? now(), next = time + period
         let samples = items.mapValues { $0.frame(at: time, aligned: false) }
         let moving = following.frames.merging(samples) { _, frame in frame }
-        windowPresentation.update(moving.merging(landing.mapValues(\.target)) { frame, _ in frame })
+        windowPresentation.update(moving.merging(landing.mapValues(\.target)) { frame, _ in frame }, observed: observed,
+                                  expected: items.compactMapValues {
+                                      $0.fill == nil ? nil : $0.request(at: .init(position: next, size: next))
+                                  })
     }
 
     private func startClock() {
@@ -295,9 +306,7 @@ extension Animator {
         let tracks = zip(running.tracks, target).map { $0.retargeted(to: $1) }
         items[window.id] = Item(move: .init(window: window, to: frame, bounds: frame), tracks: tracks,
                                 start: running.start, duration: running.duration)
-        if let sizing = running.colorSizing, frame.minY == sizing.source.minY {
-            items[window.id]?.colorSizing = ColorFillSizing(source: sizing.source, target: frame)
-        }
+        items[window.id]?.fill = running.fill?.retargeted(to: frame)
         return true
     }
 }

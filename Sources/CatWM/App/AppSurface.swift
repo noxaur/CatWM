@@ -52,7 +52,7 @@ struct AppSurface: TilingSurface {
         guard animator.windowPresentation == nil else { return }
         animator.windowPresentation = fills
         fills.refresh = { [weak manager, weak fills] in
-            guard let manager else { return }
+            guard let manager, !manager.animator.isMoving else { return }
             fills?.warm(manager.windows) { [weak manager] in manager?.animator.isAnimating($0) ?? true }
         }
         fills.refresh?()

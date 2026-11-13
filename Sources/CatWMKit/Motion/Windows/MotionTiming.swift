@@ -4,6 +4,7 @@ package enum MotionTiming {
     package static let quietAfterWrite = 0.4
     package static let landsAtOnceBelow = 0.01
     package static let shortestFill = 0.08
+    package static let fillAhead = 0.008
     package static let landingCheckDelay = 0.12
     package static let writeCostLimit = 0.05
     package static let writeCostMemory = 1.0

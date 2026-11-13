@@ -50,12 +50,15 @@ package enum WindowServerReads {
         return WindowServerList.onScreen(connection: orderSession.connection)
     }
 
-    package static func canPresent(
-        _ regions: [CGRect], participants: Set<CGWindowID>, excluding excluded: Set<CGWindowID> = [],
-        order requested: [CGWindowID]? = nil
-    ) -> Bool {
+    package static func canPresent(_ region: CGRect, of id: CGWindowID, excluding excluded: Set<CGWindowID> = [],
+                                   order requested: [CGWindowID]? = nil) -> Bool {
         guard let order = requested ?? windowOrder() else { return false }
-        return unobscured(regions, participants: participants, excluding: excluded, order: order, frame: occludingFrame)
+        return obscured([id: region], excluding: excluded, order: order).isEmpty
+    }
+
+    package static func obscured(_ regions: [CGWindowID: CGRect], moving: Set<CGWindowID> = [],
+                                 excluding excluded: Set<CGWindowID>, order: [CGWindowID]) -> Set<CGWindowID> {
+        obscured(regions, moving: moving, excluding: excluded, order: order, frame: occludingFrame)
     }
 
     private static func occludingFrame(_ id: CGWindowID) -> CGRect? {
@@ -65,20 +68,21 @@ package enum WindowServerReads {
         return level == 0 ? currentFrame(id) : .zero
     }
 
-    package static func unobscured(_ regions: [CGRect], participants: Set<CGWindowID>,
-                                   excluding excluded: Set<CGWindowID> = [], order: [CGWindowID],
-                                   frame: (CGWindowID) -> CGRect?) -> Bool {
-        var remaining = participants
-        guard !remaining.isEmpty else { return false }
-        for id in order where !excluded.contains(id) {
-            if remaining.remove(id) != nil {
-                if remaining.isEmpty { return true }
-            } else if !participants.contains(id) {
-                guard let other = frame(id) else { return false }
-                if regions.contains(where: { $0.intersection(other).width > 1
-                    && $0.intersection(other).height > 1 }) { return false }
+    package static func obscured(_ regions: [CGWindowID: CGRect], moving: Set<CGWindowID> = [],
+                                 excluding excluded: Set<CGWindowID> = [], order: [CGWindowID],
+                                 frame: (CGWindowID) -> CGRect?) -> Set<CGWindowID> {
+        var remaining = Set(regions.keys), blocked = Set<CGWindowID>(), front: [CGRect] = []
+        for id in order where !remaining.isEmpty && !excluded.contains(id) {
+            if let region = regions[id] {
+                remaining.remove(id)
+                if front.contains(where: { region.intersection($0).width > 1 && region.intersection($0).height > 1 }) {
+                    blocked.insert(id)
+                }
+            } else if !moving.contains(id) {
+                guard let other = frame(id) else { return blocked.union(remaining) }
+                front.append(other)
             }
         }
-        return false
+        return blocked.union(remaining)
     }
 }

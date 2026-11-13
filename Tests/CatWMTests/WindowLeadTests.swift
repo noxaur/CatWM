@@ -7,9 +7,8 @@ import Testing
     private let start = CGRect(x: 0, y: 0, width: 800, height: 600)
 
     private func sample(_ lead: inout WindowLead, at now: Double, presentation: Double, period: Double? = nil,
-                        bias: Double = 0, order: WindowLead.Order? = nil) -> WindowLead.Times {
-        let plan = lead.plan(at: now, presentation: presentation, period: period ?? self.period, bias: bias,
-                             order: order)
+                        order: WindowLead.Order? = nil) -> WindowLead.Times {
+        let plan = lead.plan(at: now, presentation: presentation, period: period ?? self.period, order: order)
         lead.commit(plan)
         return plan.times
     }
@@ -122,8 +121,8 @@ import Testing
     @Test func theLeadHoldsItsFrameNearABoundary() {
         var lead = WindowLead()
         let presentation = 1 + period
-        let frames = [0.45, 1.3, 1.6, 0.4, 0.2].map { bias in
-            ((sample(&lead, at: presentation, presentation: presentation, bias: bias * period).position
+        let frames = [0.45, 1.3, 1.6, 0.4, 0.2].map { due in
+            ((sample(&lead, at: presentation + due * period, presentation: presentation).position
                 - presentation) / period).rounded()
         }
         #expect(frames == [0, 1, 1, 1, 0])

@@ -5,11 +5,10 @@ import QuartzCore
 package final class AXWriter: Sendable {
     package struct Step: Sendable {
         package let shown: CFTimeInterval, presentation: CFTimeInterval
-        package let bias: Double
         package let observed: CGRect?
 
-        package init(shown: CFTimeInterval, presentation: CFTimeInterval, bias: Double = 0, observed: CGRect? = nil) {
-            (self.shown, self.presentation, self.bias, self.observed) = (shown, presentation, bias, observed)
+        package init(shown: CFTimeInterval, presentation: CFTimeInterval, observed: CGRect? = nil) {
+            (self.shown, self.presentation, self.observed) = (shown, presentation, observed)
         }
 
         package var period: Double { presentation - shown }
@@ -99,7 +98,7 @@ package final class AXWriter: Sendable {
 
     package func leadFrames(_ id: CGWindowID, at now: CFTimeInterval, _ step: Step) -> Int {
         state.withLock { $0.lead(id) }
-            .plan(at: now, presentation: step.presentation, period: step.period, bias: step.bias).frames.max() ?? 0
+            .plan(at: now, presentation: step.presentation, period: step.period).frames.max() ?? 0
     }
 
     package func cancel(_ id: CGWindowID) {
@@ -207,8 +206,7 @@ package final class AXWriter: Sendable {
         var stepFrame = CGRect.null
         if case let .step(step, frameAt) = item.operation {
             func plan(_ order: WindowLead.Order? = nil) -> WindowLead.Plan {
-                prepared.lead.plan(at: began, presentation: step.presentation, period: step.period, bias: step.bias,
-                                   order: order)
+                prepared.lead.plan(at: began, presentation: step.presentation, period: step.period, order: order)
             }
             let first = plan()
             stepFrame = frameAt(first.times)

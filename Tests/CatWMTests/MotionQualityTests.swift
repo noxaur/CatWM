@@ -8,22 +8,27 @@ import Testing
     private let desired = CGRect(x: 100, y: 100, width: 400, height: 300)
 
     @Test func aWindowOnItsOutlineHasNoErrorSpillOrGap() {
-        let sample = MotionQuality.Sample(desired: desired, actual: desired, filled: false)
+        let sample = MotionQuality.Sample(desired: desired, actual: desired)
         #expect(sample.error == 0 && sample.spill == 0 && sample.gap == 0)
     }
 
     @Test func aWiderWindowSpillsAndANarrowerOneLeavesAGap() {
-        let wide = MotionQuality.Sample(desired: desired, actual: desired.insetBy(dx: -6, dy: 0), filled: false)
+        let wide = MotionQuality.Sample(desired: desired, actual: desired.insetBy(dx: -6, dy: 0))
         #expect(wide.spill == 6 && wide.gap == 0 && wide.error == 6)
-        let narrow = MotionQuality.Sample(desired: desired, actual: CGRect(x: 100, y: 100, width: 390, height: 280),
-                                          filled: false)
+        let narrow = MotionQuality.Sample(desired: desired, actual: CGRect(x: 100, y: 100, width: 390, height: 280))
         #expect(narrow.spill == 0 && narrow.gap == 20 && narrow.error == 20)
     }
 
     @Test func aFillHidesTheGapButNotTheSpill() {
         let actual = CGRect(x: 90, y: 100, width: 380, height: 300)
-        let sample = MotionQuality.Sample(desired: desired, actual: actual, filled: true)
-        #expect(sample.spill == 10 && sample.gap == 0 && sample.error == 30)
+        let sample = MotionQuality.Sample(desired: desired, actual: actual, fill: actual)
+        #expect(sample.spill == 10 && sample.gap == 0 && sample.cover == 30 && sample.error == 30)
+    }
+
+    @Test func aFillCutForALargerWindowLeavesWhatTheWindowLostUncovered() {
+        let actual = CGRect(x: 100, y: 100, width: 380, height: 300)
+        let sample = MotionQuality.Sample(desired: desired, actual: actual, fill: actual.insetBy(dx: -10, dy: 0))
+        #expect(sample.gap == 10 && sample.cover == 20)
     }
 
     @Test func lagIsTheTimeTheTrajectoryTookToReachTheActualEdge() {
@@ -53,9 +58,9 @@ import Testing
         var quality = MotionQuality()
         for width in stride(from: 401.0, through: 420, by: 1) {
             quality.add(.init(desired: desired, actual: CGRect(x: 100, y: 100, width: width, height: 300),
-                              filled: false, lag: 0.01), pid: -100)
+                              lag: 0.01), pid: -100)
         }
-        quality.add(.init(desired: desired, actual: desired, filled: true), pid: -101)
+        quality.add(.init(desired: desired, actual: desired, fill: desired), pid: -101)
         let one = try #require(quality.summary(-100))
         #expect(one.samples == 20 && one.error.p50 == 10 && one.error.p95 == 19 && one.error.max == 20)
         #expect(one.lag?.p50 == 0.01)
@@ -115,27 +120,47 @@ import Testing
         }
     }
 
-    @Test func colorFillDoesNotEngageWhenTheTopEdgeMoves() async throws {
-        for scene in [MotionBench.stackOpen, MotionBench.swap] {
-            let fill = try #require(await MotionBench.measure(scene, .named("fixed"), mode: .colorFill)?.quality)
-            #expect(fill.filled == 0, "\(scene.name)")
+    @Test func colorFillCoversEveryTiledMoveWithoutSpillOrGapOnceTheLeadIsLearned() async throws {
+        for scene in MotionBench.moves {
+            for profile in ["instant", "fixed", "slow-resize"] {
+                let label = "\(scene.name) \(profile)"
+                let fill = try #require(await MotionBench.measure(scene, .named(profile), mode: .colorFill,
+                                                                  warm: true)?.quality, "\(label)")
+                #expect(fill.filled * 3 > fill.samples * 2, "\(label)")
+                #expect(fill.gap.max < 1, "\(label)")
+                #expect(fill.spill.p95 < 1, "\(label)")
+            }
+        }
+    }
+
+    @Test func aWindowThatCannotFillMovesLiveWhileTheOthersKeepTheirFill() async throws {
+        let fixed = MotionBench.Profile.named("fixed")
+        for (unprepared, obscured) in [(Set([0]), Set<Int>()), ([], [0])] {
+            let mixed = try #require(await MotionBench.measure(MotionBench.swap, fixed, mode: .colorFill,
+                                                               unprepared: unprepared, obscured: obscured))
+            let live = try #require(await MotionBench.measure(MotionBench.swap, fixed, mode: .live))
+            #expect(mixed.windows[-100]?.filled == 0)
+            #expect(mixed.windows[-100]?.error == live.windows[-100]?.error)
+            #expect((mixed.windows[-101]?.filled ?? 0) > 0)
         }
     }
 
     @Test func baseline() async {
         var lines = ["| move | profile | run | mode | error px p50/p95/max | lag ms p50/p95/max | spill px p50/p95/max "
-            + "| gap px p50/p95/max | stutter px p50/p95/max | overshoot px max | tail ms p50/max | tick ms avg/max |",
-                     "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+            + "| gap px p50/p95/max | filled | cover px p50/p95/max | stutter px p50/p95/max | overshoot px max "
+            + "| tail ms p50/max | tick ms avg/max |",
+                     "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
         for scene in MotionBench.moves {
             for profile in MotionBench.Profile.all {
                 for warm in [false, true] {
-                    for mode in MotionBench.Mode.allCases where mode == .live || scene.name == "ratio" {
+                    for mode in MotionBench.Mode.allCases {
                         guard let result = await MotionBench.measure(scene, profile, mode: mode, warm: warm),
                               let quality = result.quality else { continue }
                         let average = result.ticks.total / Double(max(1, result.ticks.count))
                         let cells = [scene.name, profile.name, warm ? "warm" : "cold", mode.rawValue,
                                      Self.text(quality.error), quality.lag.map { Self.text($0, 1000) } ?? "-",
                                      Self.text(quality.spill), Self.text(quality.gap),
+                                     "\(quality.filled)/\(quality.samples)", Self.text(quality.cover),
                                      quality.stutter.map { Self.text($0) } ?? "-",
                                      String(format: "%.1f", quality.overshoot.max),
                                      quality.tail.map { String(format: "%.0f/%.0f", $0.p50 * 1000, $0.max * 1000) }

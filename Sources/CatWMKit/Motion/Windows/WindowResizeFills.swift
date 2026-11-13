@@ -2,20 +2,22 @@ import AppKit
 import QuartzCore
 
 @MainActor package final class WindowResizeFills: WindowPresentation {
-    private struct Stats {
-        var samples = 0, visible = 0, caughtUp = 0, movedTop = 0
-    }
     private struct Cached {
         let appearance: WindowFillAppearance
         let frame: CGRect
         let time: CFTimeInterval
     }
+    private struct Active {
+        var plan: WindowFillPlan
+        let appearance: WindowFillAppearance
+        var fill: WindowResizeFill?
+        var hole: CGRect?
+        var samples = 0, visible = 0
+    }
     private let captureQueue = DispatchQueue(label: "catwm.fill-preparation", qos: .userInitiated)
     private var cache: [CGWindowID: Cached] = [:]
     private var warming: Set<CGWindowID> = []
-    private var active: Set<CGWindowID> = []
-    private var fills: [CGWindowID: WindowResizeFill] = [:]
-    private var stats: [CGWindowID: Stats] = [:]
+    private var active: [CGWindowID: Active] = [:]
     package init() {}
 
     package var refresh: (@MainActor () -> Void)?
@@ -23,12 +25,15 @@ import QuartzCore
 
     package func warm(_ windows: [CGWindowID: Window], busy: @escaping @MainActor (CGWindowID) -> Bool) {
         cache = cache.filter { windows[$0.key] != nil }
+        let own = excluded()
+        var order: [CGWindowID]?
         for id in windows.keys where !warming.contains(id) && !busy(id) {
             guard let frame = WindowServerReads.currentFrame(id), !frame.isEmpty,
-                  WindowServerReads.canPresent([frame], participants: [id], excluding: excluded()),
                   cache[id].map({ $0.frame.size != frame.size || CACurrentMediaTime() - $0.time > 5 }) ?? true else {
                 continue
             }
+            order = order ?? WindowServerReads.windowOrder()
+            guard let order, WindowServerReads.canPresent(frame, of: id, excluding: own, order: order) else { continue }
             warming.insert(id)
             captureQueue.async { [weak self] in
                 let snapshot = WindowServerReads.windowImage(id)
@@ -52,74 +57,80 @@ import QuartzCore
         }
     }
 
-    package func prepare(_ moves: [Animator.Move], spec: MotionSpec) {
-        guard spec.duration >= MotionTiming.shortestFill else {
-            moves.forEach { cancel($0.window.id) }
-            return
+    private static func displays() -> [WindowFillPlan.Display] {
+        Screen.all().compactMap { screen in
+            screen.nsScreen.map { WindowFillPlan.Display(frame: screen.frame, scale: $0.backingScaleFactor) }
         }
-        follow(moves)
     }
 
-    package func sizing(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> ColorFillSizing? {
-        guard spec.duration >= MotionTiming.shortestFill, let cached = cache[move.window.id],
-              cached.appearance.canFill(from: from, to: move.target),
-              let screen = Screen.all().first(where: { $0.frame.contains(from) && $0.frame.contains(move.target) }),
-              let native = screen.nsScreen,
-              abs(CGFloat(cached.appearance.rightEdge.height) / cached.appearance.sourceSize.height
-                  - native.backingScaleFactor) < 0.01 else { return nil }
-        return ColorFillSizing(source: from, target: move.target)
+    package func plan(for move: Animator.Move, from: CGRect, spec: MotionSpec) -> WindowFillPlan? {
+        cache[move.window.id].flatMap {
+            WindowFillPlan(from: from, to: move.target, appearance: $0.appearance, displays: Self.displays(),
+                           duration: spec.duration)
+        }
+    }
+
+    package func prepare(_ plans: [CGWindowID: WindowFillPlan], moving: Set<CGWindowID>) -> Set<CGWindowID> {
+        guard !plans.isEmpty, let order = WindowServerReads.windowOrder() else { return [] }
+        let own = Set(active.values.compactMap { $0.fill?.windowID }).union(excluded())
+        let shown = Set(plans.keys).subtracting(WindowServerReads.obscured(
+            plans.mapValues { $0.source.union($0.target) }, moving: moving, excluding: own, order: order
+        ))
+        for id in shown {
+            guard let plan = plans[id] else { continue }
+            if active[id] != nil {
+                active[id]?.plan = plan
+            } else if let cached = cache[id] {
+                active[id] = Active(plan: plan, appearance: cached.appearance)
+            }
+        }
+        return shown
     }
 
     package func follow(_ moves: [Animator.Move]) {
-        for move in moves {
+        let displays = Self.displays()
+        let plans = moves.reduce(into: [CGWindowID: WindowFillPlan]()) { plans, move in
             let id = move.window.id
-            let from = move.from ?? move.window.cachedFrame
-            guard let cached = cache[id], cached.appearance.canFill(from: from, to: move.target) else { continue }
-            active.insert(id)
+            guard active[id] == nil, let cached = cache[id] else { return }
+            plans[id] = WindowFillPlan(from: move.from ?? move.window.cachedFrame, to: move.target,
+                                       appearance: cached.appearance, displays: displays)
         }
+        _ = prepare(plans, moving: Set(moves.map(\.window.id)))
     }
 
-    package func update(_ frames: [CGWindowID: CGRect]) {
-        for id in active where frames[id] == nil { cancel(id) }
-        guard !active.isEmpty else { return }
-        let regions = active.compactMap { frames[$0] }
-        let own = Set(fills.values.map(\.windowID)).union(excluded())
-        guard let order = WindowServerReads.windowOrder(),
-              WindowServerReads.canPresent(regions, participants: Set(frames.keys),
-                                           excluding: own, order: order) else {
-            close(); return
-        }
-        for id in active {
-            guard let desired = frames[id], let actual = WindowServerReads.currentFrame(id),
-                  let cached = cache[id] else { cancel(id); continue }
-            if fills[id] == nil {
-                let fill = WindowResizeFill(window: id, appearance: cached.appearance)
-                fill.onDismiss = { [weak self] in self?.cancel(id) }
-                fills[id] = fill
+    package func update(_ frames: [CGWindowID: CGRect], observed: [CGWindowID: CGRect],
+                        expected: [CGWindowID: CGRect]) {
+        for id in active.keys where frames[id] == nil { cancel(id) }
+        for (id, entry) in active {
+            guard let desired = frames[id], let actual = observed[id] ?? WindowServerReads.currentFrame(id) else {
+                cancel(id); continue
             }
-            stats[id, default: Stats()].samples += 1
-            fills[id]?.update(desired: desired, actual: actual, order: order)
-            if fills[id]?.visible == true {
-                if stats[id]?.visible == 0 { Log.debug("window-fill: visible \(id)") }
-                stats[id, default: Stats()].visible += 1
-            } else if actual.contains(desired) || actual.approxEqual(desired, tolerance: FrameTolerance.fill) {
-                stats[id, default: Stats()].caughtUp += 1
-            } else if actual.minY != desired.minY { stats[id, default: Stats()].movedTop += 1 }
+            active[id]?.samples += 1
+            guard let hole = entry.plan.hole(desired: desired, actual: actual, expected: expected[id]) else {
+                entry.fill?.close()
+                active[id]?.hole = nil
+                continue
+            }
+            let fill = entry.fill ?? WindowResizeFill(window: id, appearance: entry.appearance)
+            if entry.fill == nil {
+                fill.onDismiss = { [weak self] in self?.cancel(id) }
+                active[id]?.fill = fill
+            }
+            fill.update(desired: desired, actual: hole)
+            active[id]?.hole = fill.visible ? hole : nil
+            if fill.visible { active[id]?.visible += 1 }
         }
     }
 
-    package func isFilling(_ id: CGWindowID) -> Bool { fills[id]?.visible == true }
+    package func fill(of id: CGWindowID) -> CGRect? { active[id]?.hole }
 
     package func cancel(_ id: CGWindowID) {
-        active.remove(id)
-        fills.removeValue(forKey: id)?.close()
-        if let stat = stats.removeValue(forKey: id) {
-            Log.debug("window-fill: \(id) samples \(stat.samples) visible \(stat.visible) "
-                + "native-ahead-or-ready \(stat.caughtUp) moving-top \(stat.movedTop)")
-        }
+        guard let entry = active.removeValue(forKey: id) else { return }
+        entry.fill?.close()
+        Log.debug("window-fill: \(id) samples \(entry.samples) visible \(entry.visible)")
     }
 
     package func close() {
-        for id in active { cancel(id) }
+        for id in active.keys { cancel(id) }
     }
 }

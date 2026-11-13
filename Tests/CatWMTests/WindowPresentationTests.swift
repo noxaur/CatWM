@@ -10,10 +10,23 @@ import Testing
         var cancelled: [CGWindowID] = []
         var frames: [[CGWindowID: CGRect]] = []
         var closed = false
-        func prepare(_ moves: [Animator.Move], spec _: MotionSpec) { prepared += moves.map(\.window.id) }
-        func update(_ frames: [CGWindowID: CGRect]) { self.frames.append(frames) }
+        var refused: Set<CGWindowID> = []
+        func plan(for move: Animator.Move, from: CGRect, spec _: MotionSpec) -> WindowFillPlan? {
+            WindowFillPlan(from: from, to: move.target, minimum: .zero, scale: 1,
+                           displays: [.init(frame: .infinite, scale: 1)])
+        }
+        func prepare(_ plans: [CGWindowID: WindowFillPlan], moving _: Set<CGWindowID>) -> Set<CGWindowID> {
+            prepared += plans.keys
+            return Set(plans.keys).subtracting(refused)
+        }
+        func follow(_ moves: [Animator.Move]) { prepared += moves.map(\.window.id) }
+        func update(_ frames: [CGWindowID: CGRect], observed _: [CGWindowID: CGRect],
+                    expected _: [CGWindowID: CGRect]) {
+            self.frames.append(frames)
+        }
         func cancel(_ id: CGWindowID) { cancelled.append(id) }
         func close() { closed = true }
+        func fill(of _: CGWindowID) -> CGRect? { nil }
     }
 
     @Test func cancelledMotionCancelsItsPresentationAndEmptyBatchesLeaveItAlone() async throws {

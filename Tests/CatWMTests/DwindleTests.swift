@@ -112,22 +112,23 @@ import Testing
         for pid in [-521, -522, -523] as [pid_t] {
             fake.addWindow(pid: pid, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
         }
-        let manager = fake.makeManager { $0.layouts = [.dwindle] }
+        var time: CFTimeInterval = 0
+        let manager = fake.makeManager({ $0.layouts = [.dwindle] }, now: {
+            time += 1
+            return time
+        })
         #expect(await fake.settle(manager))
         let ids = manager.tiled(on: screen)
         try #require(ids.count == 3)
         return Tiles(fake: fake, manager: manager, screen: screen, ids: ids)
     }
 
-    private func drag(_ id: CGWindowID, to frame: CGRect, in fake: FakeBackend, manager: WindowManager) async throws {
-        for _ in 0..<40 where manager.animator.isBusy(id) {
-            try await Task.sleep(for: .milliseconds(50)) // style-ok: AX ignores a drag in Animator's quiet time
-        }
-        try #require(!manager.animator.isBusy(id))
-        fake.userMoves(id, to: frame)
-        manager.drags[id] = true
-        manager.mouseUp()
-        #expect(await fake.settle(manager))
+    private func drag(_ id: CGWindowID, to frame: CGRect, in tiles: Tiles) async throws {
+        try #require(!tiles.manager.animator.isBusy(id))
+        tiles.fake.userMoves(id, to: frame)
+        tiles.manager.drags[id] = true
+        tiles.manager.mouseUp()
+        #expect(await tiles.fake.settle(tiles.manager))
     }
 
     private func ratios(_ tree: DwindleTree) -> [CGFloat] {
@@ -148,15 +149,15 @@ import Testing
             CGRect(x: 800, y: 450, width: 800, height: 450)
         ])
 
-        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 1000, height: 900), in: fake, manager: manager)
+        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 1000, height: 900), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle) == [0.625, 0.5])
         #expect(fake.frame(of: ids[1]) == CGRect(x: 1000, y: 0, width: 600, height: 450))
 
-        try await drag(ids[1], to: CGRect(x: 1000, y: 0, width: 600, height: 600), in: fake, manager: manager)
+        try await drag(ids[1], to: CGRect(x: 1000, y: 0, width: 600, height: 600), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle) == [0.625, 0.666667])
         #expect(fake.frame(of: ids[2]) == CGRect(x: 1000, y: 600, width: 600, height: 300))
 
-        try await drag(ids[1], to: CGRect(x: 800, y: 0, width: 800, height: 600), in: fake, manager: manager)
+        try await drag(ids[1], to: CGRect(x: 800, y: 0, width: 800, height: 600), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle) == [0.5, 0.666667])
         #expect(fake.frame(of: ids[0]) == CGRect(x: 0, y: 0, width: 800, height: 900))
     }
@@ -167,11 +168,11 @@ import Testing
         manager.learnMinimum(ids[1], CGSize(width: 700, height: 100))
         #expect(await fake.settle(manager))
 
-        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 1200, height: 900), in: fake, manager: manager)
+        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 1200, height: 900), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle).first == 0.5625)
         #expect(fake.frame(of: ids[1]).width == 700)
 
-        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 50, height: 900), in: fake, manager: manager)
+        try await drag(ids[0], to: CGRect(x: 0, y: 0, width: 50, height: 900), in: tiles)
         #expect(ratios(manager.state(for: screen).dwindle).first == 0.1)
         #expect(fake.frame(of: ids[0]).width == 160)
     }

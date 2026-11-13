@@ -80,7 +80,8 @@ extension Layout {
     package var hasMainPane: Bool {
         switch self {
         case .fullscreen, .column, .row, .floating: false
-        default: true
+        case .tall, .tallRight, .wide, .middleWide, .bsp, .dwindle, .threeColumnLeft, .threeColumnMiddle,
+             .threeColumnRight, .twoPane, .twoPaneRight, .widescreenTall, .widescreenTallRight: true
         }
     }
 }

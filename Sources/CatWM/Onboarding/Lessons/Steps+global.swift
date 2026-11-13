@@ -110,7 +110,7 @@ extension Steps {
 
     static func layoutDrill(_ coach: Coach) -> PlannedStep? {
         guard let next = coach.book.find([WindowActions.cyclelayout], "next") else { return nil }
-        let options = coach.windowManager.config.layouts.filter { ![.fullscreen, .floating].contains($0) }
+        let options = coach.windowManager.config.layouts.filter(\.tilesSideBySide)
         guard options.count > 1 else { return nil }
         let prev = coach.book.find([WindowActions.cyclelayout], "prev")
         let keys = [next, prev].compactMap(\.self).map { KeyWords.caps($0, long: false).joined() }

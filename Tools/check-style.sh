@@ -76,6 +76,10 @@ STANDARD_DEFAULTS = re.compile(r"\bUserDefaults\.standard\b|\bUserDefaults *= *\
 INSTANCE = "Sources/CatWMKit/App/Instance.swift"
 TOOLS = "// swift-tools-version:"
 OK = re.compile(r"^// style-ok: (\S.*\S)$")
+LAYOUT_ENUM = "Sources/CatWMKit/Tiling/Layout/Layout.swift"
+SWITCH = re.compile(r"\bswitch\b[^{\n]*\{")
+CASE_LIST = re.compile(r"\[( *\.\w+(?: *, *\.\w+)+ *)\]\.contains\(")
+LAYOUT_FIX = "Layout. Name every case in an exhaustive switch, so a new layout must decide this capability"
 
 
 def swift_files():
@@ -253,6 +257,43 @@ def catalog_violations(path, source):
     return failures
 
 
+def layout_cases():
+    source = open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read()
+    body = source[source.index("enum Layout"):source.index("package var title")]
+    return set(re.findall(r"(?:\bcase\b|,)\s*(\w+)", body))
+
+
+def layout_violations(path, source, cases):
+    if not path.startswith(SOURCES):
+        return []
+    failures = []
+    lines = source.splitlines()
+    for match in SWITCH.finditer(source):
+        depth, labels, default = 1, [], None
+        for inner in re.finditer(r"[{}]|^\s*case\b([^:\n]*)|^\s*default\s*:", source[match.end():], re.M):
+            text = inner.group(0)
+            if text == "{":
+                depth += 1
+            elif text == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif depth == 1 and text.lstrip().startswith("default"):
+                default = match.end() + inner.start()
+            elif depth == 1:
+                labels.extend(label.strip() for label in inner.group(1).split(","))
+        names = [label[1:] for label in labels if re.fullmatch(r"\.\w+", label)]
+        if default is not None and names and len(names) == len(labels) and set(names) <= cases:
+            number = source.count("\n", 0, default) + 1
+            failures.append((path, number, "default in a switch over " + LAYOUT_FIX, lines[number - 1].strip()))
+    for match in CASE_LIST.finditer(source):
+        if set(re.findall(r"\.(\w+)", match.group(1))) <= cases:
+            number = source.count("\n", 0, match.start()) + 1
+            failures.append((path, number, "list of Layout cases. Add a property on " + LAYOUT_FIX,
+                             lines[number - 1].strip()))
+    return failures
+
+
 def line_failures(path, source):
     failures = []
     in_multi = False
@@ -304,9 +345,12 @@ def line_failures(path, source):
 
 def main():
     failures = []
+    cases = layout_cases()
     for path in sorted(swift_files()):
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
-            failures.extend(catalog_violations(path, handle.read()))
+            source = handle.read()
+            failures.extend(catalog_violations(path, source))
+            failures.extend(layout_violations(path, source, cases))
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
             failures.extend(line_failures(path, handle.read()))
     for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS))):

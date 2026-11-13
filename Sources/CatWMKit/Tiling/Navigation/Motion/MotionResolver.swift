@@ -108,7 +108,7 @@ package enum MotionResolver {
     package static func cycle(_ id: CGWindowID, in ids: [CGWindowID], _ dir: Direction) -> CGWindowID? {
         guard ids.count > 1, let i = ids.firstIndex(of: id) else { return nil }
         let delta = dir == .left || dir == .upward ? -1 : 1
-        return ids[((i + delta) % ids.count + ids.count) % ids.count]
+        return ids[i.wrapped(by: delta, in: ids.count)]
     }
 }
 

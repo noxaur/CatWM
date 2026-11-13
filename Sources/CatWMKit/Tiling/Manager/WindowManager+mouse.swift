@@ -106,6 +106,6 @@ extension WindowManager {
         }
         if let slot = layoutTargets(ids, screenState, on: screen)?[window.id],
            abs(boundary(slot) - screenState.ratio * (total + gap)) > 3 { return }
-        screenState.ratio = min(0.9, max(0.1, boundary(frame) / (total + gap)))
+        screenState.ratio = SplitDivider.clamped(boundary(frame) / (total + gap))
     }
 }

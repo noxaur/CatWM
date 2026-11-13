@@ -68,7 +68,7 @@ extension WindowManager {
         for display in displays {
             let state = state(for: display.screen)
             state.layout = display.layout
-            state.ratio = min(0.9, max(0.1, display.ratio))
+            state.ratio = SplitDivider.clamped(display.ratio)
             state.mainCount = max(1, display.mainCount)
             state.fullscreen = nil
         }

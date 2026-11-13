@@ -46,8 +46,7 @@ extension WindowManager {
             let next = sorted.firstIndex { before(current, $0) } ?? sorted.count
             return delta > 0 ? next - 1 : next
         }()
-        let offset = delta % sorted.count
-        return sorted[((index + offset) % sorted.count + sorted.count) % sorted.count]
+        return sorted[index.wrapped(by: delta, in: sorted.count)]
     }
 
     package func workspaceKey(for screen: Screen) -> String {

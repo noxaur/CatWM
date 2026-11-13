@@ -52,7 +52,7 @@ extension WindowManager {
         names.subtract(desktops.nativeDroppedWorkspaces)
         return names.sorted(by: WorkspaceKey.precedes).map { name in
             SortWorkspace(name: name, label: labels[name] ?? "",
-                          layout: states[name]?.layout ?? config.layouts.first ?? .tall,
+                          layout: states[name]?.layout ?? config.layouts.primary,
                           ratio: states[name]?.ratio ?? 0.5, mainCount: states[name]?.mainCount ?? 1,
                           ids: mine.filter { workspaceOf[$0] == name })
         }

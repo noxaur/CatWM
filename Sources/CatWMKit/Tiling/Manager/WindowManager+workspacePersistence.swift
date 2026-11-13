@@ -37,7 +37,7 @@ extension WindowManager {
             let screenState = state(workspace: workspace)
             screenState.layout = layout
             if parts.count > 1, let ratio = Double(parts[1]) {
-                screenState.ratio = min(0.9, max(0.1, CGFloat(ratio)))
+                screenState.ratio = SplitDivider.clamped(CGFloat(ratio))
             }
             if parts.count > 2, let mainCount = Int(parts[2]) {
                 screenState.mainCount = max(1, min(10, mainCount))

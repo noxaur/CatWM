@@ -9,17 +9,14 @@ simulated clock, so it is not scaled.
 Run `swift build -c release` and `CATWM_INSTANCE=perf ./build.sh` first. Everything runs one at a time, so no run
 slows another: a warm-up pass that counts for nothing (the first start of a new build pays for the code signature
 check, the launch caches and a cold file cache), the calibration, then each run's engine scenarios and its app
-instance. CI gets its speed from
-three machines instead: each writes its samples with --json, and --merge scales each file by its own machine's speed
-and checks the merged rows. Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
+instance. Each engine scenario runs in a new CatWMPerf process. The app scenario starts build/CatWM.app as the
 named instance `perf-<run>`, scoped to this process, so it manages no window. When a CatWM runs (a developer's
 Mac), the instances also go on a private agent display that it opens for this run, and they draw nothing on the
 real screens. Without one, CI runs them on the real display and says so, and anywhere else the script stops. The idle
 window starts once macOS has finished measuring the launch, so it holds only CatWM's own idle work. The exit status is
 1 when a value is over its cap.
 
-    python3 Tools/perf.py [--runs N] [--out report.md] [--json samples.json] [--no-check]
-    python3 Tools/perf.py --merge a.json b.json … [--out report.md]
+    python3 Tools/perf.py [--runs N] [--out report.md] [--no-check]
 """
 import argparse
 import ctypes
@@ -148,7 +145,7 @@ def profile_app(display, out):
     process = subprocess.Popen([str(APP), "--verbose"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(APP_LAUNCH_SECONDS)
-        subprocess.run(["sample", str(process.pid), "8", "1", "-mayDie", "-file", str(out)],
+        subprocess.run(["sample", str(process.pid), "8", "10", "-mayDie", "-file", str(out)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=60)
     finally:
         process.send_signal(signal.SIGTERM)
@@ -179,20 +176,15 @@ def number(value):
     return f"{value:,.0f}" if abs(value) >= 100 else f"{value:.2f}" if abs(value) >= 1 else f"{value:.3f}"
 
 
-def report(shards, budgets):
-    """shards: (machine, samples) per machine. Each machine's ms rows are scaled by its own speed before the merge."""
+def report(runner, samples, budgets):
+    """The ms rows are scaled by this machine's speed next to the budgets' device."""
     device = budgets["device"]
-    merged, runners = {}, []
-    for runner, samples in shards:
-        speed = device["calibrate"] / statistics.median(samples["calibrate.cpu"])
-        runners.append(f"{speed:.2f}×")
-        for metric, values in samples.items():
-            row = budgets["rows"].get(metric, {})
-            scaled = row.get("unit") == "ms" and not row.get("virtual")
-            merged.setdefault(metric, []).extend(value * speed if scaled else value for value in values)
+    speed = device["calibrate"] / statistics.median(samples["calibrate.cpu"])
     tables, failed = {}, []
     for metric, budget in budgets["rows"].items():
-        values = merged.get(metric)
+        values = samples.get(metric)
+        if values and budget["unit"] == "ms" and not budget.get("virtual"):
+            values = [value * speed for value in values]
         row = stats(values) if values else None
         ok = row is not None and row["p99"] <= budget["cap"]
         if not ok:
@@ -204,8 +196,7 @@ def report(shards, budgets):
             cells = "| | **none**"
         tables.setdefault(budget["group"], []).append(
             f"| {budget['label']} | {cells} | ≤ {budget['cap']:,g} {budget['unit']} | {'✅' if ok else '❌'} |")
-    machines = sorted({runner for runner, _ in shards})
-    note = f"(as an {device['name']} · {'; '.join(machines)} · speed {', '.join(runners)})"
+    note = f"(as an {device['name']} · {runner} · speed {speed:.2f}×)"
     lines = [f"### ✅ Performance {note}" if not failed else f"### ❌ Performance: {len(failed)} over the cap {note}"]
     for group, rows in tables.items():
         lines += ["", f"| {group} | Median | Mean | P99 | Cap | |", "|:--|:--|:--|:--|:--|:--|", *rows]
@@ -244,23 +235,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--runs", type=int, default=5, help="runs of each scenario (default 5)")
     parser.add_argument("--out", type=Path, help="write the Markdown table to this file")
-    parser.add_argument("--json", type=Path, help="write this machine and its raw samples to this file")
     parser.add_argument("--skip-app", action="store_true", help="measure only the engine scenarios")
     parser.add_argument("--profile", type=Path, help="after the runs, sample one app instance into this file")
     parser.add_argument("--no-check", action="store_true", help="exit 0 even when a row is over its cap")
-    parser.add_argument("--merge", type=Path, nargs="+", help="report the samples of these --json files")
     args = parser.parse_args()
 
     budgets = json.loads(BUDGETS.read_text())
-    if args.merge:
-        shards = [(shard["machine"], shard["samples"]) for shard in (json.loads(path.read_text()) for path in args.merge)]
-    else:
-        shards = [(machine(), measure(args))]
-        if args.json:
-            args.json.write_text(json.dumps({"machine": shards[0][0], "samples": shards[0][1]}, indent=1, sort_keys=True))
-    if all(not any(metric.startswith("app.") for metric in samples) for _, samples in shards):
+    samples = measure(args)
+    if not any(metric.startswith("app.") for metric in samples):
         budgets["rows"] = {key: value for key, value in budgets["rows"].items() if not key.startswith("app.")}
-    table, failed = report(shards, budgets)
+    table, failed = report(machine(), samples, budgets)
     print(table)
     if args.out:
         args.out.write_text(table)

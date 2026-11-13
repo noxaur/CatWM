@@ -5,9 +5,11 @@ import QuartzCore
     package private(set) var time: CFTimeInterval = 0
     private var pending: [(due: CFTimeInterval, work: @MainActor () -> Void)] = []
 
-    package init() {}
+    package nonisolated init() {}
 
     package func now() -> CFTimeInterval { time }
+
+    package var nextDue: CFTimeInterval? { pending.map(\.due).min() }
 
     package func delay(_ seconds: TimeInterval, _ work: @escaping @MainActor () -> Void) {
         pending.append((time + seconds, work))

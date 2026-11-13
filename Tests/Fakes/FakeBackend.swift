@@ -3,6 +3,8 @@ import CatWMKit
 import os
 
 package final class FakeBackend: WindowBackend, Sendable {
+    package let clock = FakeClock()
+
     package init() { RealInput.block() }
 
     package struct FakeWindow {
@@ -279,8 +281,7 @@ package final class FakeBackend: WindowBackend, Sendable {
 extension FakeBackend {
     private static let defaults = Config.parse(defaultText)
 
-    @MainActor package func makeManager(_ configure: (inout Config) -> Void = { _ in },
-                                        clock: FakeClock? = nil) -> WindowManager {
+    @MainActor package func makeManager(_ configure: (inout Config) -> Void = { _ in }) -> WindowManager {
         var config = Self.defaults
         config.virtualWorkspaces = false
         config.animate = false
@@ -290,7 +291,7 @@ extension FakeBackend {
         config.paddingLeft = 0; config.paddingRight = 0; config.paddingTop = 0; config.paddingBottom = 0
         configure(&config)
         let manager = WindowManager(backend: self, config: config)
-        if let clock { manager.animator = Animator(backend: self, now: clock.now, delay: clock.delay) }
+        manager.animator = Animator(backend: self, now: clock.now, delay: clock.delay)
         manager.startEngine()
         return manager
     }
@@ -318,6 +319,11 @@ extension FakeBackend {
                     check()
                     return { manager.animator.onLanded = landed }
                 }) else { return false }
+                continue
+            }
+            let held = ids.compactMap(manager.animator.quietEnd)
+            if let next = (held + [clock.nextDue].compactMap(\.self)).min() {
+                clock.advance(by: max(next - clock.now(), 0))
                 continue
             }
             if writes.count == before, Set(manager.windows.keys) == ids { return true }

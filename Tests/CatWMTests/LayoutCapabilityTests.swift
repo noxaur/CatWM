@@ -16,14 +16,10 @@ import Testing
     func aMouseResizeOfTheMainWindowMovesTheSplit(_ layout: Layout) async throws {
         let fake = FakeBackend()
         let screen = fake.addScreen()
-        let clock = FakeClock()
-        let manager = fake.makeManager(clock: clock)
+        let manager = fake.makeManager()
         (0..<3).forEach { _ in fake.addWindow() }
         manager.setLayout(layout, on: screen)
         #expect(await fake.settle(manager))
-        clock.advance(by: 1)
-        #expect(await fake.settle(manager))
-        clock.advance(by: 1)
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
         let axis = try #require(layout.ratioAxis)

@@ -170,7 +170,19 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
 @Test func styleOkCannotSilenceATestSleepOutsideTheRealServerTest() throws {
     let wait = "try await Task." + "sleep(for: .milliseconds(250)) // style-ok: outlast the verify pass"
     let failures = try styleFailures(path: "Tests/CatWMTests/Example.swift", source: wait)
-    #expect(failures.contains { $0.contains("makeManager(clock:)") })
+    #expect(failures.contains { $0.contains("fake.clock") })
     #expect(failures.contains { $0.contains("style-ok cannot silence a test sleep") })
     #expect(try styleFailures(path: "Tests/CatWMTests/AgentDisplayLiveTests.swift", source: wait).isEmpty)
+}
+
+@Test func styleRejectsTimedGatesAndWallClockPollsInTests() throws {
+    let gate = "writer.run { _ = release." + "wait(timeout: .now() + 2) }"
+    let test = "Tests/CatWMTests/Example.swift"
+    #expect(try styleFailures(path: test, source: gate).contains { $0.contains("timed gate") })
+    let poll = "while !entered.value, Date() < deadline { await Task." + "yield() }"
+    #expect(try styleFailures(path: test, source: poll).contains { $0.contains("wall-clock poll") })
+    let expected = "#expect(done.wait(timeout: .now() + 2) == .success)"
+    #expect(try styleFailures(path: test, source: expected).isEmpty)
+    let source = try styleFailures(path: "Sources/CatWMKit/App/Example.swift", source: gate)
+    #expect(source.allSatisfy { !$0.contains("timed gate") })
 }

@@ -1,10 +1,14 @@
 # Fake backend
 
-`WindowBackend` (`Tiling/Access/WindowBackend.swift`) is the boundary between the tiling engine and macOS. `AXBackend.shared` sends each call to AX, the window server and `NSWorkspace`. `FakeBackend` (`Tests/CatWMTests/Support/FakeBackend.swift`) runs the real engine on in-memory windows and screens, so tests need no permissions, GUI or real apps. Change the fake, run the engine and examine the result. Don't copy engine logic into a test.
+`WindowBackend` (`Tiling/Access/WindowBackend.swift`) is the boundary between the tiling engine and macOS. `AXBackend.shared` sends each call to AX, the window server and `NSWorkspace`. `FakeBackend` (`Tests/Fakes/FakeBackend.swift`) runs the real engine on in-memory windows and screens, so tests need no permissions, GUI or real apps. Change the fake, run the engine and examine the result. Don't copy engine logic into a test.
 
 Fake pids are negative, so no AX call can reach a real app. `fake.makeManager()` uses the default config text with animation, gaps, warps and Desktops off. `Config.load()` would read and can write the user's config.
 
-Tests wait on the engine, never on time. `Tools/check-style.sh` rejects sleeps and fixed run-loop waits. `settle` repeats scan, refresh and AX writes until a round writes nothing, and it returns `false` after 8 rounds or 10 s. `wait(_:until:)` re-checks on each `onChange` for timer-driven steps, such as the minimum-size check 0.12 s after a placement. No event reports the animator's own timers: the placement check 0.12 s after a landing, and the 0.4 s after a write when it ignores frame reads. `makeManager(clock:)` runs both on a `FakeClock`, so a test steps past them instead of sleeping. `check-style` refuses a `style-ok` sleep in a test, except in `AgentDisplayLiveTests`, which samples a real window server.
+Tests wait on the engine, never on time. A full `swift test` runs about 950 tests at once on one main thread, often next to other builds, so a `@MainActor` test can wait seconds for its turn, and any wall-clock bound in a test eventually expires early. `Tools/check-style.sh` rejects sleeps, fixed run-loop waits, timed gates and `Task.yield` polls against a deadline in tests.
+
+`settle` repeats scan, refresh and AX writes until a round writes nothing, and it returns `false` after 8 rounds or 10 s. No event reports the animator's own timers: the placement check 0.12 s after a landing, and the 0.4 s hold after a write when reconciliation ignores the window's frame. `makeManager()` runs both on the backend's `FakeClock`, and `settle` steps it past each one before it calls a round final. A real 0.4 s hold was rejected: the last refresh could start inside it and `settle` could check after it, so `settle` passed with `displayOf` still naming the old display, and the next display move snapped back as if the user had dragged it. `wait(_:until:)` re-checks on each `onChange` for steps that an event ends.
+
+A test that blocks a writer, scanner or capture uses `Gate`, which stays shut until the test opens it. A semaphore with a timeout was rejected because it opens itself after its timeout under load, and the test then checks a state it never set up. `check-style` refuses a `style-ok` sleep in a test, except in `AgentDisplayLiveTests`, which samples a real window server.
 
 ## Input and Desktops go through the backend
 

@@ -148,9 +148,7 @@ import Testing
         let screen = fake.addScreen()
         let manager = fake.makeManager()
         let wide = fake.addWindow(minSize: CGSize(width: 1000, height: 0)), other = fake.addWindow(pid: -101)
-        await fake.settle(manager)
-        #expect(await fake.wait(manager) { manager.minSizes[wide] != nil })
-        await fake.settle(manager)
+        #expect(await fake.settle(manager))
         #expect(manager.minSizes[wide]?.width == 1000)
         #expect(fake.frame(of: wide).width == 1000)
         #expect(fake.frame(of: other).width == screen.visible.width - 1000)
@@ -164,8 +162,8 @@ import Testing
         let stack = fake.addWindow(pid: -101, minSize: CGSize(width: 300, height: 0)), main = fake.addWindow()
         #expect(await fake.settle(manager))
         manager.dispatch("splitratio", "exact 0.8")
-        #expect(await fake.wait(manager) { manager.minSizes[stack] != nil })
         #expect(await fake.settle(manager))
+        #expect(manager.minSizes[stack] != nil)
         #expect(fake.frame(of: main) == CGRect(x: 0, y: 0, width: 700, height: 600))
         #expect(fake.frame(of: stack) == CGRect(x: 700, y: 0, width: 300, height: 600))
         expectTiles([fake.frame(of: main), fake.frame(of: stack)], fill: screen.visible)
@@ -177,9 +175,8 @@ import Testing
         let manager = fake.makeManager { $0.layouts = [.wide] }
         let tall = fake.addWindow(minSize: CGSize(width: 0, height: 600))
         let ids = [tall, fake.addWindow(pid: -101), fake.addWindow(pid: -102)]
-        await fake.settle(manager)
-        #expect(await fake.wait(manager) { manager.minSizes[tall] != nil })
-        await fake.settle(manager)
+        #expect(await fake.settle(manager))
+        #expect(manager.minSizes[tall] != nil)
         #expect(fake.frame(of: tall).height == 600)
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
     }

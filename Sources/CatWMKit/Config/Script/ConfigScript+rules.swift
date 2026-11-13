@@ -3,7 +3,8 @@ import Foundation
 extension ConfigScript {
     package static func defaults(for config: Config) -> JSON {
         var root: [String: JSON] = [
-            "binds": .array([]), "submaps": .object([:]), "windowRules": .array([]), "workspaceRules": .array([])
+            "binds": .array([]), "submaps": .object([:]), "windowRules": .array([]), "workspaceRules": .array([]),
+            "eventHandlers": .array([])
         ]
         for (path, leaf) in leaves {
             switch leaf {
@@ -12,7 +13,7 @@ extension ConfigScript {
             case .layouts: root[path] = .array(config.layouts.map { .string($0.rawValue) })
             case .floatingApps: set(.array(config.floating.map(JSON.string)), at: path, in: &root)
             case .feature(let feature): set(.bool(config.features.contains(feature)), at: path, in: &root)
-            case .padding, .binds, .submaps, .windowRules, .workspaceRules: continue
+            case .padding, .binds, .submaps, .windowRules, .workspaceRules, .eventHandlers: continue
             }
         }
         return .object(root)
@@ -68,6 +69,22 @@ extension ConfigScript.Reader {
                 parsed.append(RuleAction(dispatcher: dispatcher, arg: arg))
             }
             if parsed.count == actions.count { config.windowRules.append(WindowRule(when: condition, actions: parsed)) }
+        }
+    }
+
+    mutating func readEventHandlers(_ value: JSON, into config: inout Config) {
+        config.eventHandlers = []
+        guard let list = value.array else { return fail("eventHandlers", "must be a list") }
+        for (index, item) in list.enumerated() {
+            guard let event = item["event"]?.string, let function = item["function"]?.int else {
+                fail("", "catwm.on call \(index + 1) is not valid")
+                continue
+            }
+            guard EventBus.allNames.contains(event) else {
+                fail("", "catwm.on has no event `\(event)`. Events: \(EventBus.allNames.joined(separator: ", "))")
+                continue
+            }
+            config.eventHandlers.append(EventHandler(event: event, function: function))
         }
     }
 

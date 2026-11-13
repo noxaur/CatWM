@@ -4,11 +4,12 @@ package enum ConfigCatwm {
     package static let source = #"""
     (() => {
       "use strict";
-      const hidden = new Set(["binds", "submaps", "windowRules", "workspaceRules"]);
+      const hidden = new Set(["binds", "submaps", "windowRules", "workspaceRules", "eventHandlers"]);
       const hosts = new WeakSet();
       const lists = new WeakSet();
       const state = {
-        phase: "idle", data: null, written: null, late: [], handle: null, root: null, functions: [], sources: {}
+        phase: "idle", data: null, written: null, late: [], handle: null, root: null, functions: [], sources: {},
+        actions: null, world: null
       };
       let setup = null;
 
@@ -125,21 +126,7 @@ package enum ConfigCatwm {
         assign(path, value);
       }
 
-      function style(name) {
-        guardWrite();
-        if (name === undefined) {
-          return ["enabled", "duration", "curve", "bounce"].forEach((key) => assign(`motion.${key}`, undefined));
-        }
-        const found = setup.styles.find((item) => item.id === String(name).toLowerCase());
-        if (!found) throw usage(`unknown motion style \`${name}\` (${setup.styles.map((item) => item.id).join(", ")})`);
-        for (const key of Object.keys(found.fields)) assign(`motion.${key}`, found.fields[key]);
-      }
-
-      function currentStyle() {
-        const match = setup.styles.find((item) =>
-          Object.keys(item.fields).every((key) => readPath(`motion.${key}`) === item.fields[key]));
-        return match ? match.id : undefined;
-      }
+    \#(motion)
 
       function view(path, shape) {
         const callable = path === "workspaces";
@@ -175,6 +162,11 @@ package enum ConfigCatwm {
 
     \#(rules)
 
+      function deepFreeze(value) {
+        if (value !== null && typeof value === "object") Object.values(value).forEach(deepFreeze);
+        return Object.freeze(value);
+      }
+
       function begin() {
         state.data = clone(setup.defaults);
         state.functions = [];
@@ -192,11 +184,15 @@ package enum ConfigCatwm {
           state.data = clone(setup.defaults);
           const root = view("", setup.defaults);
           state.root = root;
-          for (const name of ["bind", "windows"]) Object.defineProperty(root, name, { value: api[name] });
+          for (const name of ["bind", "windows", "on", "dispatch"]) {
+            Object.defineProperty(root, name, { value: api[name] });
+          }
           Object.defineProperty(root, "window", {
             value: Object.freeze({
               get focused() {
-                if (state.phase !== "call") throw usage("catwm.window.focused works inside a bind function");
+                if (state.phase !== "call" || !state.handle) {
+                  throw usage("catwm.window.focused works inside a bind function");
+                }
                 return state.handle;
               }
             })
@@ -207,6 +203,13 @@ package enum ConfigCatwm {
               set: (value) => replaceBinds(name, value)
             });
           }
+          Object.defineProperty(root, "state", {
+            get() {
+              if (state.phase !== "call") throw usage("catwm.state works inside a bind function or an event handler");
+              if (typeof state.world === "string") state.world = deepFreeze(JSON.parse(state.world));
+              return state.world;
+            }
+          });
           this.exports = Object.freeze({ catwm: root });
           hosts.add(this.exports);
         },
@@ -223,17 +226,23 @@ package enum ConfigCatwm {
         },
         call(fn, snapshot) {
           const actions = [];
-          state.handle = Object.freeze({
-            title: snapshot.title, app: snapshot.app, pid: snapshot.pid,
-            frame: Object.freeze({ ...snapshot.frame }), ...recorder(actions)
+          const window = snapshot.window;
+          state.actions = actions;
+          state.world = snapshot.state;
+          state.handle = !window ? null : Object.freeze({
+            title: window.title, app: window.app, pid: window.pid,
+            frame: Object.freeze({ ...window.frame }), ...recorder(actions)
           });
           state.phase = "call";
           try {
-            fn();
+            if (snapshot.event === undefined) fn();
+            else fn(deepFreeze(JSON.parse(snapshot.event)));
             return actions;
           } finally {
             state.phase = "idle";
             state.handle = null;
+            state.actions = null;
+            state.world = null;
           }
         }
       };

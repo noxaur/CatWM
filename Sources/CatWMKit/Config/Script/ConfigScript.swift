@@ -3,7 +3,7 @@ import AppKit
 package enum ConfigScript {
     enum Leaf {
         case option(ConfigOption)
-        case mod, layouts, floatingApps, padding, binds, submaps, windowRules, workspaceRules
+        case mod, layouts, floatingApps, padding, binds, submaps, windowRules, workspaceRules, eventHandlers
         case feature(Feature)
 
         var isScoped: Bool {
@@ -48,7 +48,8 @@ package enum ConfigScript {
     static let leaves: [String: Leaf] = {
         var leaves: [String: Leaf] = [
             "mod": .mod, "layouts": .layouts, "floating.apps": .floatingApps, "padding": .padding,
-            "binds": .binds, "submaps": .submaps, "windowRules": .windowRules, "workspaceRules": .workspaceRules
+            "binds": .binds, "submaps": .submaps, "windowRules": .windowRules, "workspaceRules": .workspaceRules,
+            "eventHandlers": .eventHandlers
         ]
         for option in Options.all { leaves[option.script] = .option(option) }
         for feature in Feature.allCases { leaves[feature.path] = .feature(feature) }
@@ -152,6 +153,7 @@ extension ConfigScript {
             case .submaps: readSubmaps(value, path: path, into: &config)
             case .windowRules: readWindowRules(value, into: &config)
             case .workspaceRules: readWorkspaceRules(value, into: &config)
+            case .eventHandlers: readEventHandlers(value, into: &config)
             }
         }
 

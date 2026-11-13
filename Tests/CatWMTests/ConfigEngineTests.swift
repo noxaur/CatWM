@@ -292,11 +292,11 @@ struct ConfigFolder {
 }
 
 @Suite struct ConfigKeyFunctionTests {
-    private func call(_ engine: ConfigEngine, _ function: Int) async -> ConfigEngine.FunctionRun {
+    private func call(_ engine: ConfigEngine, _ function: Int, state: JSON = .null) async -> ConfigEngine.FunctionRun {
         let window = ConfigEngine.WindowSnapshot(title: "Notes", app: "com.apple.Notes", pid: 42,
                                                  frame: CGRect(x: 10, y: 20, width: 300, height: 200))
         return await withCheckedContinuation { continuation in
-            engine.call(function: function, window: window) { continuation.resume(returning: $0) }
+            engine.call(function: function, window: window, state: state) { continuation.resume(returning: $0) }
         }
     }
 
@@ -379,7 +379,7 @@ struct ConfigFolder {
         let result = await call(engine, 0)
 
         #expect(result.actions.isEmpty)
-        #expect(result.failure?.message.hasPrefix("the key's function ran longer than 1 s") == true)
+        #expect(result.failure?.message.hasPrefix("the function ran longer than 1 s") == true)
     }
 
     @Test func aFailedSaveKeepsTheFunctionsOfTheLastGoodConfig() async throws {

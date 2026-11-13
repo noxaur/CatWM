@@ -40,7 +40,7 @@ The `agent.*` commands belong to the connection that runs `agent.open`, and a cl
 
 ## Events
 
-`catwm events` and the `subscribe` command send these events: `focus.changed`, `window.added`, `window.removed`, `workspace.changed`, `layout.changed`, `tiling.changed`, `mode.changed`, `window.notifications` and `config.reloaded`. Each event is one JSON line: `{"event": "focus.changed", "data": {...}}`. The app sends no events when nobody subscribes.
+`catwm events` and the `subscribe` command send these events: `focus.changed`, `window.added`, `window.changed`, `window.removed`, `workspace.created`, `workspace.removed`, `workspace.changed`, `display.added`, `display.removed`, `layout.changed`, `tiling.changed`, `mode.changed`, `window.notifications` and `config.reloaded`. Each event is one JSON line: `{"event": "focus.changed", "data": {...}}`. The app sends no events when nobody subscribes.
 
 ## Protocol
 

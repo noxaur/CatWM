@@ -102,13 +102,18 @@ extension WindowManager {
         let rect = usableRect(screen), frame = window.cachedFrame
         guard !frame.isNull else { return }
         let layout = screenState.layout
-        let mains = [.bsp, .twoPane, .twoPaneRight].contains(layout) ? 1 : screenState.mainCount
+        let mains = SplitDivider.mains(layout, mainCount: screenState.mainCount, count: ids.count)
         guard let idx = ids.firstIndex(of: window.id), ids.count > mains, var axis = layout.ratioAxis else { return }
         if layout == .bsp { axis = (rect.width >= rect.height, true) }
         let isMain = idx < mains
-        if layout == .widescreenTall, isMain, mains > 1, idx != mains - 1 { return }
-        if layout == .widescreenTallRight, isMain, mains > 1, idx != 0 { return }
-        if !isMain, [.threeColumnLeft, .threeColumnRight].contains(layout) { return }
+        let touchesSplit = switch layout {
+        case .widescreenTall: !isMain || mains == 1 || idx == mains - 1
+        case .widescreenTallRight: !isMain || mains == 1 || idx == 0
+        case .threeColumnLeft, .threeColumnRight: isMain
+        case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .threeColumnMiddle,
+             .twoPane, .twoPaneRight: true
+        }
+        guard touchesSplit else { return }
         let gap = windowGap(count: ids.count, on: screen)
         let total = axis.horizontal ? rect.width : rect.height
         func boundary(_ slot: CGRect) -> CGFloat {

@@ -67,7 +67,7 @@ struct LayoutPane: View {
 
             OGroup("Gaps") {
                 GapsPreview(config: config,
-                            layout: config.layouts.first { ![.floating, .fullscreen].contains($0) } ?? .tall)
+                            layout: config.layouts.first(where: \.tilesSideBySide) ?? .tall)
                     .frame(height: 170)
                     .padding(.vertical, 12)
                 OptionRows(pane: .layout, section: "Gaps", doc: doc, settingsUI: settingsUI)

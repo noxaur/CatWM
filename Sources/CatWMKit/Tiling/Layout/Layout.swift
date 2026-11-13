@@ -32,7 +32,8 @@ package enum Layout: String, CaseIterable {
         case .bsp: "BSP"
         case .widescreenTall: "Wide Tall"
         case .widescreenTallRight: "Wide Tall Right"
-        default: title
+        case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating,
+             .threeColumnLeft, .threeColumnMiddle, .threeColumnRight, .twoPane, .twoPaneRight: title
         }
     }
 
@@ -121,7 +122,7 @@ package enum Layout: String, CaseIterable {
         case .widescreenTallRight: .widescreenTall
         case .threeColumnLeft: .threeColumnRight
         case .threeColumnRight: .threeColumnLeft
-        default: nil
+        case .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .threeColumnMiddle: nil
         }
     }
 
@@ -130,7 +131,23 @@ package enum Layout: String, CaseIterable {
         case .tall, .widescreenTall, .twoPane, .threeColumnLeft, .bsp: (true, true)
         case .tallRight, .widescreenTallRight, .twoPaneRight, .threeColumnRight: (true, false)
         case .wide: (false, true)
-        default: nil
+        case .middleWide, .fullscreen, .column, .row, .floating, .threeColumnMiddle: nil
+        }
+    }
+
+    package var singleMain: Bool {
+        switch self {
+        case .bsp, .twoPane, .twoPaneRight: true
+        case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating,
+             .threeColumnLeft, .threeColumnMiddle, .threeColumnRight, .widescreenTall, .widescreenTallRight: false
+        }
+    }
+
+    package var tilesSideBySide: Bool {
+        switch self {
+        case .fullscreen, .floating: false
+        case .tall, .tallRight, .wide, .middleWide, .column, .row, .bsp, .threeColumnLeft, .threeColumnMiddle,
+             .threeColumnRight, .twoPane, .twoPaneRight, .widescreenTall, .widescreenTallRight: true
         }
     }
 }

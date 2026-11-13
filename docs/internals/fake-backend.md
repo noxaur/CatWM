@@ -4,7 +4,7 @@
 
 Fake pids are negative, so no AX call can reach a real app. `fake.makeManager()` uses the default config text with animation, gaps, warps and Desktops off. `Config.load()` would read and can write the user's config.
 
-Tests wait on the engine, never on time. `Tools/check-style.sh` rejects sleeps and fixed run-loop waits. `settle` repeats scan, refresh and AX writes until a round writes nothing, and it returns `false` after 8 rounds or 10 s. `wait(_:until:)` re-checks on each `onChange` for timer-driven steps, such as the minimum-size check 0.12 s after a placement.
+Tests wait on the engine, never on time. `Tools/check-style.sh` rejects sleeps and fixed run-loop waits. `settle` repeats scan, refresh and AX writes until a round writes nothing, and it returns `false` after 8 rounds or 10 s. `wait(_:until:)` re-checks on each `onChange` for timer-driven steps, such as the minimum-size check 0.12 s after a placement. The animator ignores frame reads for 0.4 s after it writes a window, and no event ends that window, so `makeManager(now:)` hands the animator a clock a test can step past it.
 
 ## Input and Desktops go through the backend
 

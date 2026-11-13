@@ -36,17 +36,17 @@ package struct TilingRecovery: Codable, Equatable {
     package static let departedLifetime: TimeInterval = 7 * 24 * 60 * 60
 
     package var order: [Identity] = []
-    package var zoomed: [String: Identity] = [:]
+    package var fullscreen: [String: Identity] = [:]
     package var menuBars: [String: MenuBar] = [:]
     package var memos: [Identity: Memo] = [:]
     package var departed: [Identity: Date] = [:]
 
-    private enum CodingKeys: String, CodingKey { case order, zoomed, menuBars, memos, departed }
+    private enum CodingKeys: String, CodingKey { case order, fullscreen = "zoomed", menuBars, memos, departed }
 
-    package init(order: [Identity] = [], zoomed: [String: Identity] = [:], menuBars: [String: MenuBar] = [:],
+    package init(order: [Identity] = [], fullscreen: [String: Identity] = [:], menuBars: [String: MenuBar] = [:],
                  memos: [Identity: Memo] = [:], departed: [Identity: Date] = [:]) {
         self.order = order
-        self.zoomed = zoomed
+        self.fullscreen = fullscreen
         self.menuBars = menuBars
         self.memos = memos
         self.departed = departed
@@ -55,7 +55,7 @@ package struct TilingRecovery: Codable, Equatable {
     package init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         order = try values.decodeIfPresent([Identity].self, forKey: .order) ?? []
-        zoomed = try values.decodeIfPresent([String: Identity].self, forKey: .zoomed) ?? [:]
+        fullscreen = try values.decodeIfPresent([String: Identity].self, forKey: .fullscreen) ?? [:]
         menuBars = try values.decodeIfPresent([String: MenuBar].self, forKey: .menuBars) ?? [:]
         memos = try values.decodeIfPresent([Identity: Memo].self, forKey: .memos) ?? [:]
         departed = try values.decodeIfPresent([Identity: Date].self, forKey: .departed) ?? [:]
@@ -73,7 +73,7 @@ package struct TilingRecovery: Codable, Equatable {
                 && [bar.visible.minX, bar.visible.minY, bar.visible.width, bar.visible.height].allSatisfy(\.isFinite)
                 && bar.visible.width > 0 && bar.visible.height > 0
         }
-        return Self(order: entries, zoomed: zoomed.filter { !$0.key.isEmpty && kept.contains($0.value) },
+        return Self(order: entries, fullscreen: fullscreen.filter { !$0.key.isEmpty && kept.contains($0.value) },
                     menuBars: bars, memos: memos.filter { kept.contains($0.key) }.mapValues(\.checked),
                     departed: departed.filter { kept.contains($0.key) })
     }
@@ -86,16 +86,18 @@ package struct TilingRecovery: Codable, Equatable {
         return Self.insert(restoring, into: current) { windows[$0].flatMap { ranks[$0] } }
     }
 
-    package func restoredZooms(arriving: Set<CGWindowID>, windows: [CGWindowID: Identity],
-                               workspaces: [CGWindowID: String], eligible: Set<CGWindowID>) -> [String: CGWindowID] {
-        zoomed.compactMapValues { entry in
+    package func restoredFullscreens(arriving: Set<CGWindowID>, windows: [CGWindowID: Identity],
+                                     workspaces: [CGWindowID: String],
+                                     eligible: Set<CGWindowID>) -> [String: CGWindowID] {
+        fullscreen.compactMapValues { entry in
             arriving.contains(entry.id) && eligible.contains(entry.id) && windows[entry.id] == entry ? entry.id : nil
         }.filter { workspaces[$0.value] == $0.key }
     }
 
-    package func capturing(order current: [CGWindowID], windows: [CGWindowID: Identity], zooms: [String: CGWindowID],
-                           available: [CGWindowID: pid_t]?, menuBars: [String: MenuBar] = [:],
-                           memos live: [Identity: Memo] = [:], departing: (Identity) -> Bool = { _ in false },
+    package func capturing(order current: [CGWindowID], windows: [CGWindowID: Identity],
+                           fullscreens: [String: CGWindowID], available: [CGWindowID: pid_t]?,
+                           menuBars: [String: MenuBar] = [:], memos live: [Identity: Memo] = [:],
+                           departing: (Identity) -> Bool = { _ in false },
                            now: Date = Date()) -> Self {
         let present = Set(windows.values)
         func pending(_ entry: Identity) -> Bool {
@@ -111,10 +113,10 @@ package struct TilingRecovery: Codable, Equatable {
         let waiting = order.filter(kept)
         let ranks = ranks
         let identities = Self.insert(waiting, into: current.compactMap { windows[$0] }) { ranks[$0] }
-        var restored = zoomed.filter { kept($0.value) }
-        for (workspace, id) in zooms { restored[workspace] = windows[id] }
+        var restored = fullscreen.filter { kept($0.value) }
+        for (workspace, id) in fullscreens { restored[workspace] = windows[id] }
         let notes = live.merging(self.memos.filter { kept($0.key) }) { current, _ in current }
-        return Self(order: identities, zoomed: restored, menuBars: menuBars, memos: notes,
+        return Self(order: identities, fullscreen: restored, menuBars: menuBars, memos: notes,
                     departed: gone.filter { kept($0.key) }).validated
     }
 
@@ -126,7 +128,7 @@ package struct TilingRecovery: Codable, Equatable {
         let saved = gone.map { entry in
             SavedWindow(bundleID: entry.bundleID ?? "", appName: "", title: memos[entry]?.title ?? "",
                         document: nil, display: "", frame: memos[entry]?.frame ?? .null, floating: false,
-                        minimized: false, maximised: false, zoomed: false, focused: false, windowID: entry.id,
+                        minimized: false, maximised: false, fullscreen: false, focused: false, windowID: entry.id,
                         launchDate: nil)
         }
         let candidates = fresh.map { arrival in
@@ -143,7 +145,7 @@ package struct TilingRecovery: Codable, Equatable {
         guard !pairs.isEmpty else { return [:] }
         func swap(_ entry: Identity) -> Identity { pairs[entry] ?? entry }
         order = order.map(swap)
-        zoomed = zoomed.mapValues(swap)
+        fullscreen = fullscreen.mapValues(swap)
         memos = Dictionary(memos.map { entry, memo in
             var memo = memo
             memo.tabs = memo.tabs.map(swap)
@@ -155,7 +157,7 @@ package struct TilingRecovery: Codable, Equatable {
 
     package mutating func forget(_ identity: Identity) {
         order.removeAll { $0 == identity }
-        zoomed = zoomed.filter { $0.value != identity }
+        fullscreen = fullscreen.filter { $0.value != identity }
         memos[identity] = nil
         departed[identity] = nil
     }

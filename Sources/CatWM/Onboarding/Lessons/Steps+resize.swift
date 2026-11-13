@@ -24,11 +24,11 @@ extension Steps {
         }
     }
 
-    static func zoom(_ coach: Coach) -> PlannedStep? {
-        guard let zoom = coach.book.find([WindowActions.fullscreen]) else { return nil }
+    static func fullscreen(_ coach: Coach) -> PlannedStep? {
+        guard let fullscreen = coach.book.find([WindowActions.fullscreen]) else { return nil }
         return PlannedStep { coach in
             Step(title: "Fullscreen", text: "",
-                 target: .window, caps: KeyWords.caps(zoom, long: false), needsMode: true, count: 2,
+                 target: .window, caps: KeyWords.caps(fullscreen, long: false), needsMode: true, count: 2,
                  accept: { event in
                      if case .command(WindowActions.fullscreen.name, _, _) = event { return "" }
                      return nil

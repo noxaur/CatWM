@@ -39,11 +39,11 @@ extension WindowManager {
         let identities = recoveryIdentities
         order = tilingRecovery.restoredOrder(order, arriving: arriving, windows: identities)
         let eligible = Set(fresh.filter { !$0.isFloating && !$0.minimized && !$0.maximised }.map(\.id))
-        let zooms = tilingRecovery.restoredZooms(arriving: arriving, windows: identities,
+        let fullscreens = tilingRecovery.restoredFullscreens(arriving: arriving, windows: identities,
                                                 workspaces: workspaceOf, eligible: eligible)
-        for (workspace, id) in zooms where isVirtual(workspace) && !isPending(workspace) {
+        for (workspace, id) in fullscreens where isVirtual(workspace) && !isPending(workspace) {
             let state = state(workspace: workspace)
-            if state.zoomed == nil { state.zoomed = id }
+            if state.fullscreen == nil { state.fullscreen = id }
         }
     }
 
@@ -87,7 +87,7 @@ extension WindowManager {
     package func saveTilingRecovery(defaults: UserDefaults = Instance.defaults) {
         guard !restoringTemplate else { return }
         let identities = recoveryIdentities
-        let zooms = states.compactMapValues(\.zoomed).filter { workspace, id in
+        let fullscreens = states.compactMapValues(\.fullscreen).filter { workspace, id in
             guard isVirtual(workspace), !isPending(workspace), workspaceOf[id] == workspace,
                   let window = windows[id] else { return false }
             return !window.isFloating && !window.maximised && !window.minimized
@@ -97,7 +97,7 @@ extension WindowManager {
         let bars = menuBarHeights.mapValues { TilingRecovery.MenuBar(height: $0.height, visible: $0.visible) }
         let poweringOff = isPoweringOff
         let saved = tilingRecovery.capturing(
-            order: order, windows: identities, zooms: zooms, available: available, menuBars: bars,
+            order: order, windows: identities, fullscreens: fullscreens, available: available, menuBars: bars,
             memos: recoveryMemos(identities), departing: { entry in
                 poweringOff || NSRunningApplication(processIdentifier: entry.pid)
                     .map { $0.bundleIdentifier != entry.bundleID || $0.isTerminated } ?? true

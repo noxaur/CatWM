@@ -41,7 +41,7 @@ extension WindowManager {
     }
 
     package func renumberWorkspaces() {
-        tilingRecovery.zoomed = [:]
+        tilingRecovery.fullscreen = [:]
         model.resetWorkspaces()
         desktops.nativeCatalog = NativeWorkspaceCatalog()
         labels = [:]; previousWorkspace = [:]; floats.savedOwnerOf = [:]
@@ -249,7 +249,7 @@ extension WindowManager {
                        uniquingKeysWith: { first, _ in first })
         }
         states = moved(states)
-        tilingRecovery.zoomed = moved(tilingRecovery.zoomed)
+        tilingRecovery.fullscreen = moved(tilingRecovery.fullscreen)
         labels = moved(labels)
         lastFocused = moved(lastFocused)
         previousWorkspace = moved(previousWorkspace).mapValues(shifted)

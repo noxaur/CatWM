@@ -76,7 +76,7 @@ import Testing
         #expect(ran.value)
     }
 
-    @Test func collapsingDisplaysKeepsTheMainDisplaysLayoutAndZoomPriority() {
+    @Test func collapsingDisplaysKeepsTheMainDisplaysLayoutAndFullscreenPriority() {
         var template = WorkspaceTemplateTests().template()
         template.displays.reverse()
         let preferred = TemplatePlacementPlan.preferredDisplays(
@@ -85,7 +85,7 @@ import Testing
         #expect(preferred == ["only": "external"])
     }
 
-    @Test func separateDisplaysKeepTheirOwnLayoutAndZoomPriority() {
+    @Test func separateDisplaysKeepTheirOwnLayoutAndFullscreenPriority() {
         let template = WorkspaceTemplateTests().template()
         let preferred = TemplatePlacementPlan.preferredDisplays(
             template, mapping: ["external": "desk", "builtin": "laptop"]

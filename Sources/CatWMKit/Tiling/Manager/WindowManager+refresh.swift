@@ -233,9 +233,9 @@ extension WindowManager {
             }
             let screenState = state(for: screen)
             let ids = tiled(on: screen).filter { !nativeMoves.isMoving($0) }
-            if let zoomed = screenState.zoomed,
-               windows[zoomed]?.isFloating != false || workspaceOf[zoomed] != shown[screen.uuid] {
-                screenState.zoomed = nil
+            if let fullscreen = screenState.fullscreen,
+               windows[fullscreen]?.isFloating != false || workspaceOf[fullscreen] != shown[screen.uuid] {
+                screenState.fullscreen = nil
             }
             guard let slots = layoutTargets(ids, screenState, on: screen) else {
                 ids.forEach { targets[$0] = nil }
@@ -327,10 +327,10 @@ extension WindowManager {
         guard let (raw, gap) = rawSlots(ids, on: screen, screenState, ratio: screenState.ratio,
                                         workspace: workspace) else { return nil }
         let slots = fitMinimums(raw, mins: ids.map(slotMinimum), gap: gap)
-        let zoomed = usableRect(screen, workspace: workspace).pixelAligned
+        let fullscreen = usableRect(screen, workspace: workspace).pixelAligned
         let bounds = screen.visible
         return Dictionary(zip(ids, slots).map { id, slot in
-            (id, id == screenState.zoomed ? zoomed : clampToMinimum(slot, min: slotMinimum(id), bounds: bounds))
+            (id, id == screenState.fullscreen ? fullscreen : clampToMinimum(slot, min: slotMinimum(id), bounds: bounds))
         },
                           uniquingKeysWith: { first, _ in first })
     }

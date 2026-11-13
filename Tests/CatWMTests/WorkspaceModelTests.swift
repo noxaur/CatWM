@@ -87,7 +87,7 @@ import Testing
     @Test func aSnapshotDoesNotChangeWithTheModel() {
         var model = WorkspaceModel()
         let state = ScreenState(layout: .tall)
-        state.ratio = 0.6; state.mainCount = 2; state.zoomed = 4
+        state.ratio = 0.6; state.mainCount = 2; state.fullscreen = 4
         model.states["1"] = state
         model.assign(4, to: "1"); model.order = [4]; model.lastFocused["1"] = 4
         let snap = model.snapshot()
@@ -96,7 +96,7 @@ import Testing
         #expect(snap.states["1"]?.layout == .tall)
         #expect(snap.states["1"]?.ratio == 0.6)
         #expect(snap.states["1"]?.mainCount == 2)
-        #expect(snap.states["1"]?.zoomed == 4)
+        #expect(snap.states["1"]?.fullscreen == 4)
         #expect(snap.workspaceOf[4] == "1")
         #expect(snap.order == [4])
         #expect(snap.lastFocused["1"] == 4)

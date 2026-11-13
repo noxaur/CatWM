@@ -151,7 +151,7 @@ import Testing
 
     @Test func savedWindowsKeepOrderMinimizedMaximisedAndLayout() throws {
         var savedFacts = facts(order: [7, 3])
-        savedFacts.zoomed = ["desk": 3]
+        savedFacts.fullscreen = ["desk": 3]
         savedFacts.fallbackFocus = 7
         let minimized = observed(id: 3, title: "Draft", minimized: true)
         let maximised = observed(id: 7, title: "Talk", maximised: true)
@@ -168,7 +168,7 @@ import Testing
         #expect(!template.windows[0].minimized)
         #expect(template.windows[0].focused)
         #expect(template.windows[1].minimized)
-        #expect(template.windows[1].zoomed)
+        #expect(template.windows[1].fullscreen)
         #expect(template.windows[1].document == "file:///tmp/draft.txt")
     }
 
@@ -276,7 +276,7 @@ private func facts(order: [CGWindowID] = []) -> TemplateCaptureFacts {
                 ratio: 0.5, mainCount: 1
             )
         ],
-        zoomed: [:], order: order, currentSpaces: [1], hiddenWorkspaceWindows: [], monitorForTiled: [:],
+        fullscreen: [:], order: order, currentSpaces: [1], hiddenWorkspaceWindows: [], monitorForTiled: [:],
         virtualWorkspaces: true, knownFloating: [:], naturalFrames: [:], fallbackFocus: nil
     )
 }

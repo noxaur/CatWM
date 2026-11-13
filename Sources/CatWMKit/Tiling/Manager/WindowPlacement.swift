@@ -6,7 +6,7 @@ package struct WindowPlacement {
     package let frame: CGRect
     package let floating: Bool
     package let hidden: Bool
-    package let zoomed: Bool
+    package let fullscreen: Bool
 }
 
 package struct DisplayPlacement {
@@ -70,7 +70,7 @@ extension WindowManager {
             state.layout = display.layout
             state.ratio = min(0.9, max(0.1, display.ratio))
             state.mainCount = max(1, display.mainCount)
-            state.zoomed = nil
+            state.fullscreen = nil
         }
         var frames: [CGWindowID: CGRect] = [:]
         var restored: [CGWindowID] = []
@@ -89,7 +89,7 @@ extension WindowManager {
             targets[id] = nil
             corrections[id] = nil
             if placement.hidden { present.remove(id) } else { present.insert(id) }
-            if placement.zoomed { state(for: placement.screen).zoomed = id }
+            if placement.fullscreen { state(for: placement.screen).fullscreen = id }
             frames[id] = placement.frame
             restored.append(id)
         }

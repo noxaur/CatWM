@@ -29,50 +29,51 @@ import Testing
         let first = identity(1), second = identity(2)
         let reused = identity(1, pid: changedBundle ? first.pid : 99,
                               bundleID: changedBundle ? "different.app" : "test.app")
-        let saved = TilingRecovery(order: [first, second], zoomed: ["left": first])
+        let saved = TilingRecovery(order: [first, second], fullscreen: ["left": first])
         #expect(saved.restoredOrder([2, 1], arriving: [1], windows: [1: reused, 2: second]) == [2, 1])
-        #expect(saved.restoredZooms(arriving: [1], windows: [1: reused],
+        #expect(saved.restoredFullscreens(arriving: [1], windows: [1: reused],
                                    workspaces: [1: "left"], eligible: [1]).isEmpty)
     }
 
     @Test func anIncompleteStartupDoesNotEraseUndiscoveredWindowState() {
         let first = identity(1), second = identity(2)
-        let saved = TilingRecovery(order: [first, second], zoomed: ["left": first])
-        let firstPass = saved.capturing(order: [2], windows: [2: second], zooms: [:],
+        let saved = TilingRecovery(order: [first, second], fullscreen: ["left": first])
+        let firstPass = saved.capturing(order: [2], windows: [2: second], fullscreens: [:],
                                         available: [1: first.pid, 2: second.pid])
         #expect(firstPass == saved)
-        #expect(saved.capturing(order: [], windows: [:], zooms: [:], available: nil) == saved)
-        #expect(saved.capturing(order: [2], windows: [2: second], zooms: [:], available: [1: 0]) == saved)
-        let settled = firstPass.capturing(order: [2, 1], windows: [1: first, 2: second], zooms: [:], available: [:])
-        #expect(settled.order == [second, first] && settled.zoomed.isEmpty)
+        #expect(saved.capturing(order: [], windows: [:], fullscreens: [:], available: nil) == saved)
+        #expect(saved.capturing(order: [2], windows: [2: second], fullscreens: [:], available: [1: 0]) == saved)
+        let settled = firstPass.capturing(order: [2, 1], windows: [1: first, 2: second], fullscreens: [:],
+                                          available: [:])
+        #expect(settled.order == [second, first] && settled.fullscreen.isEmpty)
     }
 
     @Test func closedWindowsAndChangedServerOwnersCannotStayPending() {
         let first = identity(1), second = identity(2)
-        let saved = TilingRecovery(order: [first, second], zoomed: ["left": first])
+        let saved = TilingRecovery(order: [first, second], fullscreen: ["left": first])
         for available: [CGWindowID: pid_t] in [[:], [1: 99]] {
-            let found = saved.capturing(order: [2], windows: [2: second], zooms: [:], available: available)
-            #expect(found.order == [second] && found.zoomed.isEmpty)
+            let found = saved.capturing(order: [2], windows: [2: second], fullscreens: [:], available: available)
+            #expect(found.order == [second] && found.fullscreen.isEmpty)
         }
     }
 
     @Test func fullscreenRestorationRequiresTheSameWorkspaceAndAnEligibleWindow() {
         let window = identity(1)
-        let saved = TilingRecovery(order: [window], zoomed: ["left": window])
-        #expect(saved.restoredZooms(arriving: [1], windows: [1: window],
+        let saved = TilingRecovery(order: [window], fullscreen: ["left": window])
+        #expect(saved.restoredFullscreens(arriving: [1], windows: [1: window],
                                    workspaces: [1: "left"], eligible: [1]) == ["left": 1])
-        #expect(saved.restoredZooms(arriving: [1], windows: [1: window],
+        #expect(saved.restoredFullscreens(arriving: [1], windows: [1: window],
                                    workspaces: [1: "right"], eligible: [1]).isEmpty)
-        #expect(saved.restoredZooms(arriving: [1], windows: [1: window],
+        #expect(saved.restoredFullscreens(arriving: [1], windows: [1: window],
                                    workspaces: [1: "left"], eligible: []).isEmpty)
-        #expect(saved.restoredZooms(arriving: [], windows: [1: window],
+        #expect(saved.restoredFullscreens(arriving: [], windows: [1: window],
                                    workspaces: [1: "left"], eligible: [1]).isEmpty)
     }
 
     @Test func persistedDataRejectsInvalidAndDuplicateIdentities() throws {
         let valid = identity(1)
         let invalid = TilingRecovery(order: [identity(0), valid, identity(1, pid: 99), identity(2, pid: 0)],
-                                      zoomed: ["left": identity(1, pid: 99), "": valid])
+                                      fullscreen: ["left": identity(1, pid: 99), "": valid])
         let decoded = try JSONDecoder().decode(TilingRecovery.self, from: JSONEncoder().encode(invalid)).validated
         #expect(decoded == TilingRecovery(order: [valid]))
     }
@@ -119,7 +120,7 @@ import Testing
         original.order = [1, 2]
         original.model.assign(1, to: "left")
         original.model.assign(2, to: "left")
-        original.state(workspace: "left").zoomed = 2
+        original.state(workspace: "left").fullscreen = 2
         original.saveTilingRecovery(defaults: defaults)
         let restarted = WindowManager(config: .parse(defaultText))
         restarted.config.virtualWorkspaces = true
@@ -129,7 +130,7 @@ import Testing
         restarted.model.assign(2, to: "left")
         restarted.restoreTilingRecovery([second])
         restarted.saveTilingRecovery(defaults: defaults)
-        #expect(restarted.state(workspace: "left").zoomed == 2)
+        #expect(restarted.state(workspace: "left").fullscreen == 2)
         #expect(restarted.tilingRecovery == original.tilingRecovery)
         restarted.windows[1] = first
         restarted.order.append(1)
@@ -140,7 +141,7 @@ import Testing
         restarted.saveTilingRecovery(defaults: defaults)
         let again = WindowManager(config: .parse(defaultText))
         again.loadTilingRecovery(defaults: defaults)
-        #expect(again.tilingRecovery.order.map(\.id) == [1] && again.tilingRecovery.zoomed.isEmpty)
+        #expect(again.tilingRecovery.order.map(\.id) == [1] && again.tilingRecovery.fullscreen.isEmpty)
     }
 
     @Test @MainActor func anExplicitFullscreenChangeDiscardsPendingRestoration() throws {
@@ -148,16 +149,16 @@ import Testing
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         let entry = identity(1)
-        let saved = TilingRecovery(order: [entry], zoomed: ["left": entry])
+        let saved = TilingRecovery(order: [entry], fullscreen: ["left": entry])
         let manager = WindowManager(config: .parse(defaultText))
         manager.config.virtualWorkspaces = true
         manager.tilingRecovery = saved
         manager.lastSavedTilingRecovery = saved
-        manager.tilingRecovery.zoomed["left"] = nil
+        manager.tilingRecovery.fullscreen["left"] = nil
         manager.saveTilingRecovery(defaults: defaults)
         let restarted = WindowManager(config: .parse(defaultText))
         restarted.loadTilingRecovery(defaults: defaults)
-        #expect(restarted.tilingRecovery.order == [entry] && restarted.tilingRecovery.zoomed.isEmpty)
+        #expect(restarted.tilingRecovery.order == [entry] && restarted.tilingRecovery.fullscreen.isEmpty)
     }
 
     @Test @MainActor func aTemplateRestoreReplacesPendingStartupState() throws {
@@ -167,7 +168,7 @@ import Testing
         let entry = identity(1)
         let manager = WindowManager(config: .parse(defaultText))
         manager.config.virtualWorkspaces = true
-        manager.tilingRecovery = .init(order: [entry], zoomed: ["left": entry])
+        manager.tilingRecovery = .init(order: [entry], fullscreen: ["left": entry])
         manager.lastSavedTilingRecovery = manager.tilingRecovery
         manager.restoringTemplate = true
         #expect(manager.tilingRecovery == TilingRecovery())
@@ -180,22 +181,22 @@ import Testing
 
     @Test func aQuitAppKeepsItsPlaceUntilItExpires() {
         let quit = identity(1), open = identity(2)
-        let saved = TilingRecovery(order: [quit, open], zoomed: ["left": quit], memos: [quit: .init(title: "one")])
+        let saved = TilingRecovery(order: [quit, open], fullscreen: ["left": quit], memos: [quit: .init(title: "one")])
         let now = Date()
-        let kept = saved.capturing(order: [2], windows: [2: open], zooms: [:], available: [:],
+        let kept = saved.capturing(order: [2], windows: [2: open], fullscreens: [:], available: [:],
                                    departing: { $0 == quit }, now: now)
-        #expect(kept.order == [quit, open] && kept.zoomed == ["left": quit] && kept.departed == [quit: now])
+        #expect(kept.order == [quit, open] && kept.fullscreen == ["left": quit] && kept.departed == [quit: now])
         #expect(kept.memos[quit]?.title == "one")
         let later = now.addingTimeInterval(TilingRecovery.departedLifetime + 1)
-        let expired = kept.capturing(order: [2], windows: [2: open], zooms: [:], available: [:],
+        let expired = kept.capturing(order: [2], windows: [2: open], fullscreens: [:], available: [:],
                                      departing: { _ in true }, now: later)
-        #expect(expired.order == [open] && expired.zoomed.isEmpty && expired.departed.isEmpty)
+        #expect(expired.order == [open] && expired.fullscreen.isEmpty && expired.departed.isEmpty)
     }
 
     @Test func aRelaunchedWindowTakesTheOldPlaceByTitleThenFrame() {
         let first = identity(1, pid: 11), second = identity(2, pid: 11), other = identity(3, pid: 12)
         var saved = TilingRecovery(
-            order: [first, other, second], zoomed: ["left": second],
+            order: [first, other, second], fullscreen: ["left": second],
             memos: [first: .init(title: "one", frame: CGRect(x: 0, y: 0, width: 100, height: 100)),
                     second: .init(title: "two", frame: CGRect(x: 500, y: 0, width: 100, height: 100),
                                   tabs: [first, second])],
@@ -208,7 +209,7 @@ import Testing
             .init(identity: stranger, title: "one", frame: nil)
         ])
         #expect(pairs == [first: renamed, second: titled])
-        #expect(saved.order == [renamed, other, titled] && saved.zoomed == ["left": titled])
+        #expect(saved.order == [renamed, other, titled] && saved.fullscreen == ["left": titled])
         #expect(saved.memos[titled]?.tabs == [renamed, titled] && saved.departed.isEmpty)
         #expect(saved.restoredOrder([9, 8, 7, 3], arriving: [7, 8], windows: [7: renamed, 8: titled, 3: other])
             == [9, 7, 3, 8])
@@ -217,7 +218,7 @@ import Testing
     @Test func aReusedWindowIDKeepsBothTheNewWindowAndTheQuitApp() {
         let quit = identity(1, pid: 11), reused = identity(1, pid: 40, bundleID: "other.app")
         let saved = TilingRecovery(order: [quit], departed: [quit: Date()])
-        let found = saved.capturing(order: [1], windows: [1: reused], zooms: [:], available: [1: 40])
+        let found = saved.capturing(order: [1], windows: [1: reused], fullscreens: [:], available: [1: 40])
         #expect(found.order == [reused, quit] && found.departed.keys.contains(quit))
         let decoded = try? JSONDecoder().decode(TilingRecovery.self, from: JSONEncoder().encode(found)).validated
         #expect(decoded == found)

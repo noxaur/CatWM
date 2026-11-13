@@ -45,7 +45,7 @@ extension TemplateRestorer {
             let frame = WorkspaceTemplate.restoredFrame(saved.frame, from: original.visible, to: screen.visible)
             return .init(window: window, screen: screen, frame: frame,
                          floating: saved.floating, hidden: saved.minimized || saved.maximised,
-                         zoomed: saved.zoomed && saved.display == preferred[screen.uuid])
+                         fullscreen: saved.fullscreen && saved.display == preferred[screen.uuid])
         }
         let frames = manager.registerPlacements(placements, displays: displays,
                                                 tiling: template.tilingEnabled, screens: screens)

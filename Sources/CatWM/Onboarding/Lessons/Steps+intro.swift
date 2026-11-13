@@ -70,7 +70,7 @@ extension Steps {
 
     private static func moreRows(_ book: BindBook) -> [SummaryRow] {
         var rows: [SummaryRow] = []
-        if let zoom = book.find([WindowActions.fullscreen]) { rows.append((cap(zoom), "Zoom")) }
+        if let fullscreen = book.find([WindowActions.fullscreen]) { rows.append((cap(fullscreen), "Zoom")) }
         if let native = book.find([WindowActions.nativefullscreen]) { rows.append((cap(native), "macOS full screen")) }
         if let float = book.find([WindowActions.togglefloating]) { rows.append((cap(float), "Float or tile")) }
         return rows

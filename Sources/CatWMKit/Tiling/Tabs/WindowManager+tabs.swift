@@ -14,13 +14,14 @@ extension WindowManager {
               let workspace = workspaceOf[host] else { return }
         if window.isFloating {
             window.userFloating = .chosen(false)
-            floats.floatZoom[id] = nil
+            floats.floatFullscreen[id] = nil
         }
         if workspaceOf[id] != workspace { assignManagedWindow(id, to: workspace) }
         if sharesSpaces, let display = displayOf[host] { displayOf[id] = display }
-        let zoomed = screen(of: windows[host] ?? window).map(state(for:)).flatMap { $0.zoomed == host ? $0 : nil }
+        let fullscreen = screen(of: windows[host] ?? window).map(state(for:))
+            .flatMap { $0.fullscreen == host ? $0 : nil }
         model.joinTab(id, onto: host)
-        if let zoomed { zoomed.zoomed = id }
+        if let fullscreen { fullscreen.fullscreen = id }
         Log.info("tabs: \(window.bundleID ?? "window \(id)") joined the tabs of \(host)")
         corrections[id] = nil
         refresh()
@@ -62,7 +63,7 @@ extension WindowManager {
         guard tabs.isGrouped(id), let window = windows[id] else { return }
         let hit = point.flatMap(tiledSlotOwner(at:)).flatMap { config.mouseSwapsWindows && $0 != id ? $0 : nil }
         let heir = tabs.group(of: id).flatMap { $0.active == id ? tabs.heir(of: id) : $0.active }
-        if let heir, let home = screen(of: window).map(state(for:)), home.zoomed == id { home.zoomed = heir }
+        if let heir, let home = screen(of: window).map(state(for:)), home.fullscreen == id { home.fullscreen = heir }
         model.leaveTab(id)
         if let hit { swapOrder(id, hit) }
         Log.info("tabs: \(window.bundleID ?? "window \(id)") left its tabs")
@@ -90,8 +91,8 @@ extension WindowManager {
 
     private func activateTab(_ id: CGWindowID, previous: CGWindowID, retile: Bool = true) {
         guard id != previous else { return }
-        if let home = windows[previous].flatMap({ screen(of: $0) }).map(state(for:)), home.zoomed == previous {
-            home.zoomed = id
+        if let home = windows[previous].flatMap({ screen(of: $0) }).map(state(for:)), home.fullscreen == previous {
+            home.fullscreen = id
         }
         model.activateTab(id)
         if retile { refresh() }

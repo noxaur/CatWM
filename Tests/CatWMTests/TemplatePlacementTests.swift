@@ -5,13 +5,13 @@ import Foundation
 import Testing
 
 @Suite @MainActor struct TemplatePlacementTests {
-    @Test func aMinimizedZoomedWindowOnThePreferredDisplayKeepsZoom() {
+    @Test func aMinimizedFullscreenWindowOnThePreferredDisplayKeepsFullscreen() {
         let template = WorkspaceTemplateTests().template()
         let saved = template.windows[0]
         let collapsed = TemplatePlacementPlan.preferredDisplays(
             template, mapping: ["external": "only", "builtin": "only"]
         )
-        #expect(saved.minimized && saved.zoomed)
+        #expect(saved.minimized && saved.fullscreen)
         #expect(collapsed["only"] == "external")
         let separate = TemplatePlacementPlan.preferredDisplays(
             template, mapping: ["external": "desk", "builtin": "laptop"]

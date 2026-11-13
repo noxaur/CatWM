@@ -40,7 +40,7 @@ final class TutorialLesson: Lesson {
                 [Steps.move(coach), Steps.main(coach), Steps.mainDrill(coach), Steps.mainDrill(coach)])
         chapter("main", "The main pane", [Steps.mainCount(coach), Steps.resize(coach)])
         chapter("layouts", "Layouts", [Steps.layouts(coach), Steps.layoutDrill(coach), Steps.layoutDrill(coach)])
-        chapter("zoom", "Zoom and float", [Steps.zoom(coach), Steps.float(coach), Steps.retile(coach)])
+        chapter("zoom", "Zoom and float", [Steps.fullscreen(coach), Steps.float(coach), Steps.retile(coach)])
         chapter("workspaces", "Workspaces",
                 [Steps.visit(coach), Steps.back(coach), Steps.neighbours(coach),
                  Steps.workspaceDrill(coach), Steps.send(coach)])

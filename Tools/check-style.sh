@@ -193,9 +193,9 @@ def banned(path, code, uses_defaults=False):
     if path.startswith(SOURCES) and IGNORED_DIRECTORY.search(code):
         hits.append("try? drops a directory creation failure. Use do/catch and record the error with Log")
     if path.startswith("Tests/") and TEST_TIMED_GATE.search(code):
-        hits.append("timed gate in a test. It opens itself when the suite runs slowly. Use a Gate: block() or await wait(), and open() it from the test")
+        hits.append(TEST_WAIT_RULE + " timed gate in a test. It opens itself when the suite runs slowly. Use a Gate: block() or await wait(), and open() it from the test")
     if path.startswith("Tests/") and TEST_YIELD_POLL.search(code):
-        hits.append("wall-clock poll in a test. Open a Gate where the state changes and await its wait()")
+        hits.append(TEST_WAIT_RULE + " wall-clock poll in a test. Open a Gate where the state changes and await its wait()")
     if path.startswith("Tests/") and TEST_RUNLOOP.search(code):
         hits.append("fixed run-loop wait in a test. Wait on a condition or an injected clock")
     if path.startswith(SOURCES) and path != INSTANCE and STANDARD_DEFAULTS.search(code):
@@ -389,7 +389,7 @@ def line_failures(path, source):
             failures.append((path, number, "style-ok cannot silence an animation rule. Add a token or helper in Motion/ instead", line.strip()))
             continue
         if match and waits:
-            failures.append((path, number, "style-ok cannot silence a test sleep. Engine timers run on fake.clock, which fake.settle steps; only " + ", ".join(TEST_WAIT_REAL_SERVER) + " may wait on a real server", line.strip()))
+            failures.append((path, number, "style-ok cannot silence a test wait. Engine timers run on fake.clock, which fake.settle steps; only " + ", ".join(TEST_WAIT_REAL_SERVER) + " may wait on a real server", line.strip()))
             continue
         if match and reason_ok(match.group(1)) and others:
             continue

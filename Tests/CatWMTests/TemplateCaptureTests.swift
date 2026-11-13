@@ -27,7 +27,7 @@ import Testing
         #expect(outcome == .timedOut)
         #expect(calls.value == 1)
         pause.open()
-        await slot.settled()
+        await Gate.bounded { await slot.settled() }
         let next = await slot.run(within: .seconds(60)) {
             calls.bump()
             return 2
@@ -79,7 +79,7 @@ import Testing
         #expect(calls.value == 1)
         pause.open()
         #expect(await first.value == .finished(1))
-        await slot.settled()
+        await Gate.bounded { await slot.settled() }
         let third = await slot.run(within: .seconds(60)) {
             calls.bump()
             return 3

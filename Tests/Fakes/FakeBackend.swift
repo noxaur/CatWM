@@ -299,7 +299,7 @@ extension FakeBackend {
     @MainActor @discardableResult
     package func settle(_ manager: WindowManager, rounds: Int = 8, timeout: TimeInterval = 60) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
-        var rounds = rounds
+        var rounds = rounds, steps = rounds * 4
         while rounds > 0 {
             let before = writes.count
             let scanned = await bounded(until: deadline) { waiter in
@@ -321,12 +321,16 @@ extension FakeBackend {
                 }) else { return false }
                 continue
             }
+            let wrote = writes.count != before
             let held = ids.compactMap(manager.animator.quietEnd)
             if let next = (held + [clock.nextDue].compactMap(\.self)).min() {
+                guard steps > 0 else { return false }
+                steps -= 1
                 clock.advance(by: max(next - clock.now(), 0))
+                if wrote { rounds -= 1 }
                 continue
             }
-            if writes.count == before, Set(manager.windows.keys) == ids { return true }
+            if !wrote, Set(manager.windows.keys) == ids { return true }
             rounds -= 1
         }
         return false

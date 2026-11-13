@@ -143,6 +143,25 @@ import Testing
         #expect(manager.scanWaiters.isEmpty)
     }
 
+    @Test func aSettleOnALayoutThatNeverConvergesEnds() async {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = fake.makeManager()
+        fake.addWindow()
+        fake.addWindow()
+        #expect(await fake.settle(manager))
+        var flips = 0, written = fake.writes.count
+        manager.onChange = {
+            guard fake.writes.count != written else { return }
+            written = fake.writes.count
+            flips += 1
+            manager.state(for: screen).layout = flips.isMultiple(of: 2) ? .wide : .tall
+        }
+        manager.state(for: screen).layout = .wide
+        #expect(await !fake.settle(manager))
+        #expect(flips < 50)
+    }
+
     @Test func aMinimumSizePushesTheNeighbour() async {
         let fake = FakeBackend()
         let screen = fake.addScreen()

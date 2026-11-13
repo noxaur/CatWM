@@ -176,7 +176,7 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     let wait = "try await Task." + "sleep(for: .milliseconds(250)) // style-ok: outlast the verify pass"
     let failures = try styleFailures(path: "Tests/CatWMTests/Example.swift", source: wait)
     #expect(failures.contains { $0.contains("fake.clock") })
-    #expect(failures.contains { $0.contains("style-ok cannot silence a test sleep") })
+    #expect(failures.contains { $0.contains("style-ok cannot silence a test wait") })
     #expect(try styleFailures(path: "Tests/CatWMTests/AgentDisplayLiveTests.swift", source: wait).isEmpty)
 }
 
@@ -190,6 +190,10 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     #expect(try styleFailures(path: test, source: expected).isEmpty)
     let source = try styleFailures(path: "Sources/CatWMKit/App/Example.swift", source: gate)
     #expect(source.allSatisfy { !$0.contains("timed gate") })
+    for wait in [gate, poll] {
+        let excused = try styleFailures(path: test, source: wait + " // style-ok: the app answers within 2 s")
+        #expect(excused.contains { $0.contains("style-ok cannot silence a test wait") }, "\(wait)")
+    }
 }
 
 @Test func layoutRuleReadsACaseListThatWraps() throws {

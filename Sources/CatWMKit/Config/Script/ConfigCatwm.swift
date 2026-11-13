@@ -7,7 +7,9 @@ package enum ConfigCatwm {
       const hidden = new Set(["binds", "submaps", "windowRules", "workspaceRules"]);
       const hosts = new WeakSet();
       const lists = new WeakSet();
-      const state = { phase: "idle", data: null, written: null, late: [], handle: null, root: null, functions: [] };
+      const state = {
+        phase: "idle", data: null, written: null, late: [], handle: null, root: null, functions: [], sources: {}
+      };
       let setup = null;
 
       const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -82,6 +84,7 @@ package enum ConfigCatwm {
         const key = parts.pop();
         parts.reduce((node, part) => node[part], state.data)[key] = value;
         if (state.written) state.written.add(path);
+        if (state.phase === "load") state.sources[path] = locate(new Error());
       }
 
       function assign(path, value) {
@@ -166,6 +169,7 @@ package enum ConfigCatwm {
       function begin() {
         state.data = clone(setup.defaults);
         state.functions = [];
+        state.sources = {};
         state.late = [];
         state.phase = "load";
       }
@@ -188,12 +192,19 @@ package enum ConfigCatwm {
               }
             })
           });
+          for (const name of ["binds", "submaps"]) {
+            Object.defineProperty(root, name, {
+              get: () => state.data[name],
+              set: (value) => replaceBinds(name, value)
+            });
+          }
           this.exports = Object.freeze({ catwm: root });
           hosts.add(this.exports);
         },
         begin,
         finish() { state.phase = "idle"; return state.data; },
         functions() { return state.functions; },
+        sources() { return state.sources; },
         takeLate() {
           const late = state.late.map((error) => ({
             catwmDiagnostic: true, phase: "validate", ...locate(error), message: error.message

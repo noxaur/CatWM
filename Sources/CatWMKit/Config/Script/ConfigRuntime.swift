@@ -111,7 +111,7 @@ package enum ConfigRuntime {
             const value = legacy ? modules.get(entry).exports.default : written;
             check(value, "", entry, []);
             for (const path of [...compiled.keys()]) if (!modules.has(path)) compiled.delete(path);
-            return JSON.stringify({ value, files: [...modules.keys()] });
+            return JSON.stringify({ value, files: [...modules.keys()], sources: catwmModule.sources() });
           } catch (error) {
             catwmModule.finish();
             return JSON.stringify({ error: describe(error), files: touched });

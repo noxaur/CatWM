@@ -68,7 +68,6 @@ extension ConfigDocument {
             apply(text: copy.text)
             settingsCopy = copy
             fileErrors = store.current.errors
-            overrides = store.overriddenPaths
             savedText = serialize()
             saveError = nil
             return
@@ -92,17 +91,6 @@ extension ConfigDocument {
         vars = source.vars
         binds = source.binds
         extraLines = source.extraLines
-    }
-
-    func useScriptValue(_ path: String?) {
-        do {
-            try ConfigStore.shared.resetOverride(path)
-        } catch {
-            saveError = error.localizedDescription
-            return
-        }
-        WindowManager.shared.applyStoredConfig()
-        load()
     }
 
     func autosaveIfNeeded() {

@@ -18,7 +18,7 @@ import Testing
     #expect(process.terminationStatus == 0, "\(output)")
 }
 
-private func styleFailures(path: String, source: String) throws -> [String] {
+private func styleFailures(path: String, source: String, rule: String = "line") throws -> [String] {
     let root = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
@@ -30,14 +30,19 @@ private func styleFailures(path: String, source: String) throws -> [String] {
     loader = SourceFileLoader("style", sys.argv[1])
     module = importlib.util.module_from_spec(importlib.util.spec_from_loader("style", loader))
     loader.exec_module(module)
-    for failure in module.line_failures(sys.argv[2], sys.argv[3]):
+    rule = sys.argv[4]
+    if rule == "layout":
+        failures = module.layout_violations(sys.argv[2], sys.argv[3], module.layout_cases())
+    else:
+        failures = module.line_failures(sys.argv[2], sys.argv[3])
+    for failure in failures:
         print(failure[2])
     """
     let pipe = Pipe()
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     let checker = root.appendingPathComponent("Tools/check-style.sh").path
-    process.arguments = ["python3", "-c", script, checker, path, source]
+    process.arguments = ["python3", "-c", script, checker, path, source, rule]
     process.standardOutput = pipe
     try process.run()
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -173,4 +178,24 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     #expect(failures.contains { $0.contains("makeManager(clock:)") })
     #expect(failures.contains { $0.contains("style-ok cannot silence a test sleep") })
     #expect(try styleFailures(path: "Tests/CatWMTests/AgentDisplayLiveTests.swift", source: wait).isEmpty)
+}
+
+@Test func layoutRuleReadsACaseListThatWraps() throws {
+    let wrapped = """
+    switch layout {
+    case .tall, .tallRight,
+         .wide: 1
+    default: 2
+    }
+    """
+    let failures = try styleFailures(path: "Sources/CatWMKit/Example.swift", source: wrapped, rule: "layout")
+    #expect(failures.contains { $0.contains("default in a switch over Layout") })
+}
+
+@Test func layoutRuleIgnoresCommentsAndStrings() throws {
+    let source = """
+    // let tiles = ![.fullscreen, .floating].contains(layout)
+    let text = "[.tall, .wide].contains(layout)"
+    """
+    #expect(try styleFailures(path: "Sources/CatWMKit/Example.swift", source: source, rule: "layout").isEmpty)
 }

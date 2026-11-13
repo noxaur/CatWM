@@ -14,9 +14,12 @@ import QuartzCore
     }
 
     package func advance(by seconds: TimeInterval) {
-        time += seconds
-        while let next = pending.indices.min(by: { pending[$0].due < pending[$1].due }), pending[next].due <= time {
-            pending.remove(at: next).work()
+        let end = time + seconds
+        while let next = pending.indices.min(by: { pending[$0].due < pending[$1].due }), pending[next].due <= end {
+            let timer = pending.remove(at: next)
+            time = max(time, timer.due)
+            timer.work()
         }
+        time = end
     }
 }

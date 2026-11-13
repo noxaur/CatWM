@@ -25,7 +25,6 @@ import Testing
         #expect(await fake.settle(manager))
         clock.advance(by: 1)
         #expect(await fake.settle(manager))
-        clock.advance(by: 1)
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
         let tree = manager.dwindle(on: screen)

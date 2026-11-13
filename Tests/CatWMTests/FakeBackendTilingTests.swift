@@ -86,6 +86,23 @@ import Testing
         #expect(await fake.wait(manager) { fake.cursorRefreshes > cursorRefreshes })
     }
 
+    @Test func aNewAppsFirstWindowGetsFocusWhenTheAppActivatedFirst() async {
+        let fake = FakeBackend()
+        fake.addScreen()
+        let manager = fake.makeManager()
+        fake.addWindow(pid: -100)
+        #expect(await fake.settle(manager))
+        let launched: pid_t = -101
+        fake.userActivates(launched)
+        manager.requestFocusObservation()
+        #expect(await fake.wait(manager) {
+            manager.focusRequests.reportedFocus.map { $0.pid == launched && $0.id == nil } ?? false
+        })
+        let first = fake.addWindow(pid: launched)
+        #expect(await fake.settle(manager))
+        #expect(await fake.wait(manager) { manager.focusedWindow()?.id == first })
+    }
+
     @Test(arguments: [true, false])
     func movingTheFocusedWindowReturnsToTheMostRecentWindow(hasHistory: Bool) async throws {
         let fake = FakeBackend()

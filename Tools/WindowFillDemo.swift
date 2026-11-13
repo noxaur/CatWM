@@ -38,7 +38,7 @@ import AppKit
         window = id
         var source: (image: CGImage, frame: CGRect)?
         for _ in 0..<30 {
-            source = WindowSceneCapture.windowImage(id)
+            source = WindowServerReads.windowImage(id)
             if source != nil { break }
             await withCheckedContinuation { next in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { next.resume() }
@@ -102,7 +102,7 @@ import AppKit
 
     @objc private func showFill() {
         catchingUp = false
-        guard let actual = WindowSceneCapture.currentFrame(window) else { return }
+        guard let actual = WindowServerReads.currentFrame(window) else { return }
         fill?.update(desired: desired, actual: actual)
         status.stringValue = "\(Int(desired.width)) × \(Int(desired.height)) — color-only growth"
     }
@@ -117,7 +117,7 @@ import AppKit
 
     @objc private func poll() {
         guard child.isRunning, WindowServerList.onScreen()?.contains(window) == true else { close(); return }
-        guard catchingUp, let actual = WindowSceneCapture.currentFrame(window) else { return }
+        guard catchingUp, let actual = WindowServerReads.currentFrame(window) else { return }
         fill?.update(desired: desired, actual: actual)
         if actual.approxEqual(desired, tolerance: 0.25) {
             catchingUp = false

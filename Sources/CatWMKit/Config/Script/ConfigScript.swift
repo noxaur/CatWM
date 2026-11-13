@@ -21,6 +21,8 @@ package enum ConfigScript {
         "panelAnimation": "motion.panels", "modeEffect": "motion.modeEffect"
     ]
 
+    package static let retiredValues = ["lab.resizeAnimation": "snapshot"]
+
     package struct Mod {
         package let name: String
         package let flag: NSEvent.ModifierFlags
@@ -191,6 +193,7 @@ extension ConfigScript {
         }
 
         mutating func read(_ option: ConfigOption, _ value: JSON, path: String, into config: inout Config) {
+            if let retired = ConfigScript.retiredValues[path], value.string == retired { return }
             let text: String
             switch (option.scriptKind, value) {
             case (.bool, .bool(let isOn)): text = isOn ? "true" : "false"

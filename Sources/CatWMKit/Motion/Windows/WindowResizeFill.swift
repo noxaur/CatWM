@@ -101,7 +101,7 @@ import QuartzCore
         updateProfiles(desired: desired, actual: actual)
         updateMask(desired: desired, actual: actual, bounds: bounds)
         CATransaction.commit()
-        let stack = order ?? WindowSceneCapture.windowOrder() ?? []
+        let stack = order ?? WindowServerReads.windowOrder() ?? []
         let above = stack.firstIndex(of: windowID).flatMap { helper in
             stack.firstIndex(of: window).map { helper < $0 }
         } ?? false

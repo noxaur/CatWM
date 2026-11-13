@@ -50,7 +50,7 @@ enum FillProbeCapture {
 
     static func inspect(_ arguments: ArraySlice<String>) {
         for argument in arguments {
-            guard let id = CGWindowID(argument), let source = WindowSceneCapture.windowImage(id) else {
+            guard let id = CGWindowID(argument), let source = WindowServerReads.windowImage(id) else {
                 fputs("fill inspect: unavailable window \(argument)\n", stderr)
                 continue
             }
@@ -90,7 +90,7 @@ enum FillProbeCapture {
     }
 
     private static func verifyOpacity(_ image: NSBitmapImageRep, area: CGRect, window: CGWindowID) throws {
-        guard let actual = WindowSceneCapture.currentFrame(window) else { throw FillProbeError.missingWindow }
+        guard let actual = WindowServerReads.currentFrame(window) else { throw FillProbeError.missingWindow }
         let scale = CGFloat(image.pixelsWide) / area.width
         let points = [CGPoint(x: actual.maxX - 0.5, y: actual.minY + 0.5),
                       CGPoint(x: actual.minX + 0.5, y: actual.maxY - 0.5),

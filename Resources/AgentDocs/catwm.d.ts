@@ -339,9 +339,9 @@ export interface KeyboardHelpOptions {
 }
 
 export interface LabOptions {
-  /** Resize animation. Color fills and snapshots keep slow apps smooth. Both need Screen Recording. Default: `live`. */
-  get resizeAnimation(): "live" | "color-fill" | "snapshot"
-  set resizeAnimation(value: "live" | "color-fill" | "snapshot" | undefined)
+  /** Resize animation. Color fills keep slow apps smooth. They need Screen Recording. Default: `live`. */
+  get resizeAnimation(): "live" | "color-fill"
+  set resizeAnimation(value: "live" | "color-fill" | undefined)
 }
 
 export interface LayoutHudOptions {

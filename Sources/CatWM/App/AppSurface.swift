@@ -1,6 +1,5 @@
 import AppKit
 import CatWMKit
-import QuartzCore
 
 struct AppSurface: TilingSurface {
     private let fills = WindowResizeFills()
@@ -31,7 +30,7 @@ struct AppSurface: TilingSurface {
             return true
         }
         manager.animator.motionRun.beginRun = { PerfMonitor.shared.begin($0).map { run in { run.end(apps: $0) } } }
-        manager.animator.motionRun.readFrame = WindowSceneCapture.currentFrame
+        manager.animator.motionRun.readFrame = WindowServerReads.currentFrame
         KeyHelp.shared.install()
         CursorActions.shared.install()
         Switcher.shared.install()
@@ -43,49 +42,21 @@ struct AppSurface: TilingSurface {
     private func setResizeAnimation(_ mode: ResizeAnimation) {
         let manager = WindowManager.shared
         let animator = manager.animator
-        if mode != .colorFill, animator.windowPresentation != nil {
+        guard mode == .colorFill else {
+            guard animator.windowPresentation != nil else { return }
             animator.windowPresentation = nil
             fills.refresh = nil
             fills.close()
-            Log.info("window-fill: color-only tiling disabled")
+            return Log.info("window-fill: color-only tiling disabled")
         }
-        if mode != .snapshot { animator.makeResizeScene = nil }
-        switch mode {
-        case .live:
-            break
-        case .colorFill:
-            guard animator.windowPresentation == nil else { return }
-            animator.windowPresentation = fills
-            fills.refresh = { [weak manager, weak fills] in
-                guard let manager else { return }
-                fills?.warm(manager.windows) { [weak manager] in manager?.animator.isAnimating($0) ?? true }
-            }
-            fills.refresh?()
-            Log.info("window-fill: color-only tiling enabled")
-        case .snapshot:
-            guard animator.makeResizeScene == nil else { return }
-            animator.makeResizeScene = { moves in
-                let screens = Screen.all()
-                guard moves.allSatisfy({ move in
-                    screens.contains { $0.frame.contains(move.target) && $0.frame.contains(move.window.cachedFrame) }
-                }) else { return nil }
-                let frames = Dictionary(moves.map { ($0.window.id, $0.from ?? $0.window.cachedFrame) },
-                                        uniquingKeysWith: { _, latest in latest })
-                let regions = moves.map { ($0.from ?? $0.window.cachedFrame).union($0.target) }
-                let excluded = SplitHandle.shared.windowIDs
-                guard WindowSceneCapture.canPresent(regions, participants: Set(frames.keys),
-                                                    excluding: excluded) else { return nil }
-                let started = CACurrentMediaTime()
-                guard let capture = WindowSceneCapture.take(frames: frames, screens: screens,
-                                                          excluding: excluded) else { return nil }
-                Log.debug(String(format: "window-scene: captured %d windows in %.1fms", frames.count,
-                                 (CACurrentMediaTime() - started) * 1000))
-                return WindowResizeScene(capture: capture, frames: frames)
-            }
-            DispatchQueue.global(qos: .userInitiated).async {
-                Log.debug("window-scene: prewarm \(WindowSceneCapture.prepare())")
-            }
+        guard animator.windowPresentation == nil else { return }
+        animator.windowPresentation = fills
+        fills.refresh = { [weak manager, weak fills] in
+            guard let manager else { return }
+            fills?.warm(manager.windows) { [weak manager] in manager?.animator.isAnimating($0) ?? true }
         }
+        fills.refresh?()
+        Log.info("window-fill: color-only tiling enabled")
     }
 
     private var features: Set<Feature> { WindowManager.shared.config.features }

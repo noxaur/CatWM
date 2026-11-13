@@ -1,6 +1,6 @@
 # Animation
 
-All animation code lives in `Sources/CatWM/Motion/`, and nothing else may start an animation. `Tools/check-style.sh` enforces this, and a `// style-ok` escape on such a line is itself an error. `App/Perf/FrameRun.swift` may use a display link because it measures frames. The user's animation settings reach every kind of motion through one value, `MotionSpec`, so a setting change moves windows, Desktops and panels alike.
+All animation code lives in `Sources/CatWMKit/Motion/` (window, Desktop and curve engine) and `Sources/CatWM/Motion/` (SwiftUI and layer helpers), and nothing else may start an animation. `Tools/check-style.sh` enforces this, and a `// style-ok` escape on such a line is itself an error. `App/Perf/FrameRun.swift` may use a display link because it measures frames, and the mode cursor and the Sort drag may run fast timers. The user's animation settings reach every kind of motion through one value, `MotionSpec`, so a setting change moves windows, Desktops and panels alike.
 
 ## Window frames
 
@@ -10,13 +10,11 @@ CatWM animates real windows by writing AX frames, so the app's resize and redraw
 
 ## One motion per screen
 
-A refresh animates each screen's moves with the motion of that screen's workspace (a workspace rule can change it), so `applyTileMoves` hands the animator one batch per screen in a single `animate` call, and `maxAnimatedMoves` counts per batch. Two calls would break the resize scene: the second call sees a scene that doesn't cover its windows, closes it and drops the first call's items without landing them. One call builds one scene for the batches that animate (0.08 s or more), and a batch that doesn't animate lands at once. A visible scene holds back the live AX writes only of the windows it covers.
+A refresh animates each screen's moves with the motion of that screen's workspace (a workspace rule can change it), so `applyTileMoves` hands the animator one batch per screen, and `maxAnimatedMoves` counts per batch. Moves that must not animate go first in a batch of their own and land at once.
 
 ## Lab: resize animation
 
-`lab.resizeAnimation` picks `live` (the default), `snapshot` or `color-fill`. Both experiments try to hide the app's redraw latency.
-
-**`snapshot`** captures the source windows and the background without them, gives the real windows their destination frames at once, and scales each capture in a click-through panel. It needs Screen Recording and falls back to live AX motion for overlapping, partly visible or changing frames, and when a foreground window crosses the animation bounds, so a scene never paints over another window. Capture adds tens of milliseconds, so it stays opt-in. `Tools/window-resize-probe.sh` checks it against a paused app.
+`lab.resizeAnimation` picks `live` (the default) or `color-fill`, which tries to hide the app's redraw latency. A third mode, `snapshot`, scaled captured windows in a panel. It was removed because capture added tens of milliseconds before every resize and had to fall back to live motion whenever another window overlapped. A config that still names it gets the default, so an old setting can't block a config load.
 
 **`color-fill`** keeps the real window live and paints sampled edge colors over the gap between its native frame and the animated outline. Appearances are prepared on a background queue while windows are idle. A cache miss uses normal AX motion, so capture never delays the start of an animation. Shrinking goes through predicted intermediate native sizes, slightly ahead of the outline. Growing keeps native frames inside the viewport, because a fill can cover a gap but can't crop excess content. Within a tick, writes that release space go first, and position and size go in whichever order keeps the intermediate rectangle closest to the source and target union. Without that, a right-aligned tile briefly extends off its display.
 
@@ -34,4 +32,4 @@ A successful AX write doesn't show when the app draws, so `MotionRun` measures t
 
 Restarting a curve from rest when a target changes mid-flight makes the item stop and start again. `Trajectory(…, velocity:)` uses inertialization instead. It adds `carry * u * (1 - u)^2`, where `carry = velocity * duration - (to - from) * slope0` and `u` is normalized time. The term is 0 at both ends, so the motion still starts at `from` and lands on `to`. Its slope is `carry` at the start and 0 at the end, so the speed starts at the carried velocity and the curve's own landing is untouched.
 
-`DesktopMotion` uses this for reversals. It remembers its last value, time and speed, builds the new trajectory from there and shortens the spec in proportion to the remaining distance. A swipe feeds `track(_:)`, so the slide that follows starts at the finger's speed.
+`DesktopMotion` uses this for reversals. It remembers its last value, time and speed, builds the new trajectory from there and shortens the spec in proportion to the remaining distance. A swipe feeds `follow(until:update:)`, so the slide that follows starts at the finger's speed.

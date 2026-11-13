@@ -233,14 +233,13 @@ package enum Options {
 
         .choice("resize-animation", \.resizeAnimation, noun: "resize animation").script("lab.resizeAnimation")
             .documented(nil, "experimental: `live` resizes the real windows each frame, `color-fill` paints the "
-                            + "window colors around a smaller real window, `snapshot` animates captured windows; "
-                            + "`color-fill` and `snapshot` need Screen Recording")
+                            + "window colors around a smaller real window and needs Screen Recording")
             .section("lab")
             .note("Experimental: live resizes the real windows each frame. color-fill paints the window colors\n"
-                + "around them, snapshot animates captured windows. Both need Screen Recording.")
+                + "around them and needs Screen Recording.")
             .setting(.lab, "lab.resizeAnimation", "Resize animation",
-                     help: "Color fills and snapshots keep slow apps smooth. Both need Screen Recording",
-                     keywords: "experimental resize scene snapshot capture color fill smooth screen recording"),
+                     help: "Color fills keep slow apps smooth. They need Screen Recording",
+                     keywords: "experimental resize color fill smooth screen recording"),
         .bool("debug-logging", \.debugLogging).script("debugLogging")
             .documented("bool", "verbose log; `--verbose` turns it on for one launch").section("diagnostics")
             .setting(.lab, "lab.debugLogging", "Verbose logging", help: "Writes every step to the log",

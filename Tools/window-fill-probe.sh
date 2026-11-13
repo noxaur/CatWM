@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")/.."
 PROBE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/catwm-fill-probe.XXXXXX")
 trap 'rm -rf "$PROBE_DIR"' EXIT
-swiftc -package-name CatWM -D CATWM_RESIZE_PROBE \
+swiftc -package-name CatWM -D CATWM_FILL_PROBE \
   Tools/WindowFillProbe.swift \
   Tools/WindowFillDemo.swift \
   Tools/WindowFillProbeChecks.swift \
@@ -11,8 +11,9 @@ swiftc -package-name CatWM -D CATWM_RESIZE_PROBE \
   Tools/WindowFillProbeFixture.swift \
   Sources/CatWMKit/Motion/Windows/WindowFillAppearance.swift \
   Sources/CatWMKit/Motion/Windows/WindowResizeFill.swift \
-  Sources/CatWMKit/Motion/Windows/WindowSceneCapture.swift \
+  Sources/CatWMKit/Motion/Windows/WindowServerReads.swift \
   Sources/CatWMKit/Chrome/CatWMPanel.swift \
+  Sources/CatWMKit/App/MainThread.swift \
   Sources/CatWMKit/Tiling/Access/Screen.swift \
   Sources/CatWMKit/Tiling/Scan/WindowServerList.swift \
   Sources/CatWMKit/Tiling/Access/PrivateSymbols.swift \

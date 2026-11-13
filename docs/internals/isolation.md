@@ -32,7 +32,7 @@ Two `@preconcurrency` imports remain. `CoreGraphics` in `tapCallback.swift`: tap
 
 ## Deinit
 
-Isolated `deinit` needs a newer runtime than the macOS 14 target. A main-actor owner that must close a panel or stop a clock when it goes away (`Animator`, `WindowResizeFill`) captures those objects and closes them in `DispatchQueue.main.async`, one main turn after release. `PermissionWatcher`, `DockArea`, `WindowResizeScene` and `TrafficLights` lost their `deinit`. Their owners stop or close the first three explicitly. `TrafficLights` removes its flags monitors in `viewDidMoveToWindow` when the view leaves its window.
+Isolated `deinit` needs a newer runtime than the macOS 14 target. A main-actor owner that must close a panel or stop a clock when it goes away (`Animator`, `WindowResizeFill`) captures those objects and closes them in `DispatchQueue.main.async`, one main turn after release. `PermissionWatcher`, `DockArea` and `TrafficLights` lost their `deinit`. Their owners stop or close the first two explicitly. `TrafficLights` removes its flags monitors in `viewDidMoveToWindow` when the view leaves its window.
 
 ## A scoped instance ends with its scope
 

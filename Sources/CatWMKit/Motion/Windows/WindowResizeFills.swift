@@ -24,14 +24,14 @@ import QuartzCore
     package func warm(_ windows: [CGWindowID: Window], busy: @escaping @MainActor (CGWindowID) -> Bool) {
         cache = cache.filter { windows[$0.key] != nil }
         for id in windows.keys where !warming.contains(id) && !busy(id) {
-            guard let frame = WindowSceneCapture.currentFrame(id), !frame.isEmpty,
-                  WindowSceneCapture.canPresent([frame], participants: [id], excluding: excluded()),
+            guard let frame = WindowServerReads.currentFrame(id), !frame.isEmpty,
+                  WindowServerReads.canPresent([frame], participants: [id], excluding: excluded()),
                   cache[id].map({ $0.frame.size != frame.size || CACurrentMediaTime() - $0.time > 5 }) ?? true else {
                 continue
             }
             warming.insert(id)
             captureQueue.async { [weak self] in
-                let snapshot = WindowSceneCapture.windowImage(id)
+                let snapshot = WindowServerReads.windowImage(id)
                 let appearance = snapshot.flatMap { WindowFillAppearance(image: $0.image, size: $0.frame.size) }
                 DispatchQueue.main.async {
                     guard let self else { return }
@@ -41,7 +41,7 @@ import QuartzCore
                         return
                     }
                     guard !busy(id),
-                          WindowSceneCapture.currentFrame(id)?
+                          WindowServerReads.currentFrame(id)?
                             .approxEqual(snapshot.frame, tolerance: 0.25) == true else {
                         return
                     }
@@ -81,13 +81,13 @@ import QuartzCore
         guard !active.isEmpty else { return }
         let regions = active.compactMap { frames[$0] }
         let own = Set(fills.values.map(\.windowID)).union(excluded())
-        guard let order = WindowSceneCapture.windowOrder(),
-              WindowSceneCapture.canPresent(regions, participants: Set(frames.keys),
-                                            excluding: own, order: order) else {
+        guard let order = WindowServerReads.windowOrder(),
+              WindowServerReads.canPresent(regions, participants: Set(frames.keys),
+                                           excluding: own, order: order) else {
             close(); return
         }
         for id in active {
-            guard let desired = frames[id], let actual = WindowSceneCapture.currentFrame(id),
+            guard let desired = frames[id], let actual = WindowServerReads.currentFrame(id),
                   let cached = cache[id] else { cancel(id); continue }
             if fills[id] == nil {
                 let fill = WindowResizeFill(window: id, appearance: cached.appearance)

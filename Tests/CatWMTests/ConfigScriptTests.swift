@@ -105,6 +105,17 @@ import Testing
         ])
     }
 
+    @Test func aRetiredResizeAnimationFallsBackToTheDefault() throws {
+        let (config, diagnostics) = try read("""
+        catwm.lab.resizeAnimation = "snapshot"
+        catwm.gaps.size = 14
+        """)
+
+        #expect(diagnostics.isEmpty)
+        #expect(config.resizeAnimation == .live)
+        #expect(config.windowMarginSize == 14)
+    }
+
     @Test func windowRulesAreReadAsData() throws {
         let (config, diagnostics) = try read("""
         catwm.windows({ app: "com.apple.Safari", title: /settings/i, floating: false }, (win) => {

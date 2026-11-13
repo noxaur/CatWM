@@ -91,7 +91,7 @@ enum FillProbeFixture {
     }
 
     static func checkAlpha(_ id: CGWindowID, size: CGSize) throws {
-        guard let snapshot = WindowSceneCapture.windowImage(id) else { throw FillProbeError.captureUnavailable }
+        guard let snapshot = WindowServerReads.windowImage(id) else { throw FillProbeError.captureUnavailable }
         let bitmap = NSBitmapImageRep(cgImage: snapshot.image)
         guard let sample = bitmap.colorAt(x: bitmap.pixelsWide / 2, y: bitmap.pixelsHigh / 2),
               sample.alphaComponent > 0.6, sample.alphaComponent < 0.9,

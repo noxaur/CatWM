@@ -12,6 +12,20 @@ struct AnimationWriteTests {
         }
     }
 
+    @Test func motionKeepsSubpixelSamplesWhileAXFramesStayAligned() throws {
+        let backend = FakeBackend()
+        let from = CGRect(x: 100, y: 100, width: 800, height: 600)
+        let target = CGRect(x: 300, y: 200, width: 1000, height: 800)
+        let id = backend.addWindow(frame: from)
+        let window = Window(id: id, element: try #require(backend.element(id)), pid: -100,
+                            bundleID: nil, backend: backend)
+        let item = Animator.Item(move: .init(window: window, to: target, bounds: target), from: from,
+                                 start: 0, spec: .init(duration: 1, curve: .linear, bounce: 0))
+        #expect(abs(item.frame(at: 0.123, aligned: false).minX - 124.6) < 0.0001)
+        #expect(item.frame(at: 0.123).minX == 125)
+        #expect(item.frame(at: 1, aligned: false) == target)
+    }
+
     @Test(arguments: [0.12, 0.5], [AnimationCurve.easeOut, .bounce])
     func repeatedPixelFramesDoNotWritePositions(duration: Double, curve: AnimationCurve) async throws {
         let backend = FakeBackend()

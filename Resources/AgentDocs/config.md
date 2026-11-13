@@ -92,7 +92,7 @@ Each option is a path on `catwm`: `gaps.size` is `catwm.gaps.size`. `padding` al
 | `motion.bounce` | 0–1 (or 0–100) | `0.5` | liveliness of spring/bounce/overshoot. `.conf`: `animation-bounce` |
 | `motion.panels` | `rise` `pop` `focus` `tile` `draw` | `rise` | how Overview and keyboard help come and go; `tile` follows the animation curve; `catwm panelfx <style>` previews. `.conf`: `panel-animation` |
 | `motion.modeEffect` | `draw` `ripple` `corners` `none` | `draw` | visual while window mode is on; `catwm modefx <style>` previews. `.conf`: `mode-effect` |
-| `lab.resizeAnimation` | `live` `color-fill` `snapshot` | `live` | experimental: `live` resizes the real windows each frame, `color-fill` paints the window colors around a smaller real window, `snapshot` animates captured windows; `color-fill` and `snapshot` need Screen Recording. `.conf`: `resize-animation` |
+| `lab.resizeAnimation` | `live` `color-fill` | `live` | experimental: `live` resizes the real windows each frame, `color-fill` paints the window colors around a smaller real window and needs Screen Recording. `.conf`: `resize-animation` |
 | `debugLogging` | bool | `false` | verbose log; `--verbose` turns it on for one launch. `.conf`: `debug-logging` |
 | `perfReports` | bool | `false` | sends repeated slow animations and hangs (numbers and app bundle IDs only) to the developers. `.conf`: `perf-reports` |
 | `catwm.bind(mods, key, run, options?)` | a call, not an option | | see [keybinds.md](keybinds.md) |

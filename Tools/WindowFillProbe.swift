@@ -1,14 +1,18 @@
 import AppKit
 import QuartzCore
 
-#if CATWM_RESIZE_PROBE
+#if CATWM_FILL_PROBE
 enum Instance {
     static let scope: ProbeScope? = nil
     static let embedding = ProbeEmbedding()
 }
 struct ProbeEmbedding { let scope: ProbeScope? = nil }
-struct ProbeScope { func filter(_ screens: [Screen]) -> [Screen] { screens } }
+struct ProbeScope {
+    let display: String? = nil
+    func filter(_ screens: [Screen]) -> [Screen] { screens }
+}
 extension NSScreen {
+    static var userScreens: [NSScreen] { screens }
     var displayID: CGDirectDisplayID? { deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 }
     var displayUUID: String? { nil }
 }
@@ -113,7 +117,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
     private func windowFrame(_ id: CGWindowID) async throws -> CGRect {
         let deadline = CACurrentMediaTime() + 2
         repeat {
-            if let observed = WindowSceneCapture.currentFrame(id), !observed.isEmpty, !observed.isNull {
+            if let observed = WindowServerReads.currentFrame(id), !observed.isEmpty, !observed.isNull {
                 return observed
             }
             await nextCheck()
@@ -122,7 +126,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
     }
 
     private func mismatchedScale(id: CGWindowID, actual: CGRect, desired: CGRect) throws {
-        guard let snapshot = WindowSceneCapture.windowImage(id),
+        guard let snapshot = WindowServerReads.windowImage(id),
               let wrongScale = WindowFillAppearance(image: snapshot.image,
                                                     size: CGSize(width: actual.width * 2,
                                                                  height: actual.height * 2)) else {
@@ -138,7 +142,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
     private func cachedAppearance(_ id: CGWindowID, size: CGSize) async throws -> WindowFillAppearance {
         let deadline = CACurrentMediaTime() + 2
         repeat {
-            if let snapshot = WindowSceneCapture.windowImage(id),
+            if let snapshot = WindowServerReads.windowImage(id),
                let appearance = WindowFillAppearance(image: snapshot.image, size: size) { return appearance }
             await nextCheck()
         } while CACurrentMediaTime() < deadline
@@ -216,7 +220,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
                          frames: (actual: CGRect, desired: CGRect),
                          area: CGRect) async throws {
         let desired = frames.desired
-        guard let actual = WindowSceneCapture.currentFrame(id) else { throw FillProbeError.missingWindow }
+        guard let actual = WindowServerReads.currentFrame(id) else { throw FillProbeError.missingWindow }
         fill.update(desired: desired, actual: actual)
         guard fill.visible else { throw FillProbeError.pixels("landing has no fill to retire") }
         kill(child.processIdentifier, SIGCONT); kill(child.processIdentifier, SIGUSR1)
@@ -225,7 +229,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
         var lastColor: NSColor?
         repeat {
             await nextCheck()
-            guard let observed = WindowSceneCapture.currentFrame(id) else { continue }
+            guard let observed = WindowServerReads.currentFrame(id) else { continue }
             lastFrame = observed
             fill.update(desired: desired, actual: observed)
             guard observed.approxEqual(desired, tolerance: 0.25) else { continue }
@@ -241,7 +245,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
         } while CACurrentMediaTime() < deadline
         if FillProbeFixture.style == .browser, CommandLine.arguments.contains("--background") {
             let own = Set(NSApp.windows.filter { $0.windowNumber > 0 }.map { CGWindowID($0.windowNumber) })
-            if !WindowSceneCapture.canPresent([desired], participants: [id], excluding: own) {
+            if !WindowServerReads.canPresent([desired], participants: [id], excluding: own) {
                 throw FillProbeError.interrupted
             }
         }
@@ -258,7 +262,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
                              width: desired.width - 200, height: desired.height - 50)
         repeat {
             await nextCheck()
-            guard let actual = WindowSceneCapture.currentFrame(id), actual.approxEqual(partial, tolerance: 0.25) else {
+            guard let actual = WindowServerReads.currentFrame(id), actual.approxEqual(partial, tolerance: 0.25) else {
                 continue
             }
             fill.update(desired: desired, actual: actual)
@@ -284,7 +288,7 @@ enum FillProbeError: Error { case missingWindow, captureUnavailable, interrupted
             return try FillProbeCapture.background(area, label: label, window: id)
         }
         let own = Set(NSApp.windows.filter { $0.windowNumber > 0 }.map { CGWindowID($0.windowNumber) })
-        guard WindowSceneCapture.canPresent([area], participants: [id], excluding: own) else {
+        guard WindowServerReads.canPresent([area], participants: [id], excluding: own) else {
             throw FillProbeError.interrupted
         }
         CATransaction.flush()

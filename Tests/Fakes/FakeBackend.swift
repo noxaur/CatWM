@@ -51,6 +51,7 @@ package final class FakeBackend: WindowBackend, Sendable {
         var writeLog: [Write] = []
         var cursorRefreshCount = 0
         var placementCheckCount = 0
+        var clockedAnimators: Set<ObjectIdentifier> = []
         var onCursorRefresh: (() -> Void)?
         var nextID: CGWindowID = 1
         var nextDisplay: CGDirectDisplayID = 1
@@ -292,6 +293,7 @@ extension FakeBackend {
         configure(&config)
         let manager = WindowManager(backend: self, config: config)
         manager.animator = Animator(backend: self, now: clock.now, delay: clock.delay)
+        state.withLockUnchecked { $0.clockedAnimators.insert(ObjectIdentifier(manager.animator)) }
         manager.startEngine()
         return manager
     }
@@ -322,7 +324,8 @@ extension FakeBackend {
                 continue
             }
             let wrote = writes.count != before
-            let held = ids.compactMap(manager.animator.quietEnd)
+            let clocked = state.withLockUnchecked { $0.clockedAnimators.contains(ObjectIdentifier(manager.animator)) }
+            let held = clocked ? ids.compactMap(manager.animator.quietEnd) : []
             if let next = (held + [clock.nextDue].compactMap(\.self)).min() {
                 guard steps > 0 else { return false }
                 steps -= 1

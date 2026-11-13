@@ -5,9 +5,15 @@ import os
 package final class ConfigEngine {
     package static let timeLimit = 1.0
 
+    package struct Source: Equatable {
+        package var file: String
+        package var line: Int
+    }
+
     package struct Run {
         package var value: JSON?
         package var files: [URL] = []
+        package var sources: [String: Source] = [:]
         package var failures: [ConfigDiagnostic] = []
         package var isNew = false
         package var isStuck = false
@@ -41,6 +47,8 @@ package final class ConfigEngine {
     private var context: JSContext?
     private var value: JSON?
     private var files: [URL] = []
+    private var sources: [String: Source] = [:]
+    private var overlay: [String: String] = [:]
     private var hasCollected = false
 
     package init(entry: URL, baseline: Config = Config(), legacy: Bool = false,
@@ -59,7 +67,7 @@ package final class ConfigEngine {
 
     package func run() -> Run { run(timeout: .infinity) ?? Run() }
 
-    package func run(timeout: TimeInterval) -> Run? {
+    package func run(timeout: TimeInterval, overlay: [String: String] = [:]) -> Run? {
         final class Box {
             package let lock = NSLock()
             package var run: Run?
@@ -67,6 +75,8 @@ package final class ConfigEngine {
         let box = Box()
         let done = DispatchSemaphore(value: 0)
         thread.perform {
+            self.overlay = Dictionary(uniqueKeysWithValues: overlay.map { (Self.standard($0.key), $0.value) })
+            defer { self.overlay = [:] }
             let run = self.evaluate()
             box.lock.withLock { box.run = run }
             done.signal()
@@ -93,7 +103,7 @@ package final class ConfigEngine {
 
     private func evaluateRegistry() -> Run {
         guard let context = context ?? makeContext() else {
-            return Run(value: value, files: files,
+            return Run(value: value, files: files, sources: sources,
                        failures: [ConfigDiagnostic(phase: .read, message: "CatWM can't start its TypeScript engine")])
         }
         self.context = context
@@ -107,7 +117,7 @@ package final class ConfigEngine {
             let message = seconds >= Self.timeLimit
                 ? "the config ran longer than \(Int(Self.timeLimit)) s, so CatWM stopped it. Look for an endless loop"
                 : "the config run failed"
-            return Run(value: value, files: files,
+            return Run(value: value, files: files, sources: sources,
                        failures: [ConfigDiagnostic(file: entry.path, phase: .evaluate, message: message)])
         }
         let tried = (result["files"]?.array ?? []).compactMap(\.string).map { URL(fileURLWithPath: $0) }
@@ -118,13 +128,31 @@ package final class ConfigEngine {
         let next = result["value"] ?? .null
         if failures.isEmpty { failures = check(next) }
         guard failures.isEmpty else {
-            return Run(value: value, files: files + tried.filter { !files.contains($0) }, failures: failures)
+            return Run(value: value, files: files + tried.filter { !files.contains($0) }, sources: sources,
+                       failures: failures)
         }
         registry.invokeMethod("commit", withArguments: [])
         let isNew = next != value
         value = next
         files = tried
-        return Run(value: next, files: files, isNew: isNew)
+        sources = Self.sources(result["sources"])
+        return Run(value: next, files: files, sources: sources, isNew: isNew)
+    }
+
+    private static func standard(_ path: String) -> String { URL(fileURLWithPath: path).standardizedFileURL.path }
+
+    private func overlaid(_ path: String) -> String? {
+        overlay.isEmpty ? nil : overlay[Self.standard(path)]
+    }
+
+    private static func sources(_ json: JSON?) -> [String: Source] {
+        var sources: [String: Source] = [:]
+        for (path, entry) in json?.object ?? [:] {
+            guard let raw = entry["file"]?.string, let line = entry["line"]?.int else { continue }
+            let file = raw.hasPrefix("file://") ? URL(string: raw)?.path ?? raw : raw
+            sources[path] = Source(file: file, line: line)
+        }
+        return sources
     }
 
     private func invoke(_ function: Int, _ window: WindowSnapshot) -> FunctionRun {
@@ -189,8 +217,8 @@ package final class ConfigEngine {
         } else {
             Log.info("config: JSContextGroupSetExecutionTimeLimit is missing, so an endless loop can't be stopped")
         }
-        let read: @convention(block) (String) -> JSValue = { path in
-            guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
+        let read: @convention(block) (String) -> JSValue = { [weak self] path in
+            guard let text = self?.overlaid(path) ?? (try? String(contentsOfFile: path, encoding: .utf8)) else {
                 return JSValue(undefinedIn: JSContext.current())
             }
             return JSValue(object: text, in: JSContext.current())

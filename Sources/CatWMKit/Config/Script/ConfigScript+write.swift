@@ -81,17 +81,6 @@ extension ConfigScript {
         }
     }
 
-    package static func label(_ path: String) -> String {
-        if let option = Options.all.first(where: { $0.script == path }) { return option.setting?.label ?? path }
-        switch path {
-        case "binds", "submaps": return "Shortcuts"
-        case "mod": return "Main modifier"
-        case "layouts": return "Layouts"
-        case "floating.apps": return "Floating apps"
-        default: return path
-        }
-    }
-
     package static func literal(_ value: JSON, indent: Int = 0) -> String {
         let pad = String(repeating: " ", count: indent + 2), end = String(repeating: " ", count: indent)
         switch value {

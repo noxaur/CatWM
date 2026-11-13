@@ -52,6 +52,34 @@ extension ConfigCatwm {
           : `call catwm.${name} while the config loads, at the top level of a config file`);
       }
 
+      const isFunctionBind = (entry) => isObject(entry.run) && !Array.isArray(entry.run);
+
+      function bindList(path, list) {
+        if (!Array.isArray(list)) throw usage(`\`${path}\` must be a list of binds`);
+        return list.map((entry) => {
+          if (!isPlain(entry) || (entry.run !== undefined && isObject(entry.run))) {
+            throw usage(`\`${path}\` holds binds such as { mods: ["alt"], key: "h", run: "sort" }`);
+          }
+          return { ...entry };
+        });
+      }
+
+      function replaceBinds(name, value) {
+        declare(name);
+        if (name === "binds") {
+          state.data.binds = [...bindList("binds", value), ...state.data.binds.filter(isFunctionBind)];
+          return;
+        }
+        if (!isPlain(value)) throw usage("`submaps` must map each mode name to a list of binds");
+        const next = {};
+        for (const mode of Object.keys(value)) next[mode] = bindList(`submaps.${mode}`, value[mode]);
+        for (const mode of new Set([...Object.keys(next), ...Object.keys(state.data.submaps)])) {
+          next[mode] = [...(next[mode] || []), ...(state.data.submaps[mode] || []).filter(isFunctionBind)];
+          if (next[mode].length === 0) delete next[mode];
+        }
+        state.data.submaps = next;
+      }
+
       const api = {
         bind(mods, key, run, options) {
           declare("bind");

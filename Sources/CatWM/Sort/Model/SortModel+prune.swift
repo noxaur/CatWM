@@ -95,7 +95,7 @@ extension SortModel {
 
     func cycleNextLayout(by delta: Int = 1) {
         let i = layouts.firstIndex(of: nextLayout) ?? -1
-        nextLayout = layouts[((i + delta) % layouts.count + layouts.count) % layouts.count]
+        nextLayout = layouts[i.wrapped(by: delta, in: layouts.count)]
     }
 
     func closeLane(_ id: UUID) {

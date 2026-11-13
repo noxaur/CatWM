@@ -153,7 +153,7 @@ extension SortModel {
             guard let windowID else { return false }
             let delta = spec.hasPrefix("-") || spec == "l" || spec == "u" ? -1 : 1
             guard displays.count > 1, let i = displays.firstIndex(where: { $0.id == current }) else { return true }
-            moveToDisplay(windowID, displays[((i + delta) % displays.count + displays.count) % displays.count].id)
+            moveToDisplay(windowID, displays[i.wrapped(by: delta, in: displays.count)].id)
             return true
         }
         guard let windowID, let direction = Direction(arg) else { return false }

@@ -24,7 +24,7 @@ extension WindowManager {
 
     package func state(workspace key: String) -> ScreenState {
         if let existing = states[key] { return existing }
-        let created = ScreenState(layout: config.layouts.first ?? .tall)
+        let created = ScreenState(layout: config.layouts.primary)
         states[key] = created
         return created
     }

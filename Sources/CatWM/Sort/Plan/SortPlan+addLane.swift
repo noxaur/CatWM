@@ -109,7 +109,7 @@ extension SortPlan {
     mutating func cycleLayout(of lane: Int, by delta: Int, in layouts: [Layout]) {
         guard lanes.indices.contains(lane), !layouts.isEmpty else { return }
         let i = layouts.firstIndex(of: lanes[lane].layout) ?? -1
-        lanes[lane].layout = layouts[((i + delta) % layouts.count + layouts.count) % layouts.count]
+        lanes[lane].layout = layouts[i.wrapped(by: delta, in: layouts.count)]
     }
 
     mutating func reorder(_ id: CGWindowID, by delta: Int) {

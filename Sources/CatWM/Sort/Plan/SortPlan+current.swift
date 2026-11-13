@@ -43,11 +43,11 @@ extension SortPlan {
         case 4: want = .bsp
         default: want = .tall
         }
-        return layouts.contains(want) ? want : layouts.first ?? .tall
+        return layouts.contains(want) ? want : layouts.primary
     }
 
     static func fit(_ forced: Layout?, _ count: Int, _ layouts: [Layout]) -> Layout {
-        if let forced { return layouts.contains(forced) ? forced : layouts.first ?? .tall }
+        if let forced { return layouts.contains(forced) ? forced : layouts.primary }
         return layout(forCount: count, in: layouts)
     }
 

@@ -5,7 +5,7 @@ extension WindowManager {
         guard let current = context(), !current.ids.isEmpty else { return }
         let ids = current.ids
         let i = current.window.flatMap { ids.firstIndex(of: $0.id) } ?? (delta > 0 ? -1 : 0)
-        let next = ids[((i + delta) % ids.count + ids.count) % ids.count]
+        let next = ids[i.wrapped(by: delta, in: ids.count)]
         if let window = windows[next] { focus(window) }
     }
 
@@ -13,7 +13,7 @@ extension WindowManager {
         guard let current = context(), let window = current.window,
               let i = current.ids.firstIndex(of: window.id), current.ids.count > 1 else { return }
         let ids = current.ids
-        swapOrder(window.id, ids[((i + delta) % ids.count + ids.count) % ids.count])
+        swapOrder(window.id, ids[i.wrapped(by: delta, in: ids.count)])
         refresh()
     }
 
@@ -48,7 +48,7 @@ extension WindowManager {
                 ?? config.windowResizeStep
             ratio += delta
         }
-        ratio = min(0.9, max(0.1, ratio))
+        ratio = SplitDivider.clamped(ratio)
         if let stubborn = windowRefusingRatio(ratio, from: current.state.ratio, ids: current.ids,
                                               on: current.screen, current.state) {
             warnTooSmall(stubborn, on: current.screen)
@@ -67,7 +67,7 @@ extension WindowManager {
         let layout = current.state.layout
         let i = layouts.firstIndex(of: layout) ?? layout.mirrored.flatMap { layouts.firstIndex(of: $0) }
             ?? (delta > 0 ? -1 : 0)
-        setLayout(layouts[((i + delta) % layouts.count + layouts.count) % layouts.count], on: current.screen)
+        setLayout(layouts[i.wrapped(by: delta, in: layouts.count)], on: current.screen)
     }
 
     package func setLayout(_ layout: Layout, screen uuid: String) {

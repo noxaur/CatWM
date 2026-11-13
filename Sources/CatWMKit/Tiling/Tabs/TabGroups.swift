@@ -30,7 +30,7 @@ package struct TabGroups: Equatable {
         guard let members = group(of: id)?.members, members.count > 1,
               let index = members.firstIndex(of: id) else { return nil }
         let count = members.count
-        return members[((index + offset) % count + count) % count]
+        return members[index.wrapped(by: offset, in: count)]
     }
 
     package mutating func join(_ id: CGWindowID, onto target: CGWindowID) {

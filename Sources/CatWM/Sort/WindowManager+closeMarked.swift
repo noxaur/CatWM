@@ -205,7 +205,7 @@ extension WindowManager {
         for (name, savedState) in saved.states {
             let workspaceState = state(workspace: name)
             workspaceState.layout = savedState.layout
-            workspaceState.ratio = savedState.ratio.isFinite ? min(0.9, max(0.1, savedState.ratio)) : 0.5
+            workspaceState.ratio = savedState.ratio.isFinite ? SplitDivider.clamped(savedState.ratio) : 0.5
             workspaceState.mainCount = savedState.mainCount
             workspaceState.fullscreen = savedState.fullscreen
         }

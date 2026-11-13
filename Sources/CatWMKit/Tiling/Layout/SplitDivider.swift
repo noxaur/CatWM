@@ -3,6 +3,10 @@ import CoreGraphics
 package struct SplitDivider: Equatable {
     package static let ratioRange: ClosedRange<CGFloat> = 0.1...0.9
 
+    package static func clamped(_ ratio: CGFloat) -> CGFloat {
+        min(ratioRange.upperBound, max(ratioRange.lowerBound, ratio))
+    }
+
     package let vertical: Bool
     package let fromStart: Bool
     package let frame: CGRect
@@ -45,6 +49,6 @@ package struct SplitDivider: Equatable {
         let start = vertical ? rect.minX : rect.minY, length = (vertical ? rect.width : rect.height) + gap
         guard length > 0 else { return 0.5 }
         let main = fromStart ? position - start + gap / 2 : start + length - gap / 2 - position
-        return min(Self.ratioRange.upperBound, max(Self.ratioRange.lowerBound, main / length))
+        return Self.clamped(main / length)
     }
 }

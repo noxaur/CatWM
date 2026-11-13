@@ -26,15 +26,7 @@ extension WindowManager {
         } else {
             autoSwitchAfter = Date().addingTimeInterval(0.6)
             refresh()
-            guard handOffFocus, let from, isShown(from) else { return }
-            let remaining = order.filter { workspaceOf[$0] == from && visible.contains($0) }
-            if let next = (model.mostRecent(of: remaining) ?? remaining.first).flatMap({ windows[$0] }) {
-                focus(next)
-            } else if let screen = backend.screens().first(where: { $0.uuid == monitorOf[from] }) {
-                parkFocus(on: screen)
-            } else {
-                parkFocus()
-            }
+            if handOffFocus, let from { self.handOffFocus(from: from) }
         }
     }
 

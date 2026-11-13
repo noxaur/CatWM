@@ -136,6 +136,16 @@ catwm.windows({ title: /Picture in Picture/ }, (win) => {
 
 You can match on `app` (a bundle ID, and wildcards like `com.adobe.*` work), `title` (text or a regular expression), `workspace`, `display`, `floating`, `minimized` and `fullscreen`. A rule applies once each time a window starts to match, so it won't pull a window back after you move it yourself. When two rules match the same window, the one lower in the file wins.
 
+### Scratchpads and pinned windows
+
+`movetoscratchpad` hides the focused window, and `togglescratchpad` shows it floating in the middle of the focused display, over the workspace you're on, and hides it again. Both take an optional name, so you can keep several scratchpads. `scratchpad.size` sets how much of the display the window fills (80% by default). `pin` floats the focused window and keeps it on every workspace of its display. In a rule, `win.scratchpad("term")` and `win.pin()` do the same.
+
+```ts
+catwm.bind(["alt"], "s", ["togglescratchpad", "term"])
+catwm.bind(["alt", "shift"], "s", ["movetoscratchpad", "term"])
+catwm.bind(["alt"], "p", "pin")
+```
+
 ## Rules for workspaces
 
 `catwm.workspaces(match, () => …)` changes options on the workspaces that match. For example, this drops the gaps when a workspace has only one window:

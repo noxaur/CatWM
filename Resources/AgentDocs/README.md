@@ -19,7 +19,7 @@ Read in this order:
 - These docs ship inside the app at `CatWM.app/Contents/Resources/AgentDocs/`. `catwm docs` prints that folder.
 - The app binary is also the CLI: `CatWM.app/Contents/MacOS/CatWM <command>`. A build from this repo lives at `build/CatWM.app`.
 - Config file: `~/.config/catwm/catwm.config.ts` (created on first run, or converted from `catwm.conf`). Types: `catwm.d.ts` next to it. Saved config presets: `~/.config/catwm/configs.json` (managed by the Settings window; don't hand-edit).
-- The Settings window and `config.set` never edit `catwm.config.ts`. They write `catwm.overrides.json`, which wins over the TypeScript file.
+- The Settings window and `config.set` write into `catwm.config.ts`, so the file always holds the whole config.
 - CatWM needs the **Accessibility** permission. Without it nothing is tiled and no keybinds work.
 - Default `$mod` is Option (`ALT`), not Command, so app shortcuts keep working.
 - CatWM was previously named Hyprthyst (bundle ID `local.hyprthyst`) and then Ouch (bundle ID `local.ouch`). Its bundle ID is now `local.catwm`. Settings are migrated once.

@@ -133,6 +133,12 @@ export interface Actions {
   minimize: [...args: (string | number)[]]
   /** Close the focused window. */
   killactive: [...args: (string | number)[]]
+  /** Hide the focused window in a scratchpad and float it. */
+  movetoscratchpad: [name?: string | number]
+  /** Show a scratchpad window floating over this workspace, or hide it again. */
+  togglescratchpad: [name?: string | number]
+  /** Float the focused window and keep it on every workspace of its display. */
+  pin: [mode?: "on" | "off" | "toggle" | (string & {})]
   /** Add the focused window to the tabs of its neighbour. */
   moveintogroup: [direction: "left" | "right" | "up" | "down" | "l" | "r" | "u" | "d" | (string & {})]
   /** Take the focused window out of its tabs. */
@@ -420,6 +426,12 @@ export interface PaddingOptions {
   set top(value: number | undefined)
 }
 
+export interface ScratchpadOptions {
+  /** How much of the display's visible area a scratchpad window fills when `togglescratchpad` shows it. A window that can't resize keeps its size. From 20 to 100. Default: `80`. */
+  get size(): number
+  set size(value: number | undefined)
+}
+
 export interface SwitcherOptions {
   /** Apps the switcher hides. Apps the window switcher never shows; wildcards like com.adobe.* work. Default: `[]`. */
   get exclude(): List<string | RegExp>
@@ -510,6 +522,8 @@ export interface Options {
   /** Main pane resize step. How much the split moves each time. Default: `5`. */
   get resizeStep(): number
   set resizeStep(value: number | undefined)
+  get scratchpad(): ScratchpadOptions
+  set scratchpad(value: Input<ScratchpadOptions> | undefined)
   get switcher(): SwitcherOptions
   set switcher(value: Input<SwitcherOptions> | undefined)
   get tabs(): TabsOptions
@@ -639,6 +653,10 @@ export interface WindowRule {
   float(): void
   tile(): void
   fullscreen(): void
+  /** Floats the window and keeps it on every workspace of its display. `pin(false)` stops that. */
+  pin(on?: boolean): void
+  /** Hides the window in a scratchpad. `togglescratchpad` shows it. The default name is `scratchpad`. */
+  scratchpad(name?: string): void
   size: { width: number; height: number }
   position: "center" | { x: number; y: number }
   workspace: string
@@ -658,6 +676,8 @@ export interface WindowHandle {
   resize(width: number, height: number): void
   move(x: number, y: number): void
   center(): void
+  pin(on?: boolean): void
+  scratchpad(name?: string): void
   moveTo(workspace: string): void
 }
 

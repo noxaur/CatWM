@@ -85,6 +85,8 @@ import AppKit
     package var focusRequests = FocusRequests()
     package var closeAndSort = CloseAndSortState()
     package var floats = FloatState()
+    package var scratchpads = Scratchpads()
+    package var pins = PinnedWindows()
     package var windowsToMatch: [CGWindowID] = []
     package var previousWorkspace: [String: String] = [:]
     package var labels: [String: String] = [:]

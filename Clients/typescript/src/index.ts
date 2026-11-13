@@ -7,6 +7,7 @@ export const PROTOCOL = 1;
 
 export type Direction = "left" | "right" | "up" | "down";
 export type Step = "next" | "prev";
+export type Mode = "on" | "off" | "toggle";
 export type Layout = "tall" | "tall-right" | "wide" | "middle-wide" | "fullscreen" | "column" | "row" | "floating" | "bsp" | "3column-left" | "3column-middle" | "3column-right" | "two-pane" | "two-pane-right" | "widescreen-tall" | "widescreen-tall-right";
 
 export interface Rect {
@@ -55,6 +56,8 @@ export interface WindowsItem {
   minimized: boolean;
   fullscreen: boolean;
   visible: boolean;
+  pinned: boolean;
+  scratchpad: string | null;
   workspace: string | null;
   screen: string | null;
   frame: Rect | null;
@@ -402,6 +405,21 @@ export class CatWM {
   /** Close the focused window */
   async killactive(): Promise<void> {
     await this.call("killactive");
+  }
+
+  /** Hide the focused window in a scratchpad and float it */
+  async movetoscratchpad(name?: string): Promise<void> {
+    await this.call("movetoscratchpad", { "name": name });
+  }
+
+  /** Show a scratchpad window floating over this workspace, or hide it again */
+  async togglescratchpad(name?: string): Promise<void> {
+    await this.call("togglescratchpad", { "name": name });
+  }
+
+  /** Float the focused window and keep it on every workspace of its display */
+  async pin(mode?: Mode): Promise<void> {
+    await this.call("pin", { "mode": mode });
   }
 
   /** Add the focused window to the tabs of its neighbour */

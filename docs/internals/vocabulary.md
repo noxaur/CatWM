@@ -13,6 +13,7 @@ Use these words in code, docs, UI text and commit messages. Each word has one me
 - **window mode** means a mode where single keys control windows. A global shortcut enters it, and keys with no bind are ignored. In the config it is the `window` submap. A right click on a window opens its context menu.
 - **overview** means the Sort menu. Sort is the old name, and the code folder and types still use it.
 - **switcher** means the window switcher. `$mod Tab` opens it, and the `switcher` dispatcher runs it.
+- **scratchpad** means a named place where a window waits, hidden and floating, until `togglescratchpad` shows it over the current workspace. **pinned** means a floating window that follows the shown workspace of its display. See `scratchpad-and-pins.md`.
 - **template** means a saved workspace template: the windows, workspaces, Desktops, layouts and frames of a setup. `Templates/` owns it.
 - **session** (in `Session/`) means the save and open of app windows. It has no CatWM types. See `window-session.md`.
 - **agent display** means a private virtual display that an agent's apps open their windows on. The user's CatWM ignores it. See `agent-display.md`.

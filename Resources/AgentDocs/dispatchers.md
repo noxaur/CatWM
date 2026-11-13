@@ -19,6 +19,9 @@ Used as `bind = MODS, key, <dispatcher>, <args>` or `catwm dispatch <dispatcher>
 | `resizeactive` | `exact W H`, `50% 100%`, `+50 -20`, `+5% 0` | resize the focused window: points, a percentage of its display's visible area, or a change. A floating window keeps its top-left corner. A tiled window moves the split it borders, so it takes only a change along the layout's split axis (`+10% 0` on Tall grows the main pane by 10%) and ignores the rest |
 | `moveactive` | `exact X Y`, `10% 0%`, `+50 -20` | move the focused floating window: its top-left corner in points or a percentage from the top-left of its display's visible area, or a change. Kept on that display. A tiled window is ignored |
 | `centerwindow` | | center the focused floating window on its display's visible area. A tiled window is ignored |
+| `movetoscratchpad` | optional name | hide the focused window in a scratchpad and float it. The default name is `scratchpad` |
+| `togglescratchpad` | optional name | show the scratchpad's window floating in the middle of the focused display, over the current workspace, or hide it again. `scratchpad.size` sets its size |
+| `pin` | `on`, `off`, `toggle` (default) | float the focused window and keep it on every workspace of its display |
 | `fullscreen` | | zoom the focused window |
 | `nativefullscreen` | | macOS Full Screen (the green button) for the focused window: it gets a Space of its own and leaves the tiling until it comes back |
 | `moveintogroup` | `l r u d` | add the focused window to the tabs of the window in that direction. The tabs share one tile, with a tab bar above it. You can also drag a window by its title bar onto the top of another window |

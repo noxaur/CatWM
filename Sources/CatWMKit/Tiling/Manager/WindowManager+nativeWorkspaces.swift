@@ -132,6 +132,7 @@ extension WindowManager {
                         self.desktops.nativeWorkspaceGeneration == generation
                     })
                     if self.desktops.nativeWorkspaceGeneration == generation {
+                        self.carryPinnedWindows(to: workspace, space: entry.space, display: entry.display)
                         self.configureNativeController(focusing: preferred, focus: takesFocus, quiet: quiet,
                                                        toward: workspace)
                         self.nativeDesktop.request(.init(workspace: workspace, display: entry.display,
@@ -144,6 +145,7 @@ extension WindowManager {
             }
             return
         }
+        carryPinnedWindows(to: workspace, space: entry.space, display: entry.display)
         configureNativeController(focusing: preferred, focus: takesFocus, quiet: quiet, toward: workspace)
         nativeDesktop.request(.init(workspace: workspace, display: entry.display, space: entry.space),
                               since: requestedAt)

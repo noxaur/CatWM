@@ -21,6 +21,7 @@ import CatWMKit
         ConfigStore.shared.convertLegacyConfig()
         AppIcons.shared.onLoad = { [weak self] in self?.scheduleStatusUpdate() }
         WindowManager.shared.surface = AppSurface()
+        if !Instance.isNamed, ConfigStore.shared.migrateOverrides() { WindowManager.shared.applyStoredConfig() }
         WindowManager.shared.onChange = { [weak self] in
             self?.scheduleStatusUpdate()
         }

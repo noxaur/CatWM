@@ -82,7 +82,7 @@ struct Usage {
         windows(20)
         await settled(manager)
         if warm { return }
-        try await Task.sleep(for: .seconds(2))
+        try await Task.sleep(for: .seconds(1))
         try await idle(seconds: 10, metric: "engine.idle.cpu")
         record("engine.idle.footprint", Usage.now().footprint)
     }

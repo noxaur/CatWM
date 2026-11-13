@@ -82,7 +82,11 @@ import QuartzCore
     }
 
     package func isBusy(_ id: CGWindowID) -> Bool {
-        isAnimating(id) || (quietUntil[id] ?? 0) > now()
+        isAnimating(id) || quietEnd(id) != nil
+    }
+
+    package func quietEnd(_ id: CGWindowID) -> CFTimeInterval? {
+        quietUntil[id].flatMap { $0 > now() ? $0 : nil }
     }
 
     package func isAnimating(_ id: CGWindowID) -> Bool {

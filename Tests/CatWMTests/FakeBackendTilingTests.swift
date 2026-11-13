@@ -160,14 +160,31 @@ import Testing
         #expect(manager.scanWaiters.isEmpty)
     }
 
+    @Test func aSettleOnALayoutThatNeverConvergesEnds() async {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = fake.makeManager()
+        fake.addWindow()
+        fake.addWindow()
+        #expect(await fake.settle(manager))
+        var flips = 0, written = fake.writes.count
+        manager.onChange = {
+            guard fake.writes.count != written else { return }
+            written = fake.writes.count
+            flips += 1
+            manager.state(for: screen).layout = flips.isMultiple(of: 2) ? .wide : .tall
+        }
+        manager.state(for: screen).layout = .wide
+        #expect(await !fake.settle(manager))
+        #expect(flips < 50)
+    }
+
     @Test func aMinimumSizePushesTheNeighbour() async {
         let fake = FakeBackend()
         let screen = fake.addScreen()
         let manager = fake.makeManager()
         let wide = fake.addWindow(minSize: CGSize(width: 1000, height: 0)), other = fake.addWindow(pid: -101)
-        await fake.settle(manager)
-        #expect(await fake.wait(manager) { manager.minSizes[wide] != nil })
-        await fake.settle(manager)
+        #expect(await fake.settle(manager))
         #expect(manager.minSizes[wide]?.width == 1000)
         #expect(fake.frame(of: wide).width == 1000)
         #expect(fake.frame(of: other).width == screen.visible.width - 1000)
@@ -181,8 +198,8 @@ import Testing
         let stack = fake.addWindow(pid: -101, minSize: CGSize(width: 300, height: 0)), main = fake.addWindow()
         #expect(await fake.settle(manager))
         manager.dispatch("splitratio", "exact 0.8")
-        #expect(await fake.wait(manager) { manager.minSizes[stack] != nil })
         #expect(await fake.settle(manager))
+        #expect(manager.minSizes[stack] != nil)
         #expect(fake.frame(of: main) == CGRect(x: 0, y: 0, width: 700, height: 600))
         #expect(fake.frame(of: stack) == CGRect(x: 700, y: 0, width: 300, height: 600))
         expectTiles([fake.frame(of: main), fake.frame(of: stack)], fill: screen.visible)
@@ -194,9 +211,8 @@ import Testing
         let manager = fake.makeManager { $0.layouts = [.wide] }
         let tall = fake.addWindow(minSize: CGSize(width: 0, height: 600))
         let ids = [tall, fake.addWindow(pid: -101), fake.addWindow(pid: -102)]
-        await fake.settle(manager)
-        #expect(await fake.wait(manager) { manager.minSizes[tall] != nil })
-        await fake.settle(manager)
+        #expect(await fake.settle(manager))
+        #expect(manager.minSizes[tall] != nil)
         #expect(fake.frame(of: tall).height == 600)
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
     }
@@ -226,12 +242,17 @@ import Testing
         #expect(Set(manager.windows.keys) == Set(ids))
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
         let before = ids.map(fake.frame(of:))
-        let start = CACurrentMediaTime()
+        let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), wallStart = CACurrentMediaTime()
         manager.setLayout(.wide, on: screen)
-        let elapsed = CACurrentMediaTime() - start
+        let elapsed = Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start) / 1e9
+        let wall = CACurrentMediaTime() - wallStart
         await fake.settle(manager)
         #expect(ids.map(fake.frame(of:)) != before)
         expectTiles(ids.map(fake.frame(of:)), fill: screen.visible)
-        #expect(elapsed < 0.05, "The main thread took \(elapsed) s to tile 200 windows again")
+        #expect(elapsed < 0.05, "The main thread spent \(elapsed) s of CPU to tile 200 windows again")
+        #expect(wall < 1, """
+            The relayout held the main thread for \(wall) s. CPU time misses a thread blocked on a lock, \
+            a sync or the window server, so wall time has its own bound, 20 times the CPU one.
+            """)
     }
 }

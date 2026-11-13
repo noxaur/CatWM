@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import os
 import Testing
@@ -35,41 +36,41 @@ import Testing
 
     @Test func cancellingAQueuedVerificationPreventsItsWrite() async {
         let writer = AXWriter(pid: getpid())
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let ran = ResultBox()
-        writer.run { _ = release.wait(timeout: .now() + 2) }
+        writer.run { release.block() }
         writer.run(for: 42) { _ in ran.value = true }
         writer.cancel(42)
-        release.signal()
+        release.open()
         await drain(writer)
         #expect(!ran.value)
     }
 
     @Test func cancellingDuringReadInvalidatesTheFollowingWrite() async {
         let writer = AXWriter(pid: getpid())
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let valid = ResultBox()
         await withCheckedContinuation { started in
             writer.run(for: 42) { isCurrent in
                 started.resume()
-                _ = release.wait(timeout: .now() + 2)
+                release.block()
                 valid.value = isCurrent()
             }
         }
         writer.cancel(42)
-        release.signal()
+        release.open()
         await drain(writer)
         #expect(!valid.value)
     }
 
     @Test func anotherWindowsCancellationDoesNotDropTheCurrentWrite() async {
         let writer = AXWriter(pid: getpid())
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let ran = ResultBox()
-        writer.run { _ = release.wait(timeout: .now() + 2) }
+        writer.run { release.block() }
         writer.run(for: 42) { isCurrent in ran.value = isCurrent() }
         writer.cancel(43)
-        release.signal()
+        release.open()
         await drain(writer)
         #expect(ran.value)
     }

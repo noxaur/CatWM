@@ -133,4 +133,25 @@ import Testing
             #expect(left.visible.contains(fake.frame(of: first)))
         }
     }
+
+    @Test func aWindowMovedToADisplayComesBackAfterTheHoldEndsWithoutARefresh() async throws {
+        let fake = FakeBackend()
+        let left = fake.addScreen()
+        let right = fake.addScreen(frame: left.frame.offsetBy(dx: left.frame.width, dy: 0))
+        let manager = fake.makeManager()
+        let id = fake.addWindow()
+        #expect(await fake.settle(manager))
+        try await focus(id, in: fake, manager: manager)
+        manager.dispatch("movewindow", "mon:1")
+        for _ in 0..<3 {
+            await withCheckedContinuation { done in manager.animator.afterPendingWrites { done.resume() } }
+            fake.clock.advance(by: 1)
+        }
+        #expect(right.visible.contains(fake.frame(of: id)))
+        #expect(manager.animator.quietEnd(id) == nil)
+        manager.dispatch("movewindow", "mon:0")
+        #expect(await fake.settle(manager))
+        #expect(left.visible.contains(fake.frame(of: id)))
+        #expect(manager.tiled(on: left) == [id])
+    }
 }

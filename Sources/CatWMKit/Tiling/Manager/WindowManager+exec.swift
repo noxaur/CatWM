@@ -38,6 +38,9 @@ extension WindowManager {
         } else {
             assignTabs(of: window.id, to: shown[dst.uuid])
             refresh()
+            for member in tabs.group(of: window.id)?.members ?? [window.id] where animator.isBusy(member) {
+                displayOf[member] = dst.uuid
+            }
         }
         if target == nil { focus(window) }
     }

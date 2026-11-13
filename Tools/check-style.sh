@@ -56,6 +56,8 @@ TILING_UI = re.compile(
 SESSION_APP = re.compile(r"\b(?:WindowManager|WorkspaceModel|Layout|Theme|HUD)\b")
 AX_APP = re.compile(r"\bAXUIElementCreateApplication\(")
 AX_APP_OWNER = "Sources/CatWMKit/Session/AX/AXRead.swift"
+REAL_INPUT = re.compile(r"\.post\(tap:|\bCGEventPost\(|\bCGWarpMouseCursorPosition\(")
+REAL_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/RealInput.swift"
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
 SYSTEM_LOG_ALLOW = ("Sources/CatWM/main.swift",)
 INTERNALS = "docs/internals"
@@ -165,6 +167,8 @@ def banned(path, code, uses_defaults=False):
         hits.append("CatWM type in Session. Put it in Templates")
     if path.startswith(SOURCES) and path != AX_APP_OWNER and AX_APP.search(code):
         hits.append("AXUIElementCreateApplication. Use axApp(pid), which sets the AX timeout")
+    if path.startswith(SOURCES) and path != REAL_INPUT_OWNER and REAL_INPUT.search(code):
+        hits.append("real input post. Use RealInput.post or RealInput.warpPointer, which refuse in tests and fake-backed processes")
     if path.startswith(SOURCES) and path not in SYSTEM_LOG_ALLOW and SYSTEM_LOG.search(code):
         hits.append("NSLog or print. Use Log, which Send Feedback reads")
     if path.startswith(SOURCES) and path not in IGNORED_WRITE_ALLOW and IGNORED_WRITE.search(code):
@@ -315,6 +319,10 @@ def main():
             for number, line in enumerate(handle, 1):
                 if RECIPE_HEADING.match(line):
                     failures.append((path, number, "docs: docs/internals records architecture and why, not steps. Delete the recipe, or put it in a skill under .agents/skills/", line.strip()))
+    index = open(os.path.join(ROOT, "docs/README.md"), encoding="utf-8").read()
+    for name in sorted(os.listdir(os.path.join(ROOT, "docs/user"))):
+        if name.endswith(".md") and f"(user/{name})" not in index:
+            failures.append(("docs/README.md", 1, f"docs: list user/{name} here with a link and one line on what it covers", ""))
     import importlib.util
     spec = importlib.util.spec_from_file_location("catalog_generator", os.path.join(ROOT, "Tools/generate-catalogs.py"))
     generator = importlib.util.module_from_spec(spec)

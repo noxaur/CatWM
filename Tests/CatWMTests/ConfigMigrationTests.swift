@@ -55,8 +55,7 @@ import Testing
         #expect(result.source.contains("const mod = \"cmd\""))
         #expect(result.source.contains("catwm.bind([mod, \"shift\"], \"3\", [\"movetoworkspace\", \"3\"])"))
         #expect(result.source.contains("catwm.bind([mod], \"t\", [\"exec\", `open -a ${term}`])"))
-        #expect(result.source.contains("// half the gap\ncatwm.gaps.size = 6"))
-        #expect(result.source.contains("catwm.gaps.smart = false"))
+        #expect(result.source.contains("catwm.gaps = {\n  // half the gap\n  size: 6,\n  smart: false,\n}"))
         #expect(result.source.contains("catwm.motion.enabled = false"))
         #expect(result.source.contains("// my main key\nconst mod"))
         let note = "// catwm migration: not converted (unknown option `frobnicate`): frobnicate = 7"

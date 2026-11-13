@@ -120,8 +120,7 @@ package final class AXBackend: WindowBackend, Sendable {
     @MainActor package func pointerLocation() -> CGPoint { mouseLocation() }
 
     @MainActor package func warpPointer(to point: CGPoint) {
-        guard RealInput.allows("pointer warp") else { return }
-        CGWarpMouseCursorPosition(point)
+        RealInput.warpPointer(to: point)
     }
 
     @MainActor package func post(keyCode: UInt16, flags: CGEventFlags, style: Hotkeys.PostStyle) {
@@ -133,7 +132,7 @@ package final class AXBackend: WindowBackend, Sendable {
               let event = CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: type,
                                   mouseCursorPosition: point, mouseButton: .left) else { return }
         event.setIntegerValueField(.eventSourceUserData, value: Hotkeys.syntheticMarker)
-        event.post(tap: .cghidEventTap)
+        RealInput.post(event, to: .cghidEventTap, "mouse event")
     }
 
     @MainActor package func serverFrame(of id: CGWindowID) -> CGRect? {

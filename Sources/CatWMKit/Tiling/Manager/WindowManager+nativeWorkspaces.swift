@@ -255,20 +255,6 @@ extension WindowManager {
         previousWorkspace = moved(previousWorkspace).mapValues(shifted)
     }
 
-    package func showMaximised(_ window: Window) -> Bool {
-        guard config.virtualWorkspaces, window.fullscreen, let space = Spaces.of(window: window.id).first,
-              let screen = backend.screens().first(where: {
-                  Spaces.list(display: $0.uuid)?.ids.contains(space) == true
-              }),
-              backend.currentSpace(display: screen.uuid) != space else { return false }
-        desktops.nativeWorkspaceGeneration += 1
-        configureNativeController(focusing: window, focus: true, quiet: true,
-                                  toward: Self.spaceWorkspace(display: screen.uuid, space: space))
-        nativeDesktop.request(.init(workspace: Self.spaceWorkspace(display: screen.uuid, space: space),
-                                    display: screen.uuid, space: space))
-        return true
-    }
-
     package func configureNativeController(
         focusing preferred: Window?, focus takesFocus: Bool, quiet: Bool, toward workspace: String? = nil
     ) {

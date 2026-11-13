@@ -54,12 +54,4 @@ extension WindowManager {
         scanWaiters.removeAll { $0.request <= request }
         ready.forEach { $0.done() }
     }
-
-    package func finishTemplateRestore() {
-        restoringTemplate = false
-        refreshWork?.cancel()
-        refreshWork = nil
-        refreshDeadline = .distantFuture
-        scheduleRefresh(after: 0)
-    }
 }

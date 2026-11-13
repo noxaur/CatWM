@@ -1,6 +1,6 @@
 # Agent display
 
-An agent display is a private virtual display that one owner object holds for an agent. The agent's apps open their windows on it, so they never take the user's focus, Desktop or cursor, and the user's CatWM never tiles them. `AgentDisplay` (`Sources/CatWMKit/Tiling/Spaces/`) is the engine part. The `agent.*` commands and the Python `Sandbox` drive it.
+An agent display is a private virtual display that one owner object holds for an agent. The agent's apps open their windows on it, so they never take the user's focus, Desktop or cursor, and the user's CatWM never tiles them. `AgentDisplay` (`Sources/CatWMKit/Tiling/AgentDisplay/`) is the engine part. The `agent.*` commands and the Python `Sandbox` drive it.
 
 ## Decisions
 

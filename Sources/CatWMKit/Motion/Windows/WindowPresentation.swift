@@ -7,9 +7,11 @@ import AppKit
     func update(_ frames: [CGWindowID: CGRect])
     func cancel(_ id: CGWindowID)
     func close()
+    func isFilling(_ id: CGWindowID) -> Bool
 }
 
 extension WindowPresentation {
     package func follow(_ moves: [Animator.Move]) { prepare(moves, spec: .instant) }
     package func sizing(for _: Animator.Move, from _: CGRect, spec _: MotionSpec) -> ColorFillSizing? { nil }
+    package func isFilling(_: CGWindowID) -> Bool { false }
 }

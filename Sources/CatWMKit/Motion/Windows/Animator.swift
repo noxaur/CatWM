@@ -20,19 +20,22 @@ import QuartzCore
     package var makeResizeScene: (([Move]) -> WindowResizeScene?)?
     package var windowPresentation: (any WindowPresentation)?
     private var resizeScene: WindowResizeScene?
-    private var clock: WindowFrameClock?
-    private var timing = Timing()
-    private var endRun: (([SlowApp]) -> Void)?
-    package var beginRun: (String) -> (([SlowApp]) -> Void)? = { _ in nil }
+    private var clock: (any FrameClock)?
+    private let makeClock: MakeClock, now: () -> CFTimeInterval
+    package let motionRun: MotionRun
     package var onMinimumSize: ((CGWindowID, CGSize) -> Void)?
     package var onTopRefused: ((_ target: CGRect, _ actual: CGRect) -> Void)?
     package var onLanded: (() -> Void)?
 
     package init(backend: any WindowBackend = AXBackend.shared, makeWriter: ((pid_t) -> AXWriter)? = nil,
-                 applyFocus: @escaping @Sendable (Window, @Sendable () -> Bool) -> Void = { $0.focus(ifCurrent: $1) }) {
+                 applyFocus: @escaping @Sendable (Window, @Sendable () -> Bool) -> Void = { $0.focus(ifCurrent: $1) },
+                 now: @escaping () -> CFTimeInterval = CACurrentMediaTime,
+                 makeClock: @escaping MakeClock = Animator.displayLink) {
         self.backend = backend
         self.makeWriter = makeWriter ?? { AXWriter(pid: $0, backend: backend) }
         self.applyFocus = applyFocus
+        (self.now, self.makeClock) = (now, makeClock)
+        motionRun = MotionRun { backend.serverFrame(of: $0) }
     }
 
     deinit {
@@ -78,7 +81,7 @@ import QuartzCore
     }
 
     package func isBusy(_ id: CGWindowID) -> Bool {
-        isAnimating(id) || (quietUntil[id] ?? 0) > CACurrentMediaTime()
+        isAnimating(id) || (quietUntil[id] ?? 0) > now()
     }
 
     package func isAnimating(_ id: CGWindowID) -> Bool {
@@ -102,7 +105,7 @@ import QuartzCore
     }
 
     package func quiet(_ id: CGWindowID, for seconds: Double = 0.4) {
-        quietUntil[id] = CACurrentMediaTime() + seconds
+        quietUntil[id] = now() + seconds
     }
 
     package func animate(_ moves: [Move], duration: Double, curve: AnimationCurve = .easeOut, bounce: Double = 0) {
@@ -114,7 +117,7 @@ import QuartzCore
         let batches = batches.filter { !$0.moves.isEmpty }
         guard !batches.isEmpty else { return }
         prepareResizeScene(for: batches.filter { $0.spec.duration >= 0.08 }.flatMap(\.moves))
-        let now = CACurrentMediaTime()
+        let now = now()
         for batch in batches { batch.moves.forEach { start($0, spec: batch.spec, at: now) } }
         for batch in batches { windowPresentation?.prepare(batch.moves, spec: batch.spec) }
         startClock()
@@ -184,9 +187,10 @@ import QuartzCore
         group.notify(queue: completionQueue, execute: completion)
     }
 
-    private func tick(at presentation: CFTimeInterval) {
-        let now = CACurrentMediaTime()
-        timing.tick(at: now)
+    private func tick(shown: CFTimeInterval, presentation: CFTimeInterval) {
+        motionRun.measure(items.filter { resizeScene?.covers($0.key) != true }, at: shown, shown: windowPresentation)
+        let started = CACurrentMediaTime()
+        motionRun.tick(at: now())
         resizeScene?.update(items.mapValues { $0.frame(at: presentation, aligned: false) })
         let ordered = items.sorted {
             let left = $0.value.colorSizing?.releasesSpace == true
@@ -205,14 +209,10 @@ import QuartzCore
             }
         }
         updateWindowPresentation(at: presentation)
-        timing.ticks.add(CACurrentMediaTime() - now)
+        motionRun.ticked(CACurrentMediaTime() - started)
         if items.isEmpty {
             clock?.stop(); clock = nil
-            let stats = writers.map { ($0.key, $0.value.takeStats()) }
-            endRun?(stats.compactMap(Self.slowApp))
-            endRun = nil
-            timing.log(stats)
-            timing = Timing()
+            motionRun.end(writers.map { ($0.key, $0.value.takeStats()) })
         }
     }
 
@@ -222,7 +222,7 @@ import QuartzCore
         let number = landings
         let epoch = epochs[id] ?? nextEpoch(for: id)
         landing[id] = (move, number)
-        quietUntil[id] = CACurrentMediaTime() + 0.4
+        quietUntil[id] = now() + 0.4
         resizeScene?.cover(id, to: move.target)
         writer(move.window.pid).land(move.window, at: move.target) { [weak self] wrote in
             guard let self, self.landing[id]?.number == number else { return }
@@ -231,7 +231,7 @@ import QuartzCore
             if wrote { self.resizeScene?.placed(id, at: move.target) }
             self.finishResizeScene()
             if wrote { self.onLanded?() }
-            self.quietUntil[id] = CACurrentMediaTime() + 0.4
+            self.quietUntil[id] = self.now() + 0.4
             DispatchQueue.main.asyncAfter( // style-ok: an app that ignores a write sends no event
                 deadline: .now() + 0.12
             ) { [weak self] in self?.verify(move, epoch: epoch) }
@@ -242,7 +242,7 @@ import QuartzCore
         let window = move.window
         guard epochs[window.id, default: 0] == epoch, items[window.id] == nil, landing[window.id] == nil,
               !window.placementSuspended else { return }
-        quietUntil[window.id] = CACurrentMediaTime() + 0.4
+        quietUntil[window.id] = now() + 0.4
         let writer = writer(window.pid)
         writer.run(for: window.id) { [weak self, backend] isCurrent in
             var actual = window.frame
@@ -265,7 +265,7 @@ import QuartzCore
             }
             DispatchQueue.main.async { [actual] in
                 guard let self, self.epochs[window.id, default: 0] == epoch else { return }
-                self.quietUntil[window.id] = CACurrentMediaTime() + 0.4
+                self.quietUntil[window.id] = self.now() + 0.4
                 if let minimum { self.onMinimumSize?(window.id, minimum) }
                 if !actual.isNull, actual.minY > move.target.minY + 1 { self.onTopRefused?(move.target, actual) }
             }
@@ -280,7 +280,7 @@ extension Animator {
             if items[id] != nil || landing[id] != nil { cancel(id) }
             owners[id] = move.window.pid
             following.add(move)
-            quietUntil[id] = CACurrentMediaTime() + 0.4
+            quietUntil[id] = now() + 0.4
         }
         windowPresentation?.follow(moves)
         updateWindowPresentation()
@@ -294,8 +294,9 @@ extension Animator {
         }
     }
 
-    private func updateWindowPresentation(at time: CFTimeInterval = CACurrentMediaTime()) {
+    private func updateWindowPresentation(at time: CFTimeInterval? = nil) {
         guard let windowPresentation else { return }
+        let time = time ?? now()
         let samples = items.mapValues { $0.frame(at: time, aligned: false) }
         let moving = following.frames.merging(samples) { _, frame in frame }
         windowPresentation.update(moving.merging(landing.mapValues { $0.move.target }) { frame, _ in frame })
@@ -337,20 +338,16 @@ extension Animator {
         let screens = backend.screens().filter { screen in
             items.values.contains { $0.move.target.intersects(screen.frame) }
         }.compactMap(\.nsScreen)
-        guard let screen = screens.max(by: { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond })
-            ?? NSScreen.main else {
+        let screen = screens.max(by: { $0.maximumFramesPerSecond < $1.maximumFramesPerSecond }) ?? NSScreen.main
+        guard clock == nil || clock?.displayID != screen?.displayID else { return }
+        guard let next = makeClock(screen, { [weak self] in self?.tick(shown: $0, presentation: $1) }) else {
             let unfinished = Array(items.values)
             items.removeAll()
             unfinished.forEach { land($0.move) }
             return
         }
-        if clock == nil {
-            endRun = beginRun("window-move")
-        }
-        if clock?.displayID != screen.displayID {
-            clock?.stop()
-            clock = WindowFrameClock(screen: screen) { [weak self] time in self?.tick(at: time) }
-        }
+        if clock == nil { motionRun.begin("window-move") }
+        clock?.stop(); clock = next
     }
 
     private func writer(_ pid: pid_t) -> AXWriter {

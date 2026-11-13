@@ -646,6 +646,33 @@
     {
       "args" : [
         {
+          "name" : "target",
+          "required" : true,
+          "summary" : "A window target: `app:<bundle ID, `*` at the end, or /regex/>`, `title:<text or /regex/>`, `id:<window ID>`, `pid:<pid>`, `workspace:<name>` or `display:<name>`",
+          "type" : "string"
+        }
+      ],
+      "group" : "focus",
+      "name" : "focuswindow",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Focus the window that a target names, on any workspace or display"
+    },
+    {
+      "args" : [
+
+      ],
+      "group" : "focus",
+      "name" : "focuslast",
+      "result" : {
+        "kind" : "none"
+      },
+      "summary" : "Focus the window that had focus before this one"
+    },
+    {
+      "args" : [
+        {
           "name" : "name",
           "required" : true,
           "summary" : "The mode name, or `reset` to leave the mode",

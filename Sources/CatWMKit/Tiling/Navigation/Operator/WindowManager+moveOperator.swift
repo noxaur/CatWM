@@ -1,8 +1,8 @@
 import AppKit
 
 extension WindowManager {
-    package func moveWindow(_ direction: Direction) {
-        guard let window = focusedWindow(), !window.isFloating else { return }
+    package func moveWindow(_ direction: Direction, window target: Window? = nil) {
+        guard let window = target ?? focusedWindow(), !window.isFloating else { return }
         let candidates = order.filter { visible.contains($0) && !tabs.isBehind($0) }.compactMap { windows[$0] }
             .filter { !$0.isFloating }
         if let target = resolve(direction, from: window, among: candidates) { move(window, to: target) }

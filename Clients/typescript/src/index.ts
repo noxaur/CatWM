@@ -489,6 +489,16 @@ export class CatWM {
     await this.call("switcher", { "step": step });
   }
 
+  /** Focus the window that a target names, on any workspace or display */
+  async focuswindow(target: string): Promise<void> {
+    await this.call("focuswindow", { "target": target });
+  }
+
+  /** Focus the window that had focus before this one */
+  async focuslast(): Promise<void> {
+    await this.call("focuslast");
+  }
+
   /** Enter a key mode, or leave it */
   async submap(name: string): Promise<void> {
     await this.call("submap", { "name": name });

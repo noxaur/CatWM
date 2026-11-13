@@ -47,7 +47,7 @@ extension WindowActions {
             ActionPicker("Move Window to Display \(direction.title)", .displays, "mon:\(direction.rawValue)",
                          "arrow.\(direction.symbolName).square", focusRequired: true, order: index + 1)
         }
-    ) { $0.manager.moveWindowCommand($0.arg) }
+    ) { $0.manager.moveWindowCommand($0.arg, window: $0.target) }
 
     package static let swapwindow = WindowAction.direction(
         "swapwindow", "window", "Swap the focused window with its neighbour"
@@ -63,7 +63,7 @@ extension WindowActions {
 
     package static let togglefloating = WindowAction(
         name: "togglefloating", group: "window", summary: "Float or tile the focused window"
-    ) { $0.manager.toggleFloating() }
+    ) { $0.manager.toggleFloating(window: $0.target) }
 
     package static let setfloating = WindowAction(
         name: "setfloating", group: "window", summary: "Float the focused window"
@@ -106,12 +106,12 @@ extension WindowActions {
 
     package static let nativefullscreen = WindowAction(
         name: "nativefullscreen", group: "window", summary: "Give the focused window a macOS full screen Desktop"
-    ) { $0.manager.toggleNativeFullscreen() }
+    ) { $0.manager.toggleNativeFullscreen(of: $0.target) }
 
     package static let minimize = WindowAction(
         name: "minimize", group: "window", summary: "Minimise the focused window"
     ) { context in
-        if let window = context.manager.focusedWindow() { context.manager.minimize(window) }
+        if let window = context.window { context.manager.minimize(window) }
     }
 
     package static let killactive = WindowAction(
@@ -119,7 +119,7 @@ extension WindowActions {
     ) { context in
         let manager = context.manager
         manager.closeAndSort.lastClose = Date()
-        _ = manager.focusedWindow().map { manager.closeWindow($0.id) }
+        _ = context.window.map { manager.closeWindow($0.id) }
     }
 
     package static let moveintogroup = WindowAction.direction(
@@ -130,7 +130,7 @@ extension WindowActions {
         }
     ) { context in
         let manager = context.manager
-        guard let window = manager.focusedWindow(), let direction = Direction(context.arg), !window.isFloating else {
+        guard let window = context.window, let direction = Direction(context.arg), !window.isFloating else {
             return
         }
         let candidates = manager.order.filter {
@@ -144,7 +144,7 @@ extension WindowActions {
         name: "moveoutofgroup", group: "tabs", summary: "Take the focused window out of its tabs",
         pickers: [ActionPicker("Remove Window From Tabs", .move, "", "rectangle.stack.badge.minus")]
     ) { context in
-        if let window = context.manager.focusedWindow() { context.manager.untab(window.id) }
+        if let window = context.window { context.manager.untab(window.id) }
     }
 
     package static let changegroupactive = WindowAction.text(
@@ -156,7 +156,7 @@ extension WindowActions {
         ]
     ) { context in
         let manager = context.manager
-        guard let window = manager.focusedWindow() else { return }
+        guard let window = context.window else { return }
         let lowered = context.arg.lowercased()
         if let index = Int(lowered), let members = manager.tabs.group(of: window.id)?.members,
            members.indices.contains(index - 1) {
@@ -173,7 +173,7 @@ extension WindowActions {
             ActionPicker("Move Tab Left", .move, "b", "arrow.left.to.line")
         ]
     ) { context in
-        guard let window = context.manager.focusedWindow() else { return }
+        guard let window = context.window else { return }
         context.manager.moveTab(window.id, by: context.tabBackward ? -1 : 1)
     }
 }

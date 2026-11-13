@@ -137,8 +137,8 @@ extension ConfigScript {
                 config.mainMod = CGEventFlags(rawValue: UInt64(flags.rawValue))
             case .layouts: readLayouts(value, path: path, into: &config)
             case .floatingApps:
-                guard let apps = strings(value, path: path) else { return }
-                config.floating = Config.listItems(apps.joined(separator: ","))
+                guard let apps = patterns(value, path: path) else { return }
+                config.floating = Config.unique(apps)
             case .padding:
                 guard let number = value.double else {
                     return fail(path, "must be a number or { left, right, top, bottom }")
@@ -198,7 +198,7 @@ extension ConfigScript {
             case (.number, .number(let number)): text = "\(number)"
             case (.string, .string(let string)): text = string
             case (.strings, .array):
-                guard let items = strings(value, path: path) else { return }
+                guard let items = patterns(value, path: path) else { return }
                 text = items.joined(separator: ", ")
             default:
                 let noun = switch option.scriptKind {
@@ -220,6 +220,25 @@ extension ConfigScript {
                 return nil
             }
             return list.compactMap(\.string)
+        }
+
+        mutating func patterns(_ value: JSON, path: String) -> [String]? {
+            guard let items = strings(value, path: path) else { return nil }
+            for item in items where item.first == "/" {
+                do {
+                    guard try TextPattern.regex(written: item) != nil else { continue }
+                } catch let failure as TextPattern.Failure {
+                    fail(path, "has the entry `\(item)`, which \(failure.message)")
+                    return nil
+                } catch {
+                    return nil
+                }
+                if item.contains(",") {
+                    fail(path, "has the regular expression `\(item)`, which holds a comma. Write `[,]` instead")
+                    return nil
+                }
+            }
+            return items
         }
 
         private mutating func flags(_ value: JSON, path: String) -> NSEvent.ModifierFlags? {

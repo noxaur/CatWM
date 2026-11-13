@@ -101,19 +101,21 @@ package enum ConfigTypes {
             insert(path.split(separator: ".").map(String.init), .leaf(leaf), into: &root)
         }
         func addList(_ path: String, _ element: String, _ doc: String, scoped: Bool = false) {
-            add(path, read: "List<\(element)>", write: "readonly \(element)[] | undefined", doc, scoped: scoped)
+            let item = element.contains(" ") ? "(\(element))" : element
+            add(path, read: "List<\(element)>", write: "readonly \(item)[] | undefined", doc, scoped: scoped)
         }
         add("mod", read: "Mod | readonly Mod[]",
             "Your main modifier. Window mode and the pointer actions use it. The default is `alt`.")
         addList("layouts", "Layout", "The layouts that `cyclelayout` steps through, each one once.", scoped: true)
-        addList("floating.apps", "string",
-                "Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app.")
+        addList("floating.apps", "string | RegExp",
+                "Bundle IDs of the apps that float. `com.adobe.*` matches every Adobe app, and a RegExp matches "
+                    + "the bundle IDs it fits.")
         add("motion.style", read: "MotionStyle | undefined",
             "Sets the duration, curve and bounce together, like the style tiles in Settings → Motion. "
                 + "A field you set after it overrides only that field.", scoped: true)
         for option in Options.all {
             if option.scriptKind == .strings {
-                addList(option.script, "string", doc(option), scoped: option.isScoped)
+                addList(option.script, "string | RegExp", doc(option), scoped: option.isScoped)
             } else {
                 add(option.script, read: type(option), doc(option), scoped: option.isScoped)
             }

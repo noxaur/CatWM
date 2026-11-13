@@ -100,7 +100,8 @@ extension WindowManager {
             return
         }
         let arg = rawArg.trimmingCharacters(in: .whitespaces)
-        if deferFocusCommand(dispatcher, arg: arg, inMode: inMode) { return }
+        guard let (target, rest) = resolveTarget(of: dispatcher, in: arg) else { return }
+        if target == nil, deferFocusCommand(dispatcher, arg: arg, inMode: inMode) { return }
         let timing = TilingTiming("command \(dispatcher)", windows: windows.count)
         defer { timing.finish() }
         defer { onDispatch?(dispatcher, arg, inMode) }
@@ -112,14 +113,14 @@ extension WindowManager {
             Log.info("unknown dispatcher \(dispatcher)")
             return
         }
-        action.run(ActionContext(manager: self, arg: arg))
+        action.run(ActionContext(manager: self, arg: rest, target: target))
     }
 
-    package func moveWindowCommand(_ arg: String) {
+    package func moveWindowCommand(_ arg: String, window target: Window? = nil) {
         if arg.lowercased().hasPrefix("mon:") {
-            moveToMonitor(String(arg.dropFirst(4)))
+            moveToMonitor(String(arg.dropFirst(4)), window: target)
         } else if let direction = Direction(arg) {
-            moveWindow(direction)
+            moveWindow(direction, window: target)
         }
     }
 

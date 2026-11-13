@@ -88,7 +88,7 @@ package enum WindowActions {
         moveintogroup, moveoutofgroup, changegroupactive, movegroupwindow,
         layoutmsg, splitratio, cyclelayout, layout, toggletiling, retile,
         workspace, movetoworkspace, movetoworkspacesilent, sethomespace,
-        sort, sortUndo, switcher,
+        sort, sortUndo, switcher, focuswindow, focuslast,
         submap, reload, exit, exec, launch
     ]
 

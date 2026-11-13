@@ -130,7 +130,7 @@ import Testing
         #expect(rule.when.holds(world.manager.ruleFacts(of: window)))
     }
 
-    @Test func aRuleDoesNotTakeAZoomedWindowOutOfFullscreen() async throws {
+    @Test func aRuleDoesNotTakeAFullscreenWindowOutOfFullscreen() async throws {
         let world = try makeWorld()
         let id = world.fake.addWindow(bundleID: app)
         world.fake.addWindow(pid: -101, bundleID: "test.other.app")
@@ -138,12 +138,12 @@ import Testing
         try await focus(id, in: world)
         world.manager.dispatch("fullscreen", "")
         let screen = try #require(world.fake.screens().first)
-        #expect(await world.fake.wait(world.manager) { world.manager.state(for: screen).zoomed == id })
+        #expect(await world.fake.wait(world.manager) { world.manager.state(for: screen).fullscreen == id })
 
         try save(world, "catwm.windows({ app: \"\(app)\" }, (win) => { win.fullscreen() })")
         #expect(await world.fake.settle(world.manager))
 
-        #expect(world.manager.state(for: screen).zoomed == id)
+        #expect(world.manager.state(for: screen).fullscreen == id)
     }
 
     @Test func aThrowingKeyFunctionRunsNoActions() async throws {

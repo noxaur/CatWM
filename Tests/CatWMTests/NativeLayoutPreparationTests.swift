@@ -16,7 +16,7 @@ import Testing
         original.windows = [1: first, 2: second]
         original.order = [1, 2]
         for id: CGWindowID in [1, 2] { original.model.assign(id, to: "test") }
-        original.state(workspace: "test").zoomed = 2
+        original.state(workspace: "test").fullscreen = 2
         let frames = try #require(original.layoutTargets([1, 2], original.state(workspace: "test"), on: screen))
         first.remember(try #require(frames[1]))
         second.remember(try #require(frames[2]))

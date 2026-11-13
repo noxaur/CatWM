@@ -15,7 +15,7 @@ import Testing
         ], windows: [
             .init(bundleID: "com.example.editor", appName: "Editor", title: "Draft", document: "file:///tmp/draft.txt",
                   display: "external", frame: CGRect(x: 0, y: 24, width: 1300, height: 1176), floating: false,
-                  minimized: true, maximised: false, zoomed: true, focused: false, windowID: 42,
+                  minimized: true, maximised: false, fullscreen: true, focused: false, windowID: 42,
                   launchDate: Date(timeIntervalSince1970: 100))
         ])
     }
@@ -30,7 +30,7 @@ import Testing
         #expect(decoded.displays[1].frame.minX == -1000)
         #expect(decoded.windows[0].document == "file:///tmp/draft.txt")
         #expect(decoded.windows[0].minimized)
-        #expect(decoded.windows[0].zoomed)
+        #expect(decoded.windows[0].fullscreen)
         #expect(!decoded.windows[0].floating)
         #expect(decoded.screenshot == original.screenshot)
     }

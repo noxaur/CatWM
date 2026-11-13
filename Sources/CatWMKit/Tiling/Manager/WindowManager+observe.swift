@@ -156,7 +156,7 @@ extension WindowManager {
         dirtyFrames.remove(id)
         snapNextPlacement.remove(id)
         model.forget(id)
-        floats.floatFrames[id] = nil; floats.floatZoom[id] = nil; targets[id] = nil; minSizes[id] = nil
+        floats.floatFrames[id] = nil; floats.floatFullscreen[id] = nil; targets[id] = nil; minSizes[id] = nil
         corrections[id] = nil; drags[id] = nil
         displayOf[id] = nil
         nativeMoves.forget(id)

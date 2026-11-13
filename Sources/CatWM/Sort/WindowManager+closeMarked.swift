@@ -207,7 +207,7 @@ extension WindowManager {
             workspaceState.layout = savedState.layout
             workspaceState.ratio = savedState.ratio.isFinite ? min(0.9, max(0.1, savedState.ratio)) : 0.5
             workspaceState.mainCount = savedState.mainCount
-            workspaceState.zoomed = savedState.zoomed
+            workspaceState.fullscreen = savedState.fullscreen
         }
         for (workspace, id) in saved.lastFocused
         where lastFocused[workspace] == nil && windows[id] != nil && workspaceOf[id] == workspace {

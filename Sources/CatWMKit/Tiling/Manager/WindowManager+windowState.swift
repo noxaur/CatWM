@@ -10,7 +10,7 @@ extension WindowManager {
     package func setFloating(_ floating: Bool, for window: Window) {
         guard window.isFloating != floating else { return }
         window.userFloating = .chosen(floating)
-        floats.floatZoom[window.id] = nil
+        floats.floatFullscreen[window.id] = nil
         if floating {
             targets[window.id] = nil
         } else {
@@ -29,26 +29,26 @@ extension WindowManager {
         return (states[workspace]?.layout ?? config.layouts.first) == .floating
     }
 
-    package func toggleZoom(of target: Window? = nil) {
+    package func toggleFullscreen(of target: Window? = nil) {
         guard let window = target ?? focusedWindow(), let screen = screen(of: window) ?? currentScreen() else { return }
         let current = TilingContext(window: window, screen: screen, state: state(for: screen), ids: tiled(on: screen))
-        if floatsFreely(window.id) { return toggleFloatZoom(window) }
+        if floatsFreely(window.id) { return toggleFloatFullscreen(window) }
         guard current.ids.contains(window.id) else { return }
-        tilingRecovery.zoomed[workspaceKey(for: current.screen)] = nil
-        current.state.zoomed = current.state.zoomed == window.id ? nil : window.id
+        tilingRecovery.fullscreen[workspaceKey(for: current.screen)] = nil
+        current.state.fullscreen = current.state.fullscreen == window.id ? nil : window.id
         refresh()
         focus(window, warp: false)
     }
 
-    package func toggleFloatZoom(_ window: Window) {
+    package func toggleFloatFullscreen(_ window: Window) {
         guard let screen = screen(of: window) else { return }
         let fill = usableRect(screen).pixelAligned
         let frame = animator.destination(window.id) ?? window.cachedFrame
         let target: CGRect
-        if let saved = floats.floatZoom.removeValue(forKey: window.id), frame.approxEqual(fill) {
+        if let saved = floats.floatFullscreen.removeValue(forKey: window.id), frame.approxEqual(fill) {
             target = saved
         } else {
-            floats.floatZoom[window.id] = frame
+            floats.floatFullscreen[window.id] = frame
             target = fill
         }
         animator.animate([.init(window: window, to: target, bounds: screen.visible)],
@@ -85,7 +85,9 @@ extension WindowManager {
         )
         guard done else { return }
         if let id, !isOn {
-            for screen in backend.screens() where state(for: screen).zoomed == id { state(for: screen).zoomed = nil }
+            for screen in backend.screens() where state(for: screen).fullscreen == id {
+                state(for: screen).fullscreen = nil
+            }
         }
         scheduleRefresh(after: 0.8)
     }
@@ -102,10 +104,10 @@ extension WindowManager {
                 let state = self.state(for: screen)
                 let usable = self.usableRect(screen)
                 let fills = frame.width >= usable.width * 0.95 && frame.height >= usable.height * 0.95
-                if fills, state.zoomed != window.id {
-                    state.zoomed = window.id
-                } else if !fills, state.zoomed == window.id {
-                    state.zoomed = nil
+                if fills, state.fullscreen != window.id {
+                    state.fullscreen = window.id
+                } else if !fills, state.fullscreen == window.id {
+                    state.fullscreen = nil
                 }
                 self.scheduleRefresh()
             }

@@ -6,7 +6,7 @@ import ScreenCaptureKit
 package struct TemplateCaptureFacts: Sendable {
     package var tilingEnabled: Bool
     package var displays: [WorkspaceTemplate.Display]
-    package var zoomed: [String: CGWindowID]
+    package var fullscreen: [String: CGWindowID]
     package var order: [CGWindowID]
     package var currentSpaces: Set<UInt64>
     package var hiddenWorkspaceWindows: Set<CGWindowID>
@@ -49,7 +49,8 @@ package enum TemplateCaptureAssembler {
             captured.append(.init(bundleID: window.bundleID, appName: window.appName, title: window.title,
                                   document: window.document, display: display, frame: frame, floating: floating,
                                   minimized: window.minimized, maximised: window.maximised,
-                                  zoomed: facts.zoomed[display] == window.windowID, focused: focused == window.windowID,
+                                  fullscreen: facts.fullscreen[display] == window.windowID,
+                                  focused: focused == window.windowID,
                                   windowID: window.windowID, launchDate: window.launchDate))
         }
         var positions: [CGWindowID: Int] = [:]

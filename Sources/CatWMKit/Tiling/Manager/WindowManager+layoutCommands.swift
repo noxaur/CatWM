@@ -77,9 +77,9 @@ extension WindowManager {
 
     package func setLayout(_ layout: Layout, on screen: Screen) {
         let screenState = state(for: screen)
-        tilingRecovery.zoomed[workspaceKey(for: screen)] = nil
+        tilingRecovery.fullscreen[workspaceKey(for: screen)] = nil
         screenState.layout = layout
-        screenState.zoomed = nil
+        screenState.fullscreen = nil
         corrections = [:]
         refresh()
         if config.enablesLayoutHUD { surface.showHUD(layout.title, layout: layout, on: screen.nsScreen) }

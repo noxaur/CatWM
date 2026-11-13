@@ -27,7 +27,7 @@ extension WindowManager {
         var rect = target(frame, screen)
         rect.origin.x = max(screen.visible.minX, min(rect.minX, screen.visible.maxX - rect.width))
         rect.origin.y = max(screen.visible.minY, min(rect.minY, screen.visible.maxY - rect.height))
-        floats.floatZoom[window.id] = nil
+        floats.floatFullscreen[window.id] = nil
         animator.animate([.init(window: window, to: rect.pixelAligned, bounds: screen.visible)],
                          spec: motion(of: window))
     }

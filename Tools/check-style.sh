@@ -69,6 +69,8 @@ STORED_STATIC = re.compile(r"\bstatic var (?!defaultValue\b)\w+(?: *: *[^={]*)? 
 UNCHECKED = re.compile(r"@unchecked Sendable")
 ASSUME_MAIN = re.compile(r"\bMainActor\.assumeIsolated\b")
 TEST_WAIT = re.compile(r"\bThread\.sleep\(|\bTask\.sleep\(|\busleep\(|\basyncAfter\(")
+TEST_WAIT_RULE = "test-wait:"
+TEST_WAIT_REAL_SERVER = ("Tests/CatWMTests/AgentDisplayLiveTests.swift",)
 IGNORED_RUN = re.compile(r"^\s*(?:_\s*=\s*)?try\?\s+\w+\.run\s*\(")
 IGNORED_DIRECTORY = re.compile(r"^\s*(?:_\s*=\s*)?try\?\s+\w+(?:\.\w+)*\.createDirectory\s*\(")
 TEST_RUNLOOP = re.compile(r"^\s*RunLoop\.(?:main|current)\.run\s*\(\s*until\s*:\s*Date\(\)\.addingTimeInterval\s*\(")
@@ -78,6 +80,10 @@ STANDARD_DEFAULTS = re.compile(r"\bUserDefaults\.standard\b|\bUserDefaults *= *\
 INSTANCE = "Sources/CatWMKit/App/Instance.swift"
 TOOLS = "// swift-tools-version:"
 OK = re.compile(r"^// style-ok: (\S.*\S)$")
+LAYOUT_ENUM = "Sources/CatWMKit/Tiling/Layout/Layout.swift"
+SWITCH = re.compile(r"\bswitch\b[^{\n]*\{")
+CASE_LIST = re.compile(r"\[( *\.\w+(?: *, *\.\w+)+ *)\]\.contains\(")
+LAYOUT_FIX = "Layout. Name every case in an exhaustive switch, so a new layout must decide this capability"
 
 
 def swift_files():
@@ -182,7 +188,8 @@ def banned(path, code, uses_defaults=False):
     if path.startswith(SOURCES) and ASSUME_MAIN.search(code):
         hits.append("MainActor.assumeIsolated traps off the main thread. Hop to the main actor")
     if path.startswith("Tests/") and TEST_WAIT.search(code):
-        hits.append("sleep in a test. Wait on a condition or an injected clock")
+        fix = "sleep in a test. Wait on a condition, or step a FakeClock passed to makeManager(clock:) to run engine timers"
+        hits.append(fix if path in TEST_WAIT_REAL_SERVER else TEST_WAIT_RULE + " " + fix)
     if path.startswith(SOURCES) and IGNORED_RUN.search(code):
         hits.append("try? drops a run failure. Use do/catch and record the error with Log")
     if path.startswith(SOURCES) and IGNORED_DIRECTORY.search(code):
@@ -257,6 +264,90 @@ def catalog_violations(path, source):
     return failures
 
 
+def code_only(source):
+    out, i, n = list(source), 0, len(source)
+
+    def blank(start, stop):
+        for k in range(start, stop):
+            if out[k] != "\n":
+                out[k] = " "
+
+    while i < n:
+        if source.startswith("//", i):
+            stop = source.find("\n", i)
+            stop = n if stop < 0 else stop
+        elif source.startswith("/*", i):
+            stop = source.find("*/", i + 2)
+            stop = n if stop < 0 else stop + 2
+        elif source.startswith('"""', i):
+            stop = source.find('"""', i + 3)
+            stop = n if stop < 0 else stop + 3
+        elif source[i] == '"':
+            stop = i + 1
+            while stop < n and source[stop] not in '"\n':
+                stop += 2 if source[stop] == "\\" else 1
+            stop = min(stop + 1, n)
+        else:
+            i += 1
+            continue
+        blank(i, stop)
+        i = stop
+    return "".join(out)
+
+
+def layout_cases(source=None):
+    source = code_only(source or open(os.path.join(ROOT, LAYOUT_ENUM), encoding="utf-8").read())
+    body = source[source.index("{", source.index("enum Layout")) + 1:source.index("package var title")]
+    return {name for declaration in re.findall(r"^\s*case\b((?:[^\n]*,[ \t]*\n)*[^\n]*)", body, re.M)
+            for name in re.findall(r"(?:^|,)\s*(\w+)", declaration)}
+
+
+def case_label(code, start):
+    depth = 0
+    for index in range(start, len(code)):
+        char = code[index]
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == ":" and depth == 0:
+            return code[start:index]
+    return code[start:]
+
+
+def layout_violations(path, source, cases):
+    if not path.startswith(SOURCES):
+        return []
+    failures = []
+    lines = source.splitlines()
+    code = code_only(source)
+    for match in SWITCH.finditer(code):
+        depth, labels, default = 1, [], None
+        for inner in re.finditer(r"[{}]|^\s*case\b|^\s*default\s*:", code[match.end():], re.M):
+            text = inner.group(0)
+            if text == "{":
+                depth += 1
+            elif text == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif depth == 1 and text.lstrip().startswith("default"):
+                default = match.end() + inner.start()
+            elif depth == 1:
+                label = case_label(code, match.end() + inner.end())
+                labels.extend(part.strip() for part in label.split(","))
+        names = [label[1:] for label in labels if re.fullmatch(r"\.\w+", label)]
+        if default is not None and names and len(names) == len(labels) and set(names) <= cases:
+            number = code.count("\n", 0, default) + 1
+            failures.append((path, number, "default in a switch over " + LAYOUT_FIX, lines[number - 1].strip()))
+    for match in CASE_LIST.finditer(code):
+        if set(re.findall(r"\.(\w+)", match.group(1))) <= cases:
+            number = code.count("\n", 0, match.start()) + 1
+            failures.append((path, number, "list of Layout cases. Add a property on " + LAYOUT_FIX,
+                             lines[number - 1].strip()))
+    return failures
+
+
 def line_failures(path, source):
     failures = []
     in_multi = False
@@ -273,9 +364,12 @@ def line_failures(path, source):
         code = line if idx is None else line[:idx]
         hits = banned(path, code, uses_defaults)
         animation = [hit for hit in hits if hit.startswith(ANIMATION_RULE)]
-        others = [hit for hit in hits if not hit.startswith(ANIMATION_RULE)]
+        waits = [hit for hit in hits if hit.startswith(TEST_WAIT_RULE)]
+        others = [hit for hit in hits if hit not in animation and hit not in waits]
         for hit in animation:
             failures.append((path, number, hit[len(ANIMATION_RULE):].strip(), line.strip()))
+        for hit in waits:
+            failures.append((path, number, hit[len(TEST_WAIT_RULE):].strip(), line.strip()))
         if idx is None:
             for hit in others:
                 failures.append((path, number, hit, line.strip()))
@@ -291,6 +385,9 @@ def line_failures(path, source):
         match = OK.match(comment)
         if match and animation:
             failures.append((path, number, "style-ok cannot silence an animation rule. Add a token or helper in Motion/ instead", line.strip()))
+            continue
+        if match and waits:
+            failures.append((path, number, "style-ok cannot silence a test sleep. Engine timers run on a FakeClock passed to makeManager(clock:); only " + ", ".join(TEST_WAIT_REAL_SERVER) + " may wait on a real server", line.strip()))
             continue
         if match and reason_ok(match.group(1)) and others:
             continue
@@ -308,9 +405,12 @@ def line_failures(path, source):
 
 def main():
     failures = []
+    cases = layout_cases()
     for path in sorted(swift_files()):
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
-            failures.extend(catalog_violations(path, handle.read()))
+            source = handle.read()
+            failures.extend(catalog_violations(path, source))
+            failures.extend(layout_violations(path, source, cases))
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
             failures.extend(line_failures(path, handle.read()))
     for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS))):

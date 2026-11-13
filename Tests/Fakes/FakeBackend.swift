@@ -138,6 +138,14 @@ package final class FakeBackend: WindowBackend, Sendable {
         }
     }
 
+    package func userActivates(_ pid: pid_t, bundleID: String? = "test.fake.app") {
+        precondition(pid < 0, "A fake app uses a negative pid, so no AX call reaches a real app")
+        state.withLockUnchecked { state in
+            state.apps[pid] = state.apps[pid] ?? bundleID
+            state.front = pid
+        }
+    }
+
     package func setResizable(_ id: CGWindowID, _ resizable: Bool) {
         state.withLockUnchecked { state in state.windowList[id]?.resizable = resizable }
     }
@@ -279,7 +287,8 @@ package final class FakeBackend: WindowBackend, Sendable {
 extension FakeBackend {
     private static let defaults = Config.parse(defaultText)
 
-    @MainActor package func makeManager(_ configure: (inout Config) -> Void = { _ in }) -> WindowManager {
+    @MainActor package func makeManager(_ configure: (inout Config) -> Void = { _ in },
+                                        clock: FakeClock? = nil) -> WindowManager {
         var config = Self.defaults
         config.virtualWorkspaces = false
         config.animate = false
@@ -289,6 +298,7 @@ extension FakeBackend {
         config.paddingLeft = 0; config.paddingRight = 0; config.paddingTop = 0; config.paddingBottom = 0
         configure(&config)
         let manager = WindowManager(backend: self, config: config)
+        if let clock { manager.animator = Animator(backend: self, now: clock.now, delay: clock.delay) }
         manager.startEngine()
         return manager
     }

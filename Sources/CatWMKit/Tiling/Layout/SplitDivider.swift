@@ -10,7 +10,7 @@ package struct SplitDivider: Equatable {
     package var position: CGFloat { vertical ? frame.midX : frame.midY }
 
     package static func mains(_ layout: Layout, mainCount: Int, count: Int) -> Int {
-        [.bsp, .twoPane, .twoPaneRight].contains(layout) ? 1 : max(1, min(mainCount, count))
+        layout.singleMain ? 1 : max(1, min(mainCount, count))
     }
 
     package init?(layout: Layout, slots: [CGRect], mainCount: Int, in rect: CGRect) {

@@ -7,6 +7,10 @@ extension Animator {
     package static let displayLink: MakeClock = { screen, tick in
         screen.map { WindowFrameClock(screen: $0, update: tick) }
     }
+    package typealias Delay = (TimeInterval, @escaping @MainActor () -> Void) -> Void
+    package static let mainQueue: Delay = { seconds, work in
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { work() } // style-ok: ignored writes send no event
+    }
 }
 
 @MainActor package protocol FrameClock: AnyObject, Sendable {
@@ -25,7 +29,7 @@ extension Animator {
         super.init()
         let link = screen.displayLink(target: self, selector: #selector(frame(_:)))
         let rate = Float(screen.maximumFramesPerSecond)
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: min(30, rate), maximum: rate, preferred: rate)
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
         self.link = link
         link.add(to: .main, forMode: .common)
     }

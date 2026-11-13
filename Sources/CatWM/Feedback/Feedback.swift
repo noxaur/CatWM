@@ -75,7 +75,7 @@ import SwiftUI
             files.append(("CatWM.log", tail.joined(separator: "\n")))
         }
         let store = ConfigStore.shared
-        let configs = store.isScript ? [store.scriptURL, store.overridesURL] : [Config.url]
+        let configs = store.isScript ? [store.scriptURL] : [Config.url]
         for url in configs {
             if let text = try? String(contentsOf: url, encoding: .utf8) { files.append((url.lastPathComponent, text)) }
         }

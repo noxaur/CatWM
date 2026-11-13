@@ -185,7 +185,12 @@ Options must be set while the config loads. Writing an option from a timer or a 
 
 ## Settings and your file
 
-The Settings window never edits `catwm.config.ts`. A change in Settings goes to `catwm.overrides.json` in the same folder and applies on top of your file. So if you change the gap size in Settings, your file's value no longer applies until you remove that override. Settings → General lists each override, and **Use File Value** removes it.
+Settings and `catwm.config.ts` are always the same config. Settings shows the config as it ran, so an edit in the file shows up in Settings when you save it.
 
-The order is: CatWM's defaults, then your config file, then the Settings overrides.
+A change in Settings is written into the file. If the file sets the option with a plain value, such as `catwm.gaps.size = 10` or `size: 10` inside `catwm.gaps = { … }`, CatWM replaces that value where it stands. If the value is computed, or the file never sets the option, CatWM adds a line to a `// Settings` block at the end of the file. A later line wins, so the block overrides what comes before it. You can edit or delete the block's lines.
 
+CatWM runs the new file before it saves. If the result isn't the config that Settings showed, the file stays as it was and Settings shows why.
+
+Settings writes shortcuts to the block as `catwm.binds = [...]` and `catwm.submaps = {...}`. They replace the binds that run an action. Binds with a function, and rules, stay in your file, and Settings never changes them.
+
+An older `catwm.overrides.json` moves into the file the first time CatWM starts, and CatWM deletes it afterwards.

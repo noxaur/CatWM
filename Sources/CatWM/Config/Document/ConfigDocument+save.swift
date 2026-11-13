@@ -27,8 +27,7 @@ extension ConfigDocument {
         WindowManager.shared.applyStoredConfig()
         let errors = WindowManager.shared.config.errors
         if errors != fileErrors { fileErrors = errors }
-        let paths = store.overriddenPaths
-        if paths != overrides { overrides = paths }
+        if store.isScript { settingsCopy = store.settingsCopy }
         return true
     }
 

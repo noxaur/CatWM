@@ -2,7 +2,7 @@ name: perf
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
     paths-ignore: ["docs/**", "website/**"]
   push:
     branches: [main]
@@ -13,12 +13,18 @@ permissions:
   contents: read
   pull-requests: write
 
+# Adding any other label gets its own group, so it can't cancel a running measurement.
 concurrency:
-  group: perf-${{ github.ref }}
+  group: perf-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'performance' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
+  # A release build and three VMs take about 5 minutes for a code change, so a pull request
+  # measures only when it's about performance: a perf title or the performance label.
   build:
+    if: >-
+      github.event_name != 'pull_request' || startsWith(github.event.pull_request.title, 'perf')
+      || contains(github.event.pull_request.labels.*.name, 'performance')
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -72,8 +78,8 @@ jobs:
 
   report:
     name: perf
-    needs: measure
-    if: always()
+    needs: [build, measure]
+    if: always() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -231,7 +231,7 @@ package final class FakeBackend: WindowBackend, Sendable {
 
     package func screens() -> [Screen] { state.withLockUnchecked { state in state.screenList } }
 
-    package func currentSpace(display _: String) -> UInt64 { 1 }
+    package func currentSpace(display _: String) -> UInt64 { state.withLockUnchecked { UInt64($0.desktop) } }
 
     package func isRunning(_ pid: pid_t) -> Bool { state.withLockUnchecked { state in state.apps[pid] != nil } }
 

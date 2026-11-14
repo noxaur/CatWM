@@ -189,6 +189,7 @@ extension WindowManager {
         let center = NSWorkspace.shared.notificationCenter
         observe(NSWorkspace.activeSpaceDidChangeNotification, in: center) { [weak self] in
             guard let self else { return }
+            activeSpaceChanged()
             scheduleRefresh(after: 0.15)
             if !config.virtualWorkspaces, config.enablesLayoutHUDOnSpaceChange, config.enablesLayoutHUD,
                let screen = currentScreen() {

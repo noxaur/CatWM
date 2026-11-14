@@ -8,6 +8,13 @@ package struct NativeDesktopState {
         package let until: Date
     }
 
+    package struct SpaceArrival {
+        package let display: String
+        package let space: UInt64
+        package let until: Date
+        package let arrived: @MainActor () -> Void
+    }
+
     package struct SwitchTarget {
         package let workspace: String
         package let until: Date
@@ -28,6 +35,7 @@ package struct NativeDesktopState {
     package var nativeDroppedWorkspaces: Set<String> = []
     package var homeSpace: [String: UInt64] = [:]
     package var pendingSpace: PendingSpace?
+    package var spaceArrival: SpaceArrival?
     package var spaceGeneration = 0
     package var movingToSpace = false
 }

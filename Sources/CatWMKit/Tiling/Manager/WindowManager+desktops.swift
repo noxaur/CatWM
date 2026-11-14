@@ -67,6 +67,27 @@ extension WindowManager {
         }
     }
 
+    package func stepToSpace(_ space: UInt64, then arrived: @escaping @MainActor () -> Void) -> Bool {
+        for screen in backend.screens() {
+            guard let info = backend.spaceList(display: screen.uuid), let target = info.ids.firstIndex(of: space),
+                  let cur = info.current, cur != target, let combo = backend.stepShortcut(right: target > cur)
+            else { continue }
+            let steps = abs(target - cur)
+            desktops.spaceArrival = .init(display: screen.uuid, space: space,
+                                          until: Date().addingTimeInterval(1 + 0.5 * Double(steps)), arrived: arrived)
+            for _ in 0..<steps { postKey(combo) }
+            return true
+        }
+        return false
+    }
+
+    package func activeSpaceChanged(at now: Date = Date()) {
+        guard let arrival = desktops.spaceArrival,
+              now > arrival.until || backend.currentSpace(display: arrival.display) == arrival.space else { return }
+        desktops.spaceArrival = nil
+        if now <= arrival.until { arrival.arrived() }
+    }
+
     package func moveToSpace(_ number: Int) {
         guard !desktops.movingToSpace, let window = focusedWindow() else { return }
         let frame = window.frameUnlessStalled

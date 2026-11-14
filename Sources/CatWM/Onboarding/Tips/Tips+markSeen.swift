@@ -12,9 +12,6 @@ extension Tips {
 
     func launched() {
         _ = daysUsed
-        DispatchQueue.main.asyncAfter(deadline: .now() + 90) { [weak self] in
-            if !TutorialLesson.finishedOnce, TutorialLesson.paused == nil { self?.show(.tutorial) }
-        }
     }
 
     func canShow(_ id: String) -> Bool {
@@ -24,22 +21,14 @@ extension Tips {
     }
 
     func show(_ known: Known) {
-        switch known {
-        case .tutorial:
-            guard canShow(known.rawValue) else { return }
-            present(Tip(id: known.rawValue, title: "Make the keys stick",
-                        body: "Keyboard Tutorial, in this menu, drills them a chapter at a time.",
-                        place: .menuBar, action: ("Start tutorial", { Onboarding.shared.startTutorial() })))
-        case .keyHelp:
-            let keys = ShortcutIndex()
-            guard canShow(known.rawValue), WindowManager.shared.config.keyboardHelp,
-                  !Hotkeys.shared.submap.isEmpty else { return }
-            let helpKey = WindowManager.shared.config.keyboardHelpKey
-            let held = keys.modeChord.first.map { " Or hold \($0) after you enter." } ?? ""
-            present(Tip(id: known.rawValue, title: "See every key",
-                        body: "In window mode, \(helpKey) shows what every key does.\(held)",
-                        chords: [[helpKey]], place: .modeBar))
-        }
+        let keys = ShortcutIndex()
+        guard canShow(known.rawValue), WindowManager.shared.config.keyboardHelp,
+              !Hotkeys.shared.submap.isEmpty else { return }
+        let helpKey = WindowManager.shared.config.keyboardHelpKey
+        let held = keys.modeChord.first.map { " Or hold \($0) after you enter." } ?? ""
+        present(Tip(id: known.rawValue, title: "See every key",
+                    body: "In window mode, \(helpKey) shows what every key does.\(held)",
+                    chords: [[helpKey]], place: .modeBar))
     }
 
     func modeChanged(_ name: String) {

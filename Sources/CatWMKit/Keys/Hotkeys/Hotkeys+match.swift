@@ -6,11 +6,6 @@ extension Hotkeys {
               event.getIntegerValueField(.eventSourceUserData) != Self.syntheticMarker else { return .pass }
         let code = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let key = Self.key(code, event.flags)
-        if code == 36 || code == 76, let onReturn,
-           event.flags.isDisjoint(with: [.maskCommand, .maskControl, .maskAlternate, .maskShift]),
-           event.getIntegerValueField(.keyboardEventAutorepeat) == 0, onReturn() {
-            return .swallow
-        }
         if code == 53, let onEscape, event.getIntegerValueField(.keyboardEventAutorepeat) == 0, onEscape() {
             return .swallow
         }

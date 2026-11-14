@@ -83,6 +83,6 @@ package struct WindowScope: Equatable {
     package static let refusedCommands: Set<String> = [
         "nativefullscreen", "focusmonitor", "workspace", "movetoworkspace", "movetoworkspacesilent", "sethomespace",
         "sort", "sort-undo", "switcher", "exec", "launch", "toggledim", "toggleblur",
-        "grabtest", "modefx", "panelfx", "intro", "introlab", "submap"
+        "grabtest", "modefx", "panelfx", "submap"
     ]
 }

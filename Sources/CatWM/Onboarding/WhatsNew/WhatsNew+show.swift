@@ -16,7 +16,6 @@ extension WhatsNew {
         model.versions = versions.count > 1 ? "\(versions.last ?? "") – \(versions[0])" : versions[0]
         model.features = shown.map(\.feature)
         model.close = { [weak self] in self?.hide() }
-        model.tour = { [weak self] in self?.startTour() }
         model.run = { [weak self] action in
             self?.hide()
             action()
@@ -43,14 +42,6 @@ extension WhatsNew {
         guard let hidden = panel else { return }
         panel = nil
         Motion.group(0.2, changes: { Motion.setAlpha(0, on: hidden) }, completion: { hidden.orderOut(nil) })
-    }
-
-    private func startTour() {
-        let features = model.features
-        hide()
-        Onboarding.shared.run(CatchUpLesson(features: features)) { how in
-            if how == .finished { HUD.shared.show("You're caught up", on: nil) }
-        }
     }
 
     private func place(_ panel: CatWMPanel, host: CatWMHostingView<WhatsNewView>) {

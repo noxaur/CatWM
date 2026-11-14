@@ -109,7 +109,7 @@ private var projectRoot: URL {
 
     @Test func devCommandsStayOutOfTheSchema() {
         let published = Set(CommandRegistry.published.map(\.name))
-        #expect(published.isDisjoint(with: ["grabtest", "poststyle", "modefx", "panelfx", "intro", "introlab"]))
+        #expect(published.isDisjoint(with: ["grabtest", "poststyle", "modefx", "panelfx"]))
         #expect(!published.contains("exec") && !published.contains("launch"))
     }
 }

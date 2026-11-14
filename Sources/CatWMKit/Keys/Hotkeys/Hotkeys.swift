@@ -14,7 +14,6 @@ import AppKit
     package var onWindowModeClick: ((CGPoint) -> Bool)?
     package var onFlagsChanged: ((CGEventFlags) -> Void)?
     package var onHelpKey: (@MainActor @Sendable () -> Void)?
-    package var onReturn: (() -> Bool)?
     package var onEscape: (() -> Bool)?
     package var onMenuKey: ((_ code: UInt16, _ flags: CGEventFlags, _ isRepeat: Bool) -> Bool)?
     package var onModifierTap: (() -> Void)?

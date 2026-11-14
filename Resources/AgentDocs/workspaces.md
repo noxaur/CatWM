@@ -47,4 +47,4 @@ Desktop creation and removal use the same bridge. CatWM checks the native Deskto
 - CatWM prepares the destination layout before Desktop motion begins.
 - CatWM verifies window frames after placement. Corrections stop after three attempts.
 - CatWM temporarily disables `AXEnhancedUserInterface` while moving windows.
-- CatWM's own windows float. The onboarding tour uses a separate practice process.
+- CatWM's own windows float.

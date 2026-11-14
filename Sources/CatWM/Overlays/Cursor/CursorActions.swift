@@ -22,7 +22,6 @@ import SwiftUI
     static let dotSize = CursorActionsView.markSize
 
     var enabled: Bool { WindowManager.shared.config.cursorActions }
-    var isMenuOpen: Bool { model.open }
 }
 
 struct QuickAction: Identifiable {

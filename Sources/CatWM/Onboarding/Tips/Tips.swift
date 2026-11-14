@@ -13,12 +13,11 @@ import SwiftUI
         var body: String?
         var chords: [[String]] = []
         let place: TipPlace
-        var action: (label: String, run: () -> Void)?
 
         static func == (lhs: Tip, rhs: Tip) -> Bool { lhs.id == rhs.id }
     }
 
-    enum Known: String { case tutorial, keyHelp }
+    enum Known: String { case keyHelp }
 
     @Published var settings: Tip?
     var global: Tip?

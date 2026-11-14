@@ -23,8 +23,7 @@ struct WhatsNewView: View {
             }
             HStack {
                 Spacer()
-                OButton(model.canTour ? "Show me" : "Got it", variant: .primary, shortcut: ["↩"],
-                        action: model.canTour ? model.tour : model.close)
+                OButton("Got it", variant: .primary, shortcut: ["↩"], action: model.close)
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.top, Theme.Space.small)
@@ -55,8 +54,6 @@ struct WhatsNewView: View {
     @Published var versions = ""
     @Published var features: [Release.Feature] = []
     @Published var caret: CGFloat?
-    var canTour: Bool { features.contains { $0.tour != nil } }
     var close: () -> Void = {}
-    var tour: () -> Void = {}
     var run: (() -> Void) -> Void = { _ in }
 }

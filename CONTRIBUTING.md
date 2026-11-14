@@ -16,7 +16,7 @@ Thank you for your help. This page tells you how to set up, check and submit a c
 
 ### Launch arguments
 
-- `open build/CatWM.app --args --onboarding` plays the onboarding again.
+- `open build/CatWM.app --args --onboarding` shows the onboarding again.
 - `open build/CatWM.app --args --verbose` writes a detailed log. The old `debug-logging` config key also works.
 - `open build/CatWM.app --args --crash-report` sends the newest crash report, to test the upload.
 

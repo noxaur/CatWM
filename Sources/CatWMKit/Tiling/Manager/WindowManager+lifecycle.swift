@@ -92,8 +92,7 @@ extension WindowManager {
         scanner.stopWatchingClaims()
         refreshWork?.cancel()
         refreshWork = nil
-        crowdWork?.cancel()
-        crowdWork = nil
+        crowdWork.cancel()
         isStarted = false
         restoreHiddenWindows { [weak self] in
             self?.windows.keys.forEach { self?.animator.cancel($0) }

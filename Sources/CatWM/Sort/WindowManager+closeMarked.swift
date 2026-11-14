@@ -17,14 +17,18 @@ extension WindowManager {
         }
         guard !pressed.isEmpty else { return stopClosing(ids) }
         if attempt >= 2 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            DispatchQueue.main.asyncAfter( // style-ok: waits for the window to close
+                deadline: .now() + 0.8
+            ) { [weak self] in
                 guard let self else { return }
                 self.forceClose(pressed.filter { self.windows[$0]?.isValidUnlessStalled == true })
                 self.stopClosing(ids)
             }
             return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+        DispatchQueue.main.asyncAfter( // style-ok: waits for the window to close
+            deadline: .now() + 0.8
+        ) { [weak self] in
             guard let self else { return }
             var left = pressed.filter { self.windows[$0]?.isValidUnlessStalled == true }
             Log.info("sort: \(pressed.count - left.count) of \(pressed.count) closed after try \(attempt + 1)")
@@ -32,13 +36,17 @@ extension WindowManager {
             let forced = self.forceClose(left.filter { !sheeted.contains($0) })
             left.removeAll { forced.contains($0) }
             if !forced.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                DispatchQueue.main.asyncAfter( // style-ok: waits for the window to close
+                    deadline: .now() + 0.8
+                ) { [weak self] in
                     self?.stopClosing(Array(forced))
                 }
             }
             stopClosing(Self.shownAfterTry(ids, left: left, forced: forced, sheeted: sheeted))
             guard !left.isEmpty else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            DispatchQueue.main.asyncAfter( // style-ok: retries a window that stayed open
+                deadline: .now() + 0.4
+            ) { [weak self] in
                 self?.closeMarked(left, attempt: attempt + 1)
             }
         }
@@ -138,7 +146,9 @@ extension WindowManager {
             let name = app.bundleIdentifier ?? "pid \(pid)"
             Log.info("sort: \(name) has no windows left; quitting it")
             app.terminate()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            DispatchQueue.main.asyncAfter( // style-ok: waits for the app to quit
+                deadline: .now() + 1.5
+            ) {
                 guard !app.isTerminated, Self.hasNoWindows(pid) else { return }
                 Log.info("sort: \(name) didn't quit; force quitting it")
                 app.forceTerminate()

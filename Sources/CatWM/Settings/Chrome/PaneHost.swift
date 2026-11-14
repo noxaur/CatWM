@@ -45,7 +45,9 @@ struct PaneHost: View {
             .scrollIndicators(.automatic)
             .onChange(of: settingsUI.highlight) { _, id in
                 guard let id else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                DispatchQueue.main.asyncAfter( // style-ok: the settings row lays out before scrolling
+                    deadline: .now() + 0.12
+                ) {
                     withAnimation(Motion.easeOut) { proxy.scrollTo(id, anchor: .center) }
                 }
             }
@@ -56,7 +58,9 @@ struct PaneHost: View {
                 if let id = settingsUI.highlight { DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) } }
                 guard let id = settingsUI.reveal else { return }
                 DispatchQueue.main.async { proxy.scrollTo("bind.\(id)", anchor: .center) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                DispatchQueue.main.asyncAfter( // style-ok: the highlight stays up for a moment
+                    deadline: .now() + 1.6
+                ) {
                     if settingsUI.reveal == id { withAnimation(Motion.fadeAway) { settingsUI.reveal = nil } }
                 }
             }

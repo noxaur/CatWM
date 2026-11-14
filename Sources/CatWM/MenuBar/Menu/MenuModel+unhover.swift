@@ -4,13 +4,13 @@ import SwiftUI
 
 extension MenuModel {
     func unhover(_ item: MenuItem, level: Int) {
-        if opening == item.id { openWork?.cancel(); opening = nil }
+        if opening == item.id { openWork.cancel(); opening = nil }
         let open = path.count > level ? path[level] : nil
         if highlight[level] == item.id, open != item.id { highlight[level] = nil }
     }
 
     func enterColumn(_ level: Int) {
-        if level > trimLevel { trimWork?.cancel() }
+        if level > trimLevel { trimWork.cancel() }
         if level > 0, level <= path.count { highlight[level - 1] = path[level - 1] }
     }
 
@@ -21,8 +21,8 @@ extension MenuModel {
     }
 
     func move(_ delta: Int) {
-        openWork?.cancel()
-        trimWork?.cancel()
+        openWork.cancel()
+        trimWork.cancel()
         let level = keyLevel
         let list = column(level).filter { query.isEmpty ? $0.selectable : true }
         guard !list.isEmpty else { return }
@@ -65,7 +65,9 @@ extension MenuModel {
         }
         if item.keepOpen {
             action()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in self?.refresh() }
+            DispatchQueue.main.asyncAfter( // style-ok: the menu action finishes before refresh
+                deadline: .now() + 0.15
+            ) { [weak self] in self?.refresh() }
         } else {
             close()
             DispatchQueue.main.async { action() }

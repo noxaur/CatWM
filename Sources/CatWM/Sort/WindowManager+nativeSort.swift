@@ -60,7 +60,9 @@ extension WindowManager {
                 moved = await withCheckedContinuation { continuation in
                     Spaces.move(window: id, to: target.space) { continuation.resume(returning: $0) }
                 }
-                if !moved { try await Task.sleep(nanoseconds: 100_000_000) }
+                if !moved {
+                    try await Task.sleep(nanoseconds: 100_000_000) // style-ok: retries a Space move; no event yet
+                }
             } while !moved && window.isValidUnlessStalled && ProcessInfo.processInfo.systemUptime < deadline
             guard moved else { throw DesktopTransitionError.check("macOS couldn't move this window") }
             nativeMoves.finish(id, on: target.space)

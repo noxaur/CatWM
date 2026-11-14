@@ -70,14 +70,18 @@ struct MenuColumn: View {
             WorkspaceStrip(names: (1...max(9, min(highest, 10))).map(String.init), current: summary.current,
                            occupied: Set(summary.all.filter { $0.windows > 0 }.map(\.name))) { name in
                 WindowManager.shared.showWorkspaceNumber(name)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { model.refresh() }
+                DispatchQueue.main.asyncAfter( // style-ok: the workspace switch finishes before refresh
+                    deadline: .now() + 0.15
+                ) { model.refresh() }
             }
             .padding(.horizontal, 8).padding(.top, 2).padding(.bottom, 8)
         case .layoutPicker:
             let current = WindowManager.shared.menuBarState()?.layout
             LayoutPicker(layouts: Layout.allCases, selection: current, columns: 4) { layout in
                 WindowManager.shared.dispatch("layout", layout.rawValue)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { model.close() }
+                DispatchQueue.main.asyncAfter( // style-ok: the layout change finishes before close
+                    deadline: .now() + 0.12
+                ) { model.close() }
             }
             .padding(.horizontal, 4).padding(.bottom, 4)
         case .attention:

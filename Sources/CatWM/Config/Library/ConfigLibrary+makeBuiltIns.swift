@@ -135,6 +135,8 @@ extension ConfigLibrary {
         case .full: doc.applyFull(config.text)
         }
         doc.save()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.applying = false }
+        DispatchQueue.main.asyncAfter( // style-ok: the saved config finishes applying
+            deadline: .now() + 0.6
+        ) { [weak self] in self?.applying = false }
     }
 }

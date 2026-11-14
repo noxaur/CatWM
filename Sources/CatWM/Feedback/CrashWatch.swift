@@ -42,7 +42,9 @@ import SwiftUI
     private static func poll(after date: Date, attempts: Int) {
         if let report = newestReport(after: date) { return found(report) }
         guard attempts > 0 else { return Log.info("crash watch: no crash report (force quit or killed?)") }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { poll(after: date, attempts: attempts - 1) }
+        DispatchQueue.main.asyncAfter( // style-ok: polls for a crash report; no event yet
+            deadline: .now() + 1
+        ) { poll(after: date, attempts: attempts - 1) }
     }
 
     private static func found(_ report: URL) {

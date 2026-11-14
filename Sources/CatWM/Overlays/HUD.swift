@@ -7,7 +7,7 @@ import SwiftUI
     private var panel: CatWMPanel?
     private var host: NSHostingView<HUDView>?
     private let model = HUDModel()
-    private var hideWork: DispatchWorkItem?
+    private let hideWork = Delay()
     private static var margin: CGFloat { Elevation.float.room }
     var avoid: NSRect?
 
@@ -55,15 +55,12 @@ import SwiftUI
         Motion.fade(hud, to: 1, duration: 0)
         hud.orderFrontRegardless()
 
-        hideWork?.cancel()
-        let work = DispatchWorkItem { [weak hud] in
+        hideWork.schedule(after: warning ? 1.6 : layout == nil ? 0.8 : 1) { [weak hud] in
             guard let hud else { return }
             Motion.fade(hud, to: 0, duration: 0.25) {
                 if hud.alphaValue == 0 { hud.orderOut(nil) }
             }
         }
-        hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + (warning ? 1.6 : layout == nil ? 0.8 : 1), execute: work)
     }
 
     private func makePanel() -> CatWMPanel { CatWMPanel(role: .hud) }

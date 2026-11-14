@@ -6,7 +6,7 @@ import SwiftUI
     static let shared = SortNudge()
 
     private var panel: CatWMPanel?
-    private var hideWork: DispatchWorkItem?
+    private let hideWork = Delay()
     private let model = SortNudgeModel()
 
     private static func today() -> String {
@@ -62,14 +62,11 @@ import SwiftUI
         card.makeKey()
         Motion.group(0.35) { Motion.setAlpha(1, on: card) }
         panel = card
-        let work = DispatchWorkItem { [weak self] in self?.dismiss() }
-        hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
+        hideWork.schedule(after: 30) { [weak self] in self?.dismiss() }
     }
 
     func dismiss() {
-        hideWork?.cancel()
-        hideWork = nil
+        hideWork.cancel()
         guard let card = panel else { return }
         panel = nil
         Motion.group(0.2, changes: { Motion.setAlpha(0, on: card) }, completion: { card.orderOut(nil) })

@@ -37,8 +37,7 @@ extension CursorActions {
             return
         }
         show()
-        closeWork?.cancel()
-        closeWork = nil
+        closeWork.cancel()
         model.title = found.title
         model.actions = found.actions
         model.hovered = nil
@@ -98,14 +97,11 @@ extension CursorActions {
         model.trackPointer = false
         resetPointerTracking()
         menuPanel?.ignoresMouseEvents = true
-        let work = DispatchWorkItem { [weak self] in self?.closeMenuPanel() }
-        closeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+        closeWork.schedule(after: 0.2) { [weak self] in self?.closeMenuPanel() }
     }
 
     func closeMenuPanel() {
-        closeWork?.cancel()
-        closeWork = nil
+        closeWork.cancel()
         menuPanel?.orderOut(nil)
         menuPanel?.ignoresMouseEvents = true
         guard shown else { return }

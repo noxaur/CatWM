@@ -116,8 +116,7 @@ extension SortPanel {
 
     func revert() {
         guard active else { return }
-        liveWork?.cancel()
-        liveWork = nil
+        liveWork.cancel()
         close()
         manager.revertSort()
     }
@@ -136,22 +135,17 @@ extension SortPanel {
 
     func abandon() {
         guard active else { return }
-        liveWork?.cancel()
-        liveWork = nil
+        liveWork.cancel()
         close()
         manager.endSort()
     }
 
     func scheduleLive() {
-        liveWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.flushLive() }
-        liveWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        liveWork.schedule(after: 0.15) { [weak self] in self?.flushLive() }
     }
 
     func flushLive() {
-        liveWork?.cancel()
-        liveWork = nil
+        liveWork.cancel()
         let plans = model.pendingApplies()
         guard active, !plans.isEmpty else { return }
         applyingUntil = Date().addingTimeInterval(1)

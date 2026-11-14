@@ -86,7 +86,7 @@ import AppKit
     package var windowsToMatch: [CGWindowID] = []
     package var previousWorkspace: [String: String] = [:]
     package var labels: [String: String] = [:]
-    package var crowdWork: DispatchWorkItem?
+    package let crowdWork = Delay()
     package var autoSwitchAfter = Date.distantPast
     package var lastSavedWorkspaces = ""
     package var tilingRecovery = TilingRecovery()

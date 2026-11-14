@@ -42,6 +42,8 @@ struct EssentialsRow: View {
     private func act(_ perform: () -> Void) {
         perform()
         model.refresh()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { model.refresh() }
+        DispatchQueue.main.asyncAfter( // style-ok: the menu action finishes before refresh
+            deadline: .now() + 0.3
+        ) { model.refresh() }
     }
 }

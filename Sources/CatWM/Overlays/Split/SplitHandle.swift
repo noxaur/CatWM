@@ -38,7 +38,7 @@ import SwiftUI
         private let view: SplitHandleView
         private let glide = PanelGlide()
         private var target: NSRect?
-        private var confirmEnd: DispatchWorkItem?
+        private let confirmEnd = Delay()
 
         var windowID: CGWindowID? { panel.isVisible ? CGWindowID(panel.windowNumber) : nil }
 
@@ -79,11 +79,8 @@ import SwiftUI
 
         func confirm() {
             guard panel.isVisible else { return }
-            confirmEnd?.cancel()
             view.model.confirming = true
-            let end = DispatchWorkItem { [weak self] in self?.view.model.confirming = false }
-            confirmEnd = end
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.confirmDuration, execute: end)
+            confirmEnd.schedule(after: Self.confirmDuration) { [weak self] in self?.view.model.confirming = false }
         }
 
         private static func frame(for divider: SplitDivider) -> NSRect {

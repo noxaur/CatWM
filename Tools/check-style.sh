@@ -194,6 +194,8 @@ def banned(path, code, uses_defaults=False):
         hits.append("try? drops a write failure. Use Log.attempt")
     if tiling and FIXED_DELAY.search(code):
         hits.append("timer wait in Tiling. Wait for the event, or end the line with // style-ok: <why no event exists>")
+    if path.startswith("Sources/CatWM/") and FIXED_DELAY.search(code):
+        hits.append("fixed delay in the app. Schedule it with Delay, or end the line with // style-ok: <what it waits for>")
     if path.startswith(SOURCES) and STORED_STATIC.search(code):
         hits.append("stored static var. Put the state in an owner that WindowManager or AppDelegate holds")
     if path.startswith(SOURCES) and UNCHECKED.search(code):

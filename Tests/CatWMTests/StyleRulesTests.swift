@@ -169,9 +169,11 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
         #expect(try styleFailures(path: path, source: wait).contains { $0.contains("timer wait") }, "\(folder)")
         #expect(try styleFailures(path: path, source: hud).contains { $0.contains("UI in Tiling") }, "\(folder)")
     }
-    #expect(try styleFailures(path: "Sources/CatWM/Motion/Kit/Example.swift", source: wait).isEmpty)
+    let app = "Sources/CatWM/Motion/Kit/Example.swift"
+    #expect(try styleFailures(path: app, source: wait).contains { $0.contains("Delay") })
     let excused = wait + " // style-ok: no event exists for this"
     #expect(try styleFailures(path: "Sources/CatWMKit/Motion/Windows/Example.swift", source: excused).isEmpty)
+    #expect(try styleFailures(path: app, source: excused).isEmpty)
 }
 
 @Test func styleOkCannotSilenceATestSleepOutsideTheRealServerTest() throws {

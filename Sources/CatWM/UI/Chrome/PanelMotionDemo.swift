@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor final class PanelMotionDemo {
     static let shared = PanelMotionDemo()
     private(set) var preview: PanelMotion?
-    private var work: [DispatchWorkItem] = []
+    private var work: [Delay] = []
 
     func command(_ args: [String]) {
         switch args.first?.lowercased() {
@@ -17,7 +17,7 @@ import SwiftUI
 
     func play(_ styles: [PanelMotion], keyboardOnly: Bool = false) {
         work.forEach { $0.cancel() }
-        work = []
+        work.removeAll()
         KeyHelp.shared.hide()
         let mode = ShortcutIndex().modeName
         var time = 0.0
@@ -38,9 +38,9 @@ import SwiftUI
         at(time) { self.preview = nil }
     }
 
-    private func at(_ delay: Double, _ block: @escaping () -> Void) {
-        let item = DispatchWorkItem(block: block)
-        work.append(item)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    private func at(_ delay: Double, _ block: @escaping @MainActor () -> Void) {
+        let pending = Delay()
+        work.append(pending)
+        pending.schedule(after: delay, block)
     }
 }

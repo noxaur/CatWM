@@ -17,11 +17,11 @@ import SwiftUI
     var width: CGFloat = 0
     var screen: NSScreen?
     var generation = 0
-    var liveWork: DispatchWorkItem?
+    let liveWork = Delay()
     var pruneTimer: Timer?
     var applyingUntil = Date.distantPast
 
-    var undoWork: DispatchWorkItem?
+    let undoWork = Delay()
 
     var isOpen: Bool { active }
 }

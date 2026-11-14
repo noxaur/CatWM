@@ -41,7 +41,9 @@ import SwiftUI
 
     func launched() {
         adoptBaseline(onboarded: Onboarding.isDone)
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.launchDelay) { [weak self] in self?.offer() }
+        DispatchQueue.main.asyncAfter( // style-ok: the app finishes launching before the news
+            deadline: .now() + Self.launchDelay
+        ) { [weak self] in self?.offer() }
     }
 
     func offer(attempts: Int = 10) {
@@ -50,7 +52,9 @@ import SwiftUI
             || !Hotkeys.shared.submap.isEmpty
         guard busy else { return show(takeFocus: false) }
         guard attempts > 0 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryDelay) { [weak self] in
+        DispatchQueue.main.asyncAfter( // style-ok: retries while onboarding or Overview is open
+            deadline: .now() + Self.retryDelay
+        ) { [weak self] in
             self?.offer(attempts: attempts - 1)
         }
     }

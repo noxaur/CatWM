@@ -61,7 +61,7 @@ HARDWARE_INPUT = re.compile(
 )
 HARDWARE_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/AXBackend.swift"
 SCREEN_FLIP = re.compile(
-    r"NSScreen\.screens\.(?:first[?!]?|\[0\][?!]?)\.frame\.(?:height|maxY)"
+    r"NSScreen\.screens(?:\.first[?!]?|\[0\])\.frame\.(?:height|maxY)"
 )
 SCREEN_FLIP_OWNER = "Sources/CatWMKit/Tiling/Access/Screen.swift"
 REAL_INPUT = re.compile(r"\.post\(tap:|\bCGEventPost\(|\bCGWarpMouseCursorPosition\(")

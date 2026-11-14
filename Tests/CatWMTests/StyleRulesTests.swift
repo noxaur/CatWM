@@ -184,9 +184,9 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
 
 @Test(arguments: [
     "let y = (NSScreen.screens." + "first?.frame.height ?? 0) - raw.y",
-    "let y = NSScreen.screens." + "[0].frame.height",
+    "let y = NSScreen.screens" + "[0].frame.height",
     "let y = NSScreen.screens." + "first!.frame.maxY - rect.maxY",
-    "let y = NSScreen.screens." + "[0]?.frame.maxY"
+    "let y = NSScreen.screens" + "[0].frame.maxY - rect.maxY"
 ])
 func styleRejectsAHandWrittenScreenFlip(line: String) throws {
     let overlay = "Sources/CatWM/Overlays/Example.swift"

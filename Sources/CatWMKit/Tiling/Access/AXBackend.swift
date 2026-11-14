@@ -71,9 +71,16 @@ package final class AXBackend: WindowBackend, Sendable {
         return result == .success ? "pressed" : "press failed (AX error \(result.rawValue))"
     }
 
-    package func refreshCursor() { CursorRefresh.post() }
+    package func refreshCursor() {
+        guard NSEvent.pressedMouseButtons == 0 else { return }
+        CursorRefresh.post(at: hardwarePointerLocation())
+    }
 
-    @MainActor package func pointerLocation() -> CGPoint { mouseLocation() }
+    @MainActor package func pointerLocation() -> CGPoint { hardwarePointerLocation() ?? .zero }
+
+    @MainActor package func primaryButtonDown() -> Bool { NSEvent.pressedMouseButtons & 1 != 0 }
+
+    @MainActor package func anyButtonDown() -> Bool { NSEvent.pressedMouseButtons != 0 }
 
     @MainActor package func warpPointer(to point: CGPoint) {
         RealInput.warpPointer(to: point)
@@ -103,3 +110,5 @@ package final class AXBackend: WindowBackend, Sendable {
 
     @MainActor package func stepShortcut(right: Bool) -> SystemShortcut.Combo? { SystemShortcut.step(right: right) }
 }
+
+private func hardwarePointerLocation() -> CGPoint? { CGEvent(source: nil)?.location }

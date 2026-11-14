@@ -23,6 +23,13 @@ import Testing
         #expect(RealInput.isBlocked)
     }
 
+    @Test func aCursorRefreshWithoutAPointerLocationBuildsNoEvent() throws {
+        #expect(CursorRefresh.event(at: nil) == nil)
+        let event = try #require(CursorRefresh.event(at: CGPoint(x: 120, y: 80)))
+        #expect(event.location == CGPoint(x: 120, y: 80))
+        #expect(event.getIntegerValueField(.eventSourceUserData) == Hotkeys.syntheticMarker)
+    }
+
     @Test func switchingWorkspaceIsRecordedInTheFakeAndPostsNothingReal() async {
         let setup = await start()
         let (fake, manager) = (setup.fake, setup.manager)

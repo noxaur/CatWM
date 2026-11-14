@@ -182,6 +182,18 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
     #expect(try styleFailures(path: "Tests/CatWMTests/AgentDisplayLiveTests.swift", source: wait).isEmpty)
 }
 
+@Test(arguments: [
+    "guard NSEvent.pressedMouseButtons == 0 else { return }",
+    "let point = NSEvent.mouseLocation",
+    "let here = CGEvent(source: nil)?.location"
+])
+func styleRejectsHardwareMouseReadsInTheKit(line: String) throws {
+    let kit = "Sources/CatWMKit/Tiling/Manager/Example.swift"
+    #expect(try styleFailures(path: kit, source: line).contains { $0.contains("Read it through WindowBackend") })
+    #expect(try styleFailures(path: "Sources/CatWMKit/Tiling/Access/AXBackend.swift", source: line).isEmpty)
+    #expect(try styleFailures(path: "Sources/CatWM/Overlays/Example.swift", source: line).isEmpty)
+}
+
 @Test func styleRejectsTimedGatesAndWallClockPollsInTests() throws {
     let gate = "writer.run { _ = release." + "wait(timeout: .now() + 2) }"
     let test = "Tests/CatWMTests/Example.swift"

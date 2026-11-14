@@ -34,5 +34,3 @@ package struct Screen {
         return (Instance.scope ?? Instance.embedding.scope)?.filter(screens) ?? screens
     }
 }
-
-package func mouseLocation() -> CGPoint { CGEvent(source: nil)?.location ?? .zero }

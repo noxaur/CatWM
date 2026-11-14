@@ -58,6 +58,7 @@ extension WindowManager {
 
     package func mouseLocation() -> CGPoint { backend.pointerLocation() }
     package func primaryButtonDown() -> Bool { backend.primaryButtonDown() }
+    package func anyButtonDown() -> Bool { backend.anyButtonDown() }
 
     package func focusMonitor(_ spec: String) {
         guard let src = currentScreen(), let dst = screen(from: src, spec: spec, in: backend.screens()) else { return }

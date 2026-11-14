@@ -18,12 +18,9 @@ import Testing
     func aMouseResizeOfTheMainWindowMovesTheSplit(_ layout: Layout) async throws {
         let fake = FakeBackend()
         let screen = fake.addScreen()
-        let clock = FakeClock()
-        let manager = fake.makeManager(clock: clock)
+        let manager = fake.makeManager()
         (0..<3).forEach { _ in fake.addWindow() }
         manager.setLayout(layout, on: screen)
-        #expect(await fake.settle(manager))
-        clock.advance(by: 1)
         #expect(await fake.settle(manager))
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
@@ -49,5 +46,30 @@ import Testing
         let after = ids.map(fake.frame(of:))
         #expect(after[0] == grown)
         #expect(after[1] != before[1])
+    }
+
+    @Test func aResizeFinishesOnlyOnceTheBackendReportsTheButtonUp() async throws {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = fake.makeManager()
+        fake.addWindow(); fake.addWindow()
+        #expect(await fake.settle(manager))
+        let main = try #require(manager.tiled(on: screen).first), ratio = manager.state(for: screen).ratio
+        var grown = fake.frame(of: main)
+        grown.size.width += 100
+        func release() async {
+            fake.userMoves(main, to: grown)
+            manager.drags[main] = true
+            manager.mouseUp()
+            #expect(await fake.settle(manager))
+        }
+
+        fake.postMouse(.leftMouseDown, at: CGPoint(x: grown.midX, y: grown.midY))
+        await release()
+        #expect(manager.state(for: screen).ratio == ratio)
+
+        fake.postMouse(.leftMouseUp, at: CGPoint(x: grown.midX, y: grown.midY))
+        await release()
+        #expect(manager.state(for: screen).ratio > ratio)
     }
 }

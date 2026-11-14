@@ -39,7 +39,9 @@ package final class CaptureSlot<Value: Sendable>: Sendable {
 
     package init() {}
 
-    package var isIdle: Bool { state.withLock { $0.active == nil } }
+    package func settled() async {
+        while let active = state.withLock({ $0.active }) { _ = await active.value }
+    }
 
     package func run(within timeout: Duration,
                      operation: @escaping @Sendable () async -> Value) async -> SlotOutcome<Value> {

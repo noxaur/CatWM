@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -44,10 +45,10 @@ import Testing
         let tracked = window(7)
         manager.windows[tracked.id] = tracked
         manager.visible = [tracked.id]
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let reads = Counter()
         manager.focusRequests.focusReader = FocusReader { _ in
-            if reads.next() == 1 { _ = release.wait(timeout: .now() + 3) }
+            if reads.next() == 1 { release.block() }
             return .focused(tracked.id)
         }
         var dispatched: [(String, Bool)] = []
@@ -64,7 +65,7 @@ import Testing
             manager.dispatch("minimize", "", inMode: false)
             #expect(dispatched.isEmpty)
             #expect(manager.focusRequests.focusCommands.count == 2)
-            release.signal()
+            release.open()
         }
         #expect(dispatched.map(\.0) == ["minimize", "minimize"])
         #expect(dispatched.map(\.1) == [true, false])
@@ -121,9 +122,9 @@ import Testing
         let manager = manager()
         var active: pid_t = -1
         manager.frontmostPID = { active }
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         manager.focusRequests.focusReader = FocusReader { pid in
-            if pid == -1 { _ = release.wait(timeout: .now() + 3) }
+            if pid == -1 { release.block() }
             return .focused(nil)
         }
         var dispatched = false
@@ -131,7 +132,7 @@ import Testing
         await withCheckedContinuation { continuation in
             manager.onChange = { [weak manager] in
                 manager?.isStarted = false
-                release.signal()
+                release.open()
                 continuation.resume()
             }
             manager.dispatch("minimize", "")
@@ -155,11 +156,11 @@ import Testing
         manager.model.noteFocus(remaining.id)
         manager.model.noteFocus(closed.id)
         manager.focusRequests.report(pid: -1, id: closed.id)
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let reads = Counter()
         manager.focusRequests.focusReader = FocusReader { _ in
             if reads.next() == 1 {
-                _ = release.wait(timeout: .now() + 3)
+                release.block()
                 return .focused(closed.id)
             }
             return .focused(nil)
@@ -177,7 +178,7 @@ import Testing
             #expect(manager.focusRequests.reportedFocus == nil)
             manager.refocusRecent(on: "1")
             #expect(manager.focusRequests.waitingRefocus?.workspace == "1")
-            release.signal()
+            release.open()
         }
         #expect(manager.focusRequests.pendingFocus?.id == remaining.id)
         #expect(reads.value == 2)
@@ -187,8 +188,8 @@ import Testing
         let manager = manager()
         let tracked = window(7)
         manager.windows[tracked.id] = tracked
-        let release = DispatchSemaphore(value: 0)
-        manager.scanner.run(tracked.pid) { _ = release.wait(timeout: .now() + 3) }
+        let release = Gate()
+        manager.scanner.run(tracked.pid) { release.block() }
         manager.focusRequests.focusReader = FocusReader { _ in .focused(tracked.id) }
         await withCheckedContinuation { continuation in
             manager.onChange = { [weak manager] in
@@ -198,7 +199,7 @@ import Testing
             manager.requestFocusObservation()
         }
         #expect(manager.focusRequests.reportedFocus?.id == tracked.id)
-        release.signal()
+        release.open()
         manager.onChange = nil
     }
 
@@ -207,11 +208,11 @@ import Testing
         let tracked = window(7)
         manager.windows[tracked.id] = tracked
         manager.visible = [tracked.id]
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         await withCheckedContinuation { continuation in
             manager.animator = Animator(applyFocus: { _, _ in
                 continuation.resume()
-                _ = release.wait(timeout: .now() + 3)
+                release.block()
             })
             manager.focus(tracked, warp: false)
         }
@@ -220,7 +221,7 @@ import Testing
         #expect(manager.focusedWindow()?.id == tracked.id)
         #expect(manager.focusRequests.pendingFocus?.id == tracked.id)
         manager.isStarted = false
-        release.signal()
+        release.open()
     }
 
     @Test @MainActor func restorationCancelsPendingFocusAndCommands() {
@@ -246,9 +247,9 @@ import Testing
     @Test @MainActor func focusWritesDoNotWaitForPlacementWrites() {
         let tracked = window(7)
         let writer = AXWriter(pid: tracked.pid)
-        let release = DispatchSemaphore(value: 0)
+        let release = Gate()
         let focused = DispatchSemaphore(value: 0)
-        writer.run { _ = release.wait(timeout: .now() + 3) }
+        writer.run { release.block() }
         let animator = Animator(makeWriter: { _ in writer }, applyFocus: { _, isCurrent in
             #expect(!Thread.isMainThread && isCurrent())
             focused.signal()
@@ -256,6 +257,6 @@ import Testing
         animator.position(tracked, at: CGRect(x: 10, y: 20, width: 300, height: 200))
         animator.focus(tracked)
         #expect(focused.wait(timeout: .now() + 2) == .success)
-        release.signal()
+        release.open()
     }
 }

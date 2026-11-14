@@ -149,19 +149,8 @@ extension GeneralPane {
 extension GeneralPane {
     private var configGroup: some View {
         OGroup("Config") {
-            ORow(ConfigStore.scriptName, description: "Settings saves its changes next to this file, never in it") {
+            ORow(ConfigStore.scriptName, description: "Settings and this file stay in sync") {
                 OButton("Open", size: .small) { NSWorkspace.shared.open(ConfigStore.shared.scriptURL) }
-            }
-            ForEach(doc.overrides, id: \.self) { path in
-                ORow(ConfigScript.label(path),
-                     description: "Changed in Settings, so `\(path)` in the file doesn't apply") {
-                    OButton("Use File Value", size: .small) { doc.useScriptValue(path) }
-                }
-            }
-            if doc.overrides.count > 1 {
-                ORow("All changes from Settings", description: "Use every value from \(ConfigStore.scriptName) again") {
-                    OButton("Use File Values", size: .small) { doc.useScriptValue(nil) }
-                }
             }
         }
     }

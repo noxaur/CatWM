@@ -3,6 +3,8 @@ import CatWMKit
 import os
 
 package final class FakeBackend: WindowBackend, Sendable {
+    package let clock = FakeClock()
+
     package init() { RealInput.block() }
 
     package struct FakeWindow {
@@ -49,6 +51,7 @@ package final class FakeBackend: WindowBackend, Sendable {
         var writeLog: [Write] = []
         var cursorRefreshCount = 0
         var placementCheckCount = 0
+        var clockedAnimators: Set<ObjectIdentifier> = []
         var onCursorRefresh: (() -> Void)?
         var nextID: CGWindowID = 1
         var nextDisplay: CGDirectDisplayID = 1
@@ -135,6 +138,14 @@ package final class FakeBackend: WindowBackend, Sendable {
             state.focusedIn[window.pid] = id
             state.stacking.removeAll { $0 == id }
             state.stacking.insert(id, at: 0)
+        }
+    }
+
+    package func userActivates(_ pid: pid_t, bundleID: String? = "test.fake.app") {
+        precondition(pid < 0, "A fake app uses a negative pid, so no AX call reaches a real app")
+        state.withLockUnchecked { state in
+            state.apps[pid] = state.apps[pid] ?? bundleID
+            state.front = pid
         }
     }
 
@@ -273,110 +284,5 @@ package final class FakeBackend: WindowBackend, Sendable {
 
     package func observeCursorRefresh(_ observer: (() -> Void)?) {
         state.withLockUnchecked { state in state.onCursorRefresh = observer }
-    }
-}
-
-extension FakeBackend {
-    private static let defaults = Config.parse(defaultText)
-
-    @MainActor package func makeManager(_ configure: (inout Config) -> Void = { _ in },
-                                        clock: FakeClock? = nil) -> WindowManager {
-        var config = Self.defaults
-        config.virtualWorkspaces = false
-        config.animate = false
-        config.mouseFollowsFocus = false
-        config.focusFollowsMouse = false
-        config.windowMargins = false
-        config.paddingLeft = 0; config.paddingRight = 0; config.paddingTop = 0; config.paddingBottom = 0
-        configure(&config)
-        let manager = WindowManager(backend: self, config: config)
-        if let clock { manager.animator = Animator(backend: self, now: clock.now, delay: clock.delay) }
-        manager.startEngine()
-        return manager
-    }
-
-    @MainActor @discardableResult
-    package func settle(_ manager: WindowManager, rounds: Int = 8, timeout: TimeInterval = 10) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        var rounds = rounds
-        while rounds > 0 {
-            let before = writes.count
-            let scanned = await bounded(until: deadline) { waiter in
-                manager.scanAndRefresh { waiter.finish(true) }
-                let request = manager.scanRequests
-                return { manager.scanWaiters.removeAll { $0.request == request } }
-            }
-            guard scanned, await bounded(until: deadline, { waiter in
-                manager.animator.afterPendingWrites { waiter.finish(true) }
-                return {}
-            }) else { return false }
-            if ids.contains(where: manager.animator.isAnimating) {
-                let landed = manager.animator.onLanded
-                guard await bounded(until: deadline, { waiter in
-                    let check = { if !self.ids.contains(where: manager.animator.isAnimating) { waiter.finish(true) } }
-                    manager.animator.onLanded = { landed?(); check() }
-                    check()
-                    return { manager.animator.onLanded = landed }
-                }) else { return false }
-                continue
-            }
-            if writes.count == before, Set(manager.windows.keys) == ids { return true }
-            rounds -= 1
-        }
-        return false
-    }
-
-    @MainActor @discardableResult
-    package func wait(_ manager: WindowManager, timeout: TimeInterval = 10,
-                      until condition: @escaping () -> Bool) async -> Bool {
-        guard !condition() else { return true }
-        return await bounded(until: Date().addingTimeInterval(timeout)) { waiter in
-            manager.onChange = { if condition() { waiter.finish(true) } }
-            self.observeCursorRefresh { if condition() { waiter.finish(true) } }
-            return {
-                manager.onChange = nil
-                self.observeCursorRefresh(nil)
-            }
-        }
-    }
-
-    @MainActor private func bounded(until deadline: Date,
-                                    _ start: @escaping (Waiter) -> () -> Void) async -> Bool {
-        let waiter = Waiter()
-        return await withTaskCancellationHandler {
-            await withCheckedContinuation { done in
-                waiter.start(done, until: deadline, start)
-                if Task.isCancelled { waiter.finish(false) }
-            }
-        } onCancel: {
-            Task { @MainActor in waiter.finish(false) }
-        }
-    }
-
-    @MainActor private final class Waiter {
-        private var done: CheckedContinuation<Bool, Never>?
-        private var deadline: DispatchSourceTimer?
-        private var cleanUp: (() -> Void)?
-
-        func start(_ done: CheckedContinuation<Bool, Never>, until end: Date, _ start: (Waiter) -> () -> Void) {
-            self.done = done
-            let deadline = DispatchSource.makeTimerSource(queue: .main)
-            deadline.schedule(deadline: .now() + max(end.timeIntervalSinceNow, 0))
-            deadline.setEventHandler { [weak self] in self?.finish(false) }
-            deadline.resume()
-            self.deadline = deadline
-            let cleanUp = start(self)
-            if self.done == nil { cleanUp() } else { self.cleanUp = cleanUp }
-        }
-
-        func finish(_ met: Bool) {
-            guard let done else { return }
-            self.done = nil
-            deadline?.cancel()
-            deadline = nil
-            cleanUp?()
-            cleanUp = nil
-            done.resume(returning: met)
-        }
     }
 }

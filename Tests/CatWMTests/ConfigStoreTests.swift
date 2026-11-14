@@ -9,46 +9,8 @@ import Testing
         return ConfigStore(folder: folder.url, defaults: UserDefaults(suiteName: suite) ?? .standard)
     }
 
-    private func overrides(_ folder: ConfigFolder) -> JSON? {
-        (try? Data(contentsOf: folder.url.appendingPathComponent(ConfigStore.overridesName))).flatMap(JSON.parse)
-    }
-
-    @Test func overridesWinOverTheTypeScriptConfigUntilReset() throws {
-        let folder = try ConfigFolder(["catwm.config.ts": catwmConfig("catwm.gaps.size = 8")])
-        defer { folder.remove() }
-        let store = store(folder)
-        #expect(store.load().windowMarginSize == 8)
-
-        try store.set(option: ConfigOption.at(\Config.windowMarginSize), "12")
-        #expect(store.reload().windowMarginSize == 12)
-        #expect(overrides(folder) == .object(["gaps": .object(["size": .int(12)])]))
-        #expect(store.overriddenPaths == ["gaps.size"])
-
-        try folder.write("catwm.config.ts", catwmConfig("catwm.gaps.size = 10"))
-        #expect(store.reload().windowMarginSize == 12)
-        #expect(store.base.windowMarginSize == 10)
-
-        try store.resetOverride("gaps.size")
-        #expect(store.reload().windowMarginSize == 10)
-        #expect(overrides(folder) == nil)
-    }
-
-    @Test func aBrokenOverridesFileKeepsTheLastGoodConfig() throws {
-        let folder = try ConfigFolder(["catwm.config.ts": catwmConfig("catwm.gaps.size = 8")])
-        defer { folder.remove() }
-        let store = store(folder)
-        _ = store.load()
-        try store.set(option: ConfigOption.at(\Config.windowMarginSize), "20")
-        #expect(store.reload().windowMarginSize == 20)
-
-        try folder.write(ConfigStore.overridesName, "{ \"gaps\": ")
-        let kept = store.reload()
-
-        #expect(kept.windowMarginSize == 20)
-        #expect(store.failures.first?.file == folder.url.appendingPathComponent(ConfigStore.overridesName).path)
-        try folder.write(ConfigStore.overridesName, "{ \"gaps\": { \"size\": 12 } }")
-        #expect(store.reload().windowMarginSize == 12)
-        #expect(store.failures.isEmpty)
+    private func text(_ folder: ConfigFolder) throws -> String {
+        try String(contentsOf: folder.entry, encoding: .utf8)
     }
 
     @Test func settingsKeepsDollarSignsInBindArguments() throws {
@@ -81,30 +43,10 @@ import Testing
 
         try store.save(settings: edited, from: copy)
 
-        #expect(overrides(folder) == .object(["gaps": .object(["size": .int(30)])]))
+        #expect(try text(folder).hasSuffix("// Settings\ncatwm.gaps.size = 30\n"))
         let current = store.reload()
         #expect(current.mainMod.isEmpty)
         #expect(current.bindings.first?.arg == "echo first\necho second")
-    }
-
-    @Test func anUnreadableOverridesFileKeepsTheLastGoodConfig() throws {
-        let folder = try ConfigFolder(["catwm.config.ts": catwmConfig("catwm.gaps.size = 8")])
-        let file = folder.url.appendingPathComponent(ConfigStore.overridesName)
-        defer {
-            Log.attempt("unlock overrides") {
-                try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
-            }
-            folder.remove()
-        }
-        let store = store(folder)
-        _ = store.load()
-        try store.set(option: ConfigOption.at(\Config.windowMarginSize), "20")
-        #expect(store.reload().windowMarginSize == 20)
-
-        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: file.path)
-
-        #expect(store.reload().windowMarginSize == 20)
-        #expect(store.failures.first?.message == "CatWM can't read this file")
     }
 
     @Test(.timeLimit(.minutes(1))) func aConfigThatNeverFinishesDoesNotHoldUpCatWM() throws {
@@ -153,7 +95,7 @@ import Testing
         #expect(binds.map(\.dispatcher) == ["sort", "retile"])
     }
 
-    @Test func aSettingsSaveWritesOnlyWhatDiffersFromTheTypeScriptConfig() throws {
+    @Test func aSettingsSaveWritesOnlyWhatChanged() throws {
         let folder = try ConfigFolder(["catwm.config.ts": """
         import { catwm } from "./catwm"
         catwm.gaps.size = 8
@@ -170,16 +112,13 @@ import Testing
         edited.bindings[0] = KeyBinding(keyCode: 31, mods: [.maskAlternate, .maskShift], dispatcher: "sort", arg: "")
         try store.save(settings: edited, from: copy)
 
-        #expect(overrides(folder) == .object([
-            "motion": .object(["enabled": .bool(false)]),
-            "binds": .array([.object(["mods": .array([.string("alt"), .string("shift")]), "key": .string("o"),
-                                      "run": .string("sort")])]),
-            "submaps": .object([:])
-        ]))
+        let saved = try text(folder)
+        #expect(saved.contains("catwm.gaps.size = 8\n"))
+        #expect(saved.contains("catwm.motion.enabled = false"))
+        #expect(saved.contains("catwm.binds = [{ key: \"o\", mods: [\"alt\", \"shift\"], run: \"sort\" }]"))
         let current = store.reload()
         #expect(!current.animate && current.windowMarginSize == 8)
         #expect(current.bindings.first?.mods == [.maskAlternate, .maskShift])
-        #expect(store.base.bindings.first?.mods == .maskAlternate)
     }
 
     @Test func theFirstLaunchConvertsTheConfFileOnceAndKeepsItAsABackup() throws {

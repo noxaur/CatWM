@@ -134,13 +134,9 @@ func ratios(_ tree: DwindleTree) -> [CGFloat] {
         let manager: WindowManager
         let screen: Screen
         let ids: [CGWindowID]
-        let clock: FakeClock
 
         @MainActor func settle() async {
             #expect(await fake.settle(manager))
-            clock.advance(by: 1)
-            #expect(await fake.settle(manager))
-            clock.advance(by: 1)
         }
     }
 
@@ -150,12 +146,11 @@ func ratios(_ tree: DwindleTree) -> [CGFloat] {
         for pid in [-521, -522, -523] as [pid_t] {
             fake.addWindow(pid: pid, frame: CGRect(x: 50, y: 50, width: 600, height: 400))
         }
-        let clock = FakeClock()
-        let manager = fake.makeManager({ $0.layouts = [.dwindle] }, clock: clock)
-        await Tiles(fake: fake, manager: manager, screen: screen, ids: [], clock: clock).settle()
+        let manager = fake.makeManager { $0.layouts = [.dwindle] }
+        await Tiles(fake: fake, manager: manager, screen: screen, ids: []).settle()
         let ids = manager.tiled(on: screen)
         try #require(ids.count == 3)
-        return Tiles(fake: fake, manager: manager, screen: screen, ids: ids, clock: clock)
+        return Tiles(fake: fake, manager: manager, screen: screen, ids: ids)
     }
 
     private func drag(_ id: CGWindowID, to frame: CGRect, in tiles: Tiles) async throws {

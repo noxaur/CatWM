@@ -165,11 +165,7 @@ public final class CatWMEngine {
 
     public func resetOption(_ id: String) throws {
         guard options.contains(where: { $0.id == id }) else { throw EngineError.unknownOption(id) }
-        do {
-            try store.resetOverride(id)
-        } catch {
-            throw EngineError.invalidValue(error.localizedDescription)
-        }
+        store.resetOverride(id)
         if isRunning { try apply(store.reload()) }
     }
 

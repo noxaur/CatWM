@@ -318,6 +318,9 @@ export interface GapsOptions {
   /** Gaps between windows. Gaps between windows. Default: `true`. */
   get enabled(): boolean
   set enabled(value: boolean | undefined)
+  /** Padding around a lone window. Extra space around a tiled window that is alone, on top of padding. From 0 to 200. Default: `0`. */
+  get single(): number
+  set single(value: number | undefined)
   /** Gap size. `gaps_in` is accepted and doubled. From 0 to 100. Default: `10`. */
   get size(): number
   set size(value: number | undefined)
@@ -524,6 +527,9 @@ export interface ScopedGapsOptions {
   /** Gaps between windows. Gaps between windows. Default: `true`. */
   get enabled(): boolean
   set enabled(value: boolean | undefined)
+  /** Padding around a lone window. Extra space around a tiled window that is alone, on top of padding. From 0 to 200. Default: `0`. */
+  get single(): number
+  set single(value: number | undefined)
   /** Gap size. `gaps_in` is accepted and doubled. From 0 to 100. Default: `10`. */
   get size(): number
   set size(value: number | undefined)
@@ -652,6 +658,14 @@ export interface WindowHandle {
  */
 export type WorkspaceRuleCall = (match: WorkspaceMatch, set: (scoped: ScopedOptions) => void) => void
 
+/** A key bind as data, the form the Settings window writes. */
+export interface BindSpec {
+  mods?: readonly Mod[]
+  key: Key
+  run: Action
+  repeat?: boolean
+}
+
 export interface Catwm extends Options {
   /**
    * Binds a key to an action, or to a function that runs when you press it. The function can only change
@@ -663,6 +677,13 @@ export interface Catwm extends Options {
     run: Action | (() => void),
     options?: { repeat?: boolean; submap?: string }
   ): void
+  /**
+   * The binds that run an action, as the Settings window saves them. Assigning replaces them all. Binds
+   * with a function, and binds you add with `catwm.bind`, are not part of it.
+   */
+  binds: readonly BindSpec[]
+  /** The same for each mode, keyed by the mode's name. */
+  submaps: Readonly<Record<string, readonly BindSpec[]>>
   /** Runs `set` once, while the config loads. It records what to do to each window that starts matching. */
   windows(match: WindowMatch, set: (win: WindowRule) => void): void
   readonly window: {

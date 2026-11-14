@@ -38,7 +38,7 @@ REPORTS = Path.home() / "Library/Logs/DiagnosticReports"
 HANG_SECONDS = 5
 START_SECONDS = 30
 EXIT_SECONDS = 15
-LAYOUTS = ["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp",
+LAYOUTS = ["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp", "dwindle",
            "3column-left", "3column-middle", "3column-right", "two-pane", "two-pane-right",
            "widescreen-tall", "widescreen-tall-right"]
 DIRECTIONS = ["left", "right", "up", "down"]

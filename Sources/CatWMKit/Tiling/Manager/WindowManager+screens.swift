@@ -57,6 +57,7 @@ extension WindowManager {
     package var focusedScreen: NSScreen? { currentScreen()?.nsScreen }
 
     package func mouseLocation() -> CGPoint { backend.pointerLocation() }
+    package func primaryButtonDown() -> Bool { backend.primaryButtonDown() }
 
     package func focusMonitor(_ spec: String) {
         guard let src = currentScreen(), let dst = screen(from: src, spec: spec, in: backend.screens()) else { return }

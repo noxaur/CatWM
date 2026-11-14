@@ -40,15 +40,17 @@ extension WindowManager {
     package func adjustRatio(_ arg: String) {
         guard let current = context() else { return }
         let parts = arg.lowercased().split(separator: " ")
-        var ratio = current.state.ratio
-        if parts.first == "exact", parts.count > 1, let value = Double(parts[1]) {
-            ratio = CGFloat(value)
-        } else {
-            let delta = Double(arg.replacingOccurrences(of: "+", with: "")).map { CGFloat($0) }
-                ?? config.windowResizeStep
-            ratio += delta
+        let exact = parts.first == "exact" && parts.count > 1 ? Double(parts[1]).map { CGFloat($0) } : nil
+        let delta = Double(arg.replacingOccurrences(of: "+", with: "")).map { CGFloat($0) } ?? config.windowResizeStep
+        if current.state.layout == .dwindle {
+            current.state.ratio = SplitDivider.clamped(exact ?? current.state.ratio + delta)
+            changeDwindle(of: current.window) { tree, index, area in
+                guard let ratio = tree.setRatio(at: index, in: area, { exact ?? $0 + delta }) else { return }
+                current.state.ratio = ratio
+            }
+            return
         }
-        ratio = SplitDivider.clamped(ratio)
+        let ratio = SplitDivider.clamped(exact ?? current.state.ratio + delta)
         if let stubborn = windowRefusingRatio(ratio, from: current.state.ratio, ids: current.ids,
                                               on: current.screen, current.state) {
             warnTooSmall(stubborn, on: current.screen)

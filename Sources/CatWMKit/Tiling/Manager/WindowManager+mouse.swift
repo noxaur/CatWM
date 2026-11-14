@@ -41,7 +41,7 @@ extension WindowManager {
         readFrames(dragged) { [weak self] in
             guard let self else { return }
             defer { self.settleParkedTabs() }
-            guard NSEvent.pressedMouseButtons & 1 == 0, !self.desktops.movingToSpace else { return }
+            guard !self.primaryButtonDown(), !self.desktops.movingToSpace else { return }
             self.finishMouseDrag(finished, at: point, hovered: hovered, joins: joins)
         }
     }
@@ -87,6 +87,7 @@ extension WindowManager {
         let rect = usableRect(screen), frame = window.cachedFrame
         guard !frame.isNull else { return }
         let layout = screenState.layout
+        if layout == .dwindle { return dragDwindleEdges(of: window, to: frame, on: screen) }
         guard let idx = ids.firstIndex(of: window.id),
               let (mains, axis) = SplitDivider.split(layout, mainCount: screenState.mainCount, count: ids.count,
                                                      in: rect) else { return }
@@ -95,8 +96,8 @@ extension WindowManager {
         case .widescreenTall: !isMain || mains == 1 || idx == mains - 1
         case .widescreenTallRight: !isMain || mains == 1 || idx == 0
         case .threeColumnLeft, .threeColumnRight: isMain
-        case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .threeColumnMiddle,
-             .twoPane, .twoPaneRight: true
+        case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .dwindle,
+             .threeColumnMiddle, .twoPane, .twoPaneRight: true
         }
         guard touchesSplit else { return }
         let gap = windowGap(count: ids.count, on: screen)

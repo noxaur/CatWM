@@ -12,8 +12,17 @@ extension WindowManager {
         let gap = windowGap(count: ids.count, on: screen, workspace: workspace)
         let alone = ids.count == 1 ? config(on: screen, workspace: workspace).singleWindowPadding : 0
         let area = usableRect(screen, workspace: workspace).insetBy(dx: alone - gap / 2, dy: alone - gap / 2)
-        guard let raw = screenState.layout.frames(count: ids.count, in: area,
-                                                  ratio: ratio, mainCount: screenState.mainCount) else { return nil }
+        let frames: [CGRect]?
+        if screenState.layout == .dwindle {
+            frames = screenState.withDwindle(on: dwindleDisplay(screen, screenState)) { tree in
+                tree.sync(ids, minimums: dwindleMinimums(ids, gap: gap))
+                return tree.frames(in: area)
+            }
+        } else {
+            frames = screenState.layout.frames(count: ids.count, in: area, ratio: ratio,
+                                               mainCount: screenState.mainCount)
+        }
+        guard let raw = frames else { return nil }
         let slots = raw.map { $0.insetBy(dx: gap / 2, dy: gap / 2).pixelAligned }
         guard slots.allSatisfy({ [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) }) else { return nil }
         return (slots, gap)

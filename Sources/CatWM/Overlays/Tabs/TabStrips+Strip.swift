@@ -59,11 +59,9 @@ extension TabStrips {
         }
 
         func contains(_ point: CGPoint) -> Bool {
-            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
             let bar = NSRect(x: panel.frame.minX, y: panel.frame.minY + TabStrip.corner,
                              width: panel.frame.width, height: TabStrip.height)
-            return panel.isVisible && panel.alphaValue > 0
-                && bar.contains(NSPoint(x: point.x, y: primaryHeight - point.y))
+            return panel.isVisible && panel.alphaValue > 0 && bar.contains(point.flipped)
         }
 
         func preview(_ window: Window, at point: CGPoint) {
@@ -159,9 +157,8 @@ extension TabStrips {
         }
 
         private static func frame(above slot: CGRect) -> NSRect {
-            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
-            return NSRect(x: slot.minX, y: primaryHeight - slot.minY - TabStrip.corner,
-                          width: max(0, slot.width), height: TabStrip.panelHeight).integral
+            NSRect(x: slot.minX, y: CGPoint(x: slot.minX, y: slot.minY).flipped.y - TabStrip.corner,
+                   width: max(0, slot.width), height: TabStrip.panelHeight).integral
         }
     }
 }

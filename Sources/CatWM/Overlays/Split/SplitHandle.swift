@@ -88,10 +88,10 @@ import SwiftUI
 
         private static func frame(for divider: SplitDivider) -> NSRect {
             let line = divider.frame, side = SplitGrip.width
-            let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
             return divider.vertical
-                ? NSRect(x: line.midX - side / 2, y: primaryHeight - line.maxY, width: side, height: line.height)
-                : NSRect(x: line.minX, y: primaryHeight - line.midY - side / 2, width: line.width, height: side)
+                ? NSRect(x: line.midX - side / 2, y: line.flipped.minY, width: side, height: line.height)
+                : NSRect(x: line.minX, y: CGPoint(x: line.midX, y: line.midY).flipped.y - side / 2,
+                         width: line.width, height: side)
         }
     }
 }

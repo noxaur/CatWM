@@ -138,12 +138,7 @@ extension FocusDim {
               (info[kCGWindowAlpha as String] as? Double ?? 1) > 0.01 else { return nil }
         let layer = info[kCGWindowLayer as String] as? Int ?? 0
         guard (0..<Int(CGWindowLevelForKey(.mainMenuWindow))).contains(layer) else { return nil }
-        guard NSScreen.screens.contains(where: { flipped($0.frame).intersects(bounds) }) else { return nil }
+        guard NSScreen.screens.contains(where: { $0.frame.flipped.intersects(bounds) }) else { return nil }
         return (id, layer)
-    }
-
-    func flipped(_ rect: CGRect) -> CGRect {
-        let height = NSScreen.screens.first?.frame.height ?? 0
-        return CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
     }
 }

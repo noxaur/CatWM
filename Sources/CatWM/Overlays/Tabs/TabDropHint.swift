@@ -26,8 +26,7 @@ import SwiftUI
             ?? NSRunningApplication(processIdentifier: window.pid)?.localizedName ?? "Window"
         if model.title != title { model.title = title }
         if model.pid != window.pid { model.pid = window.pid }
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
-        let frame = NSRect(x: rect.minX, y: primaryHeight - rect.maxY, width: rect.width, height: rect.height)
+        let frame = rect.flipped
         guard frame != target || hiding || !panel.isVisible else { return }
         let appearing = !panel.isVisible || hiding
         target = frame

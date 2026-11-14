@@ -17,7 +17,7 @@ struct AppSurface: TilingSurface {
             KeyHelp.shared.modeChanged(name)
             CursorActions.shared.modeChanged(name)
             Tips.shared.modeChanged(name)
-            manager?.modeChanged(name)
+            manager?.notifyChange()
         }
         Hotkeys.shared.handler = { [weak manager] binding in manager?.run(binding) }
         Hotkeys.shared.onWindowModeClick = { point in
@@ -200,8 +200,6 @@ struct AppSurface: TilingSurface {
         switch command {
         case "modefx": ModeFX.shared.command(words)
         case "panelfx": PanelMotionDemo.shared.command(words)
-        case "intro": Onboarding.shared.playIntro(IntroScore.Arrangement.named(argument) ?? .standard)
-        case "introlab": IntroLab.shared.open()
         default: return false
         }
         return true

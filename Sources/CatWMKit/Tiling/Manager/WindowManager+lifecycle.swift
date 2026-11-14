@@ -248,11 +248,6 @@ extension WindowManager {
         refresh()
     }
 
-    package func modeChanged(_ name: String) {
-        notifyChange()
-        onModeChange?(name)
-    }
-
     package func startMouseTaps(logFailure: Bool = false) {
         guard input.mouseTaps else { return }
         if config.features.contains(.gestures) { nativeGestures.start() }

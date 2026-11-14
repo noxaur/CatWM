@@ -136,7 +136,7 @@ struct WelcomeView: View {
                 dots(1)
                 Spacer(minLength: 0)
                 OButton("Skip", variant: .ghost, action: model.skip)
-                OButton("Learn", variant: .primary, size: .large, shortcut: ["↩"], action: model.start)
+                OButton("Done", variant: .primary, size: .large, shortcut: ["↩"], action: model.done)
                     .keyboardShortcut(model.page == .keys ? .defaultAction : nil)
             }
         }
@@ -173,5 +173,5 @@ struct WelcomeView: View {
     var allowLogin: () -> Void = {}
     var skip: () -> Void = {}
     var next: () -> Void = {}
-    var start: () -> Void = {}
+    var done: () -> Void = {}
 }

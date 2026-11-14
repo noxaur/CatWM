@@ -22,8 +22,6 @@ package enum DefaultsKey {
     package static let tipsOff = "tips.off"
     package static let tipsPanes = "tips.panes"
     package static let tipsSeen = "tips.seen"
-    package static let tutorialChapter = "tutorial.chapter"
-    package static let tutorialDone = "tutorial.done"
     package static let whatsNewSeen = "whatsNew.seen"
     package static let wsFloating = "ws.floating"
     package static let wsFreshDesktops = "ws.freshDesktops"

@@ -12,12 +12,6 @@ if CommandLine.arguments.dropFirst().first == "--write-config-docs" {
     exit(0)
 }
 
-if CommandLine.arguments.dropFirst().first == "practice" {
-    let args = Array(CommandLine.arguments.dropFirst(2))
-    let titles = args.count > 1 ? args[1].split(separator: ",").map(String.init) : []
-    PracticeDesk.run(parent: pid_t(args.first ?? "") ?? getppid(), titles: titles)
-}
-
 if CommandLine.arguments.dropFirst().first == "docs" {
     if let dir = Bundle.main.resourceURL?.appendingPathComponent("AgentDocs"),
        FileManager.default.fileExists(atPath: dir.path) {

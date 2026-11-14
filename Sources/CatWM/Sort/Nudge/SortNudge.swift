@@ -16,20 +16,15 @@ import SwiftUI
         return formatter.string(from: Date())
     }
 
-    func markOffered(_ workspace: String) {
-        var days = Instance.defaults.dictionary(forKey: DefaultsKey.sortNudged) as? [String: String] ?? [:]
-        days[workspace] = Self.today()
-        Instance.defaults.set(days, forKey: DefaultsKey.sortNudged)
-    }
-
     func offer(workspace: String, count: Int, on screen: NSScreen) {
         let manager = WindowManager.shared
         guard panel == nil, manager.tilingEnabled, manager.config.sortNudge > 0, count > manager.config.sortNudge,
               !Onboarding.shared.isRunning, !SortPanel.shared.isOpen, !StatusMenu.shared.isOpen,
               let button = Onboarding.shared.statusButton, let buttonWindow = button.window else { return }
-        let days = Instance.defaults.dictionary(forKey: DefaultsKey.sortNudged) as? [String: String] ?? [:]
+        var days = Instance.defaults.dictionary(forKey: DefaultsKey.sortNudged) as? [String: String] ?? [:]
         guard days[workspace] != Self.today() else { return }
-        markOffered(workspace)
+        days[workspace] = Self.today()
+        Instance.defaults.set(days, forKey: DefaultsKey.sortNudged)
 
         let keys = ShortcutIndex().keys("sort")
         model.workspace = workspace

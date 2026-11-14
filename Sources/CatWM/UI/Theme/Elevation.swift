@@ -105,8 +105,4 @@ extension View {
             .overlay(shape.stroke(ring, lineWidth: outlined && (elevation == .popover || elevation == .float) ? 1 : 0))
             .shadow(color: drop, radius: elevation.radius, y: elevation.y)
     }
-
-    func legible(strong: Bool = false) -> some View {
-        shadow(color: .black.opacity(strong ? 0.45 : 0.3), radius: strong ? 8 : 12, y: strong ? 2 : 4)
-    }
 }

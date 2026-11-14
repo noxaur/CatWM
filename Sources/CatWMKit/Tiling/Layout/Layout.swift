@@ -2,6 +2,7 @@ import CoreGraphics
 
 package enum Layout: String, CaseIterable {
     case tall, tallRight = "tall-right", wide, middleWide = "middle-wide", fullscreen, column, row, floating, bsp
+    case dwindle
     case threeColumnLeft = "3column-left", threeColumnMiddle = "3column-middle", threeColumnRight = "3column-right"
     case twoPane = "two-pane", twoPaneRight = "two-pane-right"
     case widescreenTall = "widescreen-tall", widescreenTallRight = "widescreen-tall-right"
@@ -17,6 +18,7 @@ package enum Layout: String, CaseIterable {
         case .row: "Row"
         case .floating: "Floating"
         case .bsp: "Binary Space Partitioning"
+        case .dwindle: "Dwindle"
         case .threeColumnLeft: "3-Column Left"
         case .threeColumnMiddle: "3-Column Middle"
         case .threeColumnRight: "3-Column Right"
@@ -33,7 +35,7 @@ package enum Layout: String, CaseIterable {
         case .widescreenTall: "Wide Tall"
         case .widescreenTallRight: "Wide Tall Right"
         case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating,
-             .threeColumnLeft, .threeColumnMiddle, .threeColumnRight, .twoPane, .twoPaneRight: title
+             .threeColumnLeft, .threeColumnMiddle, .threeColumnRight, .twoPane, .twoPaneRight, .dwindle: title
         }
     }
 
@@ -71,7 +73,7 @@ package enum Layout: String, CaseIterable {
             return middleFrames(count: count, in: rect, ratio: ratio, mains: mains)
         case .threeColumnLeft, .threeColumnRight:
             return sideFrames(count: count, in: rect, ratio: ratio, mains: mains)
-        case .bsp:
+        case .bsp, .dwindle:
             return Self.bspFrames(count: count, in: rect, ratio: ratio)
         }
     }
@@ -122,7 +124,7 @@ package enum Layout: String, CaseIterable {
         case .widescreenTallRight: .widescreenTall
         case .threeColumnLeft: .threeColumnRight
         case .threeColumnRight: .threeColumnLeft
-        case .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .threeColumnMiddle: nil
+        case .wide, .middleWide, .fullscreen, .column, .row, .floating, .bsp, .threeColumnMiddle, .dwindle: nil
         }
     }
 
@@ -131,13 +133,13 @@ package enum Layout: String, CaseIterable {
         case .tall, .widescreenTall, .twoPane, .threeColumnLeft, .bsp: (true, true)
         case .tallRight, .widescreenTallRight, .twoPaneRight, .threeColumnRight: (true, false)
         case .wide: (false, true)
-        case .middleWide, .fullscreen, .column, .row, .floating, .threeColumnMiddle: nil
+        case .middleWide, .fullscreen, .column, .row, .floating, .threeColumnMiddle, .dwindle: nil
         }
     }
 
     package var singleMain: Bool {
         switch self {
-        case .bsp, .twoPane, .twoPaneRight: true
+        case .bsp, .dwindle, .twoPane, .twoPaneRight: true
         case .tall, .tallRight, .wide, .middleWide, .fullscreen, .column, .row, .floating,
              .threeColumnLeft, .threeColumnMiddle, .threeColumnRight, .widescreenTall, .widescreenTallRight: false
         }
@@ -146,8 +148,8 @@ package enum Layout: String, CaseIterable {
     package var tilesSideBySide: Bool {
         switch self {
         case .fullscreen, .floating: false
-        case .tall, .tallRight, .wide, .middleWide, .column, .row, .bsp, .threeColumnLeft, .threeColumnMiddle,
-             .threeColumnRight, .twoPane, .twoPaneRight, .widescreenTall, .widescreenTallRight: true
+        case .tall, .tallRight, .wide, .middleWide, .column, .row, .bsp, .dwindle, .threeColumnLeft,
+             .threeColumnMiddle, .threeColumnRight, .twoPane, .twoPaneRight, .widescreenTall, .widescreenTallRight: true
         }
     }
 }

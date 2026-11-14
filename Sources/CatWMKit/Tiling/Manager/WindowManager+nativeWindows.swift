@@ -174,7 +174,7 @@ extension WindowManager {
             DispatchQueue.main.async {
                 guard let self, self.windows[window.id] === window, !window.isFloating,
                       !self.animator.isBusy(window.id), !frame.isNull,
-                      NSEvent.pressedMouseButtons & 1 == 0,
+                      !self.primaryButtonDown(),
                       let screen = self.screen(containing: frame),
                       self.shown[screen.uuid] == self.workspaceOf[window.id] else { return }
                 let state = self.state(for: screen)

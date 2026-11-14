@@ -283,7 +283,7 @@
         {
           "name" : "size",
           "required" : true,
-          "summary" : "`exact W H`, the size in points. A tiled window keeps its size.",
+          "summary" : "`exact W H`, the size in points, or `DX DY` to grow by points. A tiled window changes size only in the dwindle layout.",
           "type" : "string"
         }
       ],
@@ -292,7 +292,7 @@
       "result" : {
         "kind" : "none"
       },
-      "summary" : "Set the size of the focused floating window"
+      "summary" : "Resize the focused window"
     },
     {
       "args" : [
@@ -439,7 +439,7 @@
         {
           "name" : "message",
           "required" : true,
-          "summary" : "`swapwithmaster`, `swapsides`, `focusmaster`, `addmaster`, `removemaster`, `mfact <value>`, `orientationnext` or `orientationprev`",
+          "summary" : "`swapwithmaster`, `swapsides`, `focusmaster`, `addmaster`, `removemaster`, `mfact <value>`, `orientationnext`, `orientationprev`, or in the dwindle layout `togglesplit` and `swapsplit`",
           "type" : "string"
         }
       ],
@@ -499,6 +499,7 @@
             "row",
             "floating",
             "bsp",
+            "dwindle",
             "3column-left",
             "3column-middle",
             "3column-right",

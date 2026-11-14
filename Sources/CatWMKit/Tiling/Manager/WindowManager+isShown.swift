@@ -136,7 +136,7 @@ extension WindowManager {
         let timing = TilingTiming("reconcile", windows: present.count)
         defer { timing.finish() }
         if config.virtualWorkspaces { return syncNativeWorkspaces(screens: screens, present: present) }
-        let held = desktops.movingToSpace || NSEvent.pressedMouseButtons & 1 != 0
+        let held = desktops.movingToSpace || primaryButtonDown()
         let observation = WorkspaceObservation(
             displays: screens.map {
                 .init(id: $0.uuid, frame: $0.frame, space: backend.currentSpace(display: $0.uuid),

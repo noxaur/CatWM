@@ -4,15 +4,17 @@ import CoreGraphics
 import Testing
 
 @Suite(.timeLimit(.minutes(1))) @MainActor struct LayoutCapabilityTests {
-    private nonisolated static let withoutRatioAxis: Set<Layout> = [
+    private nonisolated static let withoutMouseResize: Set<Layout> = [
         .middleWide, .fullscreen, .column, .row, .floating, .threeColumnMiddle
     ]
+    private nonisolated static let resizesItsOwnSplits: Set<Layout> = [.dwindle]
 
     @Test func everyLayoutWithoutARatioAxisIsNamed() {
-        #expect(Set(Layout.allCases.filter { $0.ratioAxis == nil }) == Self.withoutRatioAxis)
+        #expect(Set(Layout.allCases.filter { $0.ratioAxis == nil })
+            == Self.withoutMouseResize.union(Self.resizesItsOwnSplits))
     }
 
-    @Test(arguments: Layout.allCases.filter { !withoutRatioAxis.contains($0) })
+    @Test(arguments: Layout.allCases.filter { !withoutMouseResize.contains($0) })
     func aMouseResizeOfTheMainWindowMovesTheSplit(_ layout: Layout) async throws {
         let fake = FakeBackend()
         let screen = fake.addScreen()
@@ -22,7 +24,9 @@ import Testing
         #expect(await fake.settle(manager))
         let ids = manager.tiled(on: screen), main = ids[0]
         let before = ids.map(fake.frame(of:)), ratio = manager.state(for: screen).ratio
-        let axis = try #require(layout.ratioAxis)
+        let tree = manager.dwindle(on: screen)
+        let axis: (horizontal: Bool, fromStart: Bool) = Self.resizesItsOwnSplits.contains(layout)
+            ? (true, true) : try #require(layout.ratioAxis)
         var grown = before[0]
         if layout == .bsp || axis.horizontal {
             grown.size.width += 100
@@ -35,7 +39,9 @@ import Testing
         manager.observeFrame(try #require(manager.windows[main]))
         manager.mouseUp()
 
-        #expect(await fake.wait(manager) { manager.state(for: screen).ratio != ratio })
+        #expect(await fake.wait(manager) {
+            manager.state(for: screen).ratio != ratio || manager.dwindle(on: screen) != tree
+        })
         #expect(await fake.settle(manager))
         let after = ids.map(fake.frame(of:))
         #expect(after[0] == grown)

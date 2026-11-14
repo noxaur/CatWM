@@ -191,9 +191,25 @@ extension WindowManager {
         let toMain = firstRun ? [] : arrivals.filter { config(for: workspaceOf[$0.id]).newWindowsToMain }
         order.insert(contentsOf: toMain.map(\.id), at: 0)
         let ids = Set(toMain.map(\.id))
-        order.append(contentsOf: arrivals.map(\.id).filter { !ids.contains($0) })
+        orderArrivals(arrivals.map(\.id).filter { !ids.contains($0) }, firstRun: firstRun)
         if let front = frontmostPID(), reportedFocusedWindow() == nil, arrivals.contains(where: { $0.pid == front }) {
             requestFocusObservation()
+        }
+    }
+
+    func orderArrivals(_ rest: [CGWindowID], firstRun: Bool) {
+        let focusedID = [focusRequests.reportedFocus?.id, focusedWindow()?.id].compactMap(\.self)
+            .first { order.contains($0) }
+        if !firstRun, let focused = focusedID.flatMap({ windows[$0] }), let index = order.firstIndex(of: focused.id),
+           let screen = screen(of: focused), state(for: screen).layout == .dwindle,
+           tiled(on: screen).contains(focused.id) {
+            func beside(_ id: CGWindowID) -> Bool {
+                workspaceOf[id] == workspaceOf[focused.id] && (!sharesSpaces || displayOf[id] == displayOf[focused.id])
+            }
+            order.insert(contentsOf: rest.filter(beside), at: index + 1)
+            order.append(contentsOf: rest.filter { !beside($0) })
+        } else {
+            order.append(contentsOf: rest)
         }
     }
 

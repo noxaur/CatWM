@@ -19,7 +19,7 @@ class CatWMError(Exception):
 
 Direction = Literal["left", "right", "up", "down"]
 Step = Literal["next", "prev"]
-Layout = Literal["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp", "3column-left", "3column-middle", "3column-right", "two-pane", "two-pane-right", "widescreen-tall", "widescreen-tall-right"]
+Layout = Literal["tall", "tall-right", "wide", "middle-wide", "fullscreen", "column", "row", "floating", "bsp", "dwindle", "3column-left", "3column-middle", "3column-right", "two-pane", "two-pane-right", "widescreen-tall", "widescreen-tall-right"]
 
 
 class Rect(TypedDict):
@@ -388,7 +388,7 @@ class CatWM:
         self.call("settiled", args)
 
     def resizeactive(self, size: str) -> None:
-        """Set the size of the focused floating window"""
+        """Resize the focused window"""
         args: dict[str, Any] = {}
         args["size"] = size
         self.call("resizeactive", args)

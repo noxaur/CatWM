@@ -21,6 +21,8 @@ extension FakeBackend {
 
     @MainActor package func pointerLocation() -> CGPoint { state.withLockUnchecked { state in state.pointer } }
 
+    @MainActor package func primaryButtonDown() -> Bool { state.withLockUnchecked { state in state.held != nil } }
+
     @MainActor package func warpPointer(to point: CGPoint) {
         state.withLockUnchecked { state in
             state.inputLog.append(.warp(point))

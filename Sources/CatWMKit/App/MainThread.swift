@@ -41,10 +41,9 @@ extension Timer {
 @MainActor package final class Delay {
     private let enqueue: @MainActor (TimeInterval, DispatchWorkItem) -> Void
     private var ticket = 0
-    private var pending = false
     private nonisolated(unsafe) var work: DispatchWorkItem?
 
-    package var isPending: Bool { pending }
+    package var isPending: Bool { work != nil }
 
     package init(enqueue: @escaping @MainActor (TimeInterval, DispatchWorkItem) -> Void = Delay.enqueueOnMain) {
         self.enqueue = enqueue
@@ -54,12 +53,9 @@ extension Timer {
         cancel()
         ticket += 1
         let mine = ticket
-        pending = true
         let item = DispatchWorkItem { [weak self] in
             onMainThread {
                 guard let self, self.ticket == mine else { return }
-                self.ticket += 1
-                self.pending = false
                 self.work = nil
                 body()
             }
@@ -70,7 +66,6 @@ extension Timer {
 
     package func cancel() {
         ticket += 1
-        pending = false
         work?.cancel()
         work = nil
     }

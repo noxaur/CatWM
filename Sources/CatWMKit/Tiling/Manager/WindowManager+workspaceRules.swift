@@ -77,7 +77,7 @@ extension WindowManager {
 
     private func workspaceFacts(of workspace: String, on screen: Screen?,
                                 among ids: some Sequence<CGWindowID>) -> WorkspaceFacts {
-        var facts = WorkspaceFacts(layout: states[workspace]?.layout ?? config.layouts.first ?? .tall,
+        var facts = WorkspaceFacts(layout: states[workspace]?.layout ?? config.layouts.primary,
                                    names: [workspaceNumber(workspace)] + (labels[workspace].map { [$0] } ?? []))
         var perApp: [String: Int] = [:]
         var bundles = Set<String>()

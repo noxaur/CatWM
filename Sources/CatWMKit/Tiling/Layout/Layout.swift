@@ -153,3 +153,7 @@ package enum Layout: String, CaseIterable {
         }
     }
 }
+
+extension Array where Element == Layout {
+    package var primary: Layout { first ?? .tall }
+}

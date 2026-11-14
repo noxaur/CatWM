@@ -15,7 +15,7 @@ extension WindowManager {
     package func splitDivider(on screen: Screen) -> SplitDivider? {
         guard config.splitHandle, isStarted, tilingEnabled, !closeAndSort.sortSession else { return nil }
         let screenState = state(for: screen)
-        guard screenState.zoomed == nil else { return nil }
+        guard screenState.fullscreen == nil else { return nil }
         let ids = splitIDs(on: screen)
         let slots = ids.compactMap(splitSlot)
         guard slots.count == ids.count,

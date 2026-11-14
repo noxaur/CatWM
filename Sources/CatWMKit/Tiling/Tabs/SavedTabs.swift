@@ -32,17 +32,13 @@ package struct SavedTabs: Equatable {
         guard members.count > 1 else { return nil }
         self.init(members: members, active: active)
     }
-
-    package var line: String { members.map { "\($0.id)@\($0.pid)" }.joined(separator: " ") + " > \(active)" }
 }
 
 extension WindowManager {
-    private static let legacyTabsKey = "tabs.groups"
-
     package func loadTabs() {
         let defaults = Instance.defaults
-        tabUI.savedTabs = (defaults.stringArray(forKey: Self.legacyTabsKey) ?? []).compactMap(SavedTabs.init)
-        defaults.removeObject(forKey: Self.legacyTabsKey)
+        tabUI.savedTabs = (defaults.stringArray(forKey: DefaultsKey.legacyTabs) ?? []).compactMap(SavedTabs.init)
+        defaults.removeObject(forKey: DefaultsKey.legacyTabs)
         tabUI.savedTabsUntil = Date().addingTimeInterval(SavedTabs.wait)
     }
 

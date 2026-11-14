@@ -139,3 +139,13 @@ private func values(_ config: Config) -> [String: String] {
     #expect(!paths.contains(""))
     #expect(Set(paths).count == paths.count)
 }
+
+@Suite struct ConfigChangeFieldTests {
+    @Test @MainActor func everyFieldNamedForAConfigChangeIsAnOptionKeyOrAWholeSetting() {
+        let whole = ["layouts", "floating", "mod", "bindings", "features", "windowRules"]
+        let known = Set(Options.all.map(\.key)).union(whole)
+        for list in [WindowManager.surfaceFields, WindowManager.floatFields, WindowManager.liveFields] {
+            #expect(list.subtracting(known).isEmpty, "\(list.subtracting(known).sorted())")
+        }
+    }
+}

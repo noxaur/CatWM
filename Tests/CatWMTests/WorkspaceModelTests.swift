@@ -59,15 +59,15 @@ import Testing
         #expect(model.workspaceOf[1] == "2" && model.workspaceOf[2] == "1")
     }
 
-    @Test func forgettingAWindowReleasesItsFullscreenWorkspace() {
+    @Test func forgettingAWindowReleasesItsMaximisedWorkspace() {
         var model = WorkspaceModel()
-        let workspace = WindowManager.spaceWorkspace(display: "A", space: 5)
-        model.assign(7, to: workspace); model.fullscreenHost[workspace] = 7
+        let workspace = WorkspaceKey.space(display: "A", space: 5)
+        model.assign(7, to: workspace); model.maximisedHost[workspace] = 7
         model.forget(7)
-        #expect(model.fullscreenHost[workspace] == nil && model.workspaceOf[7] == nil)
-        model.fullscreenHost[workspace] = 8
+        #expect(model.maximisedHost[workspace] == nil && model.workspaceOf[7] == nil)
+        model.maximisedHost[workspace] = 8
         model.resetWorkspaces()
-        #expect(model.fullscreenHost.isEmpty)
+        #expect(model.maximisedHost.isEmpty)
     }
 
     @Test func resetKeepsOrderAndFocusHistory() {
@@ -87,7 +87,7 @@ import Testing
     @Test func aSnapshotDoesNotChangeWithTheModel() {
         var model = WorkspaceModel()
         let state = ScreenState(layout: .tall)
-        state.ratio = 0.6; state.mainCount = 2; state.zoomed = 4
+        state.ratio = 0.6; state.mainCount = 2; state.fullscreen = 4
         model.states["1"] = state
         model.assign(4, to: "1"); model.order = [4]; model.lastFocused["1"] = 4
         let snap = model.snapshot()
@@ -96,7 +96,7 @@ import Testing
         #expect(snap.states["1"]?.layout == .tall)
         #expect(snap.states["1"]?.ratio == 0.6)
         #expect(snap.states["1"]?.mainCount == 2)
-        #expect(snap.states["1"]?.zoomed == 4)
+        #expect(snap.states["1"]?.fullscreen == 4)
         #expect(snap.workspaceOf[4] == "1")
         #expect(snap.order == [4])
         #expect(snap.lastFocused["1"] == 4)
@@ -108,7 +108,7 @@ import Testing
         model.order = [1, 2, 3]
         model.joinTab(2, onto: 1)
         model.joinTab(3, onto: 2)
-        let maximised = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let maximised = WorkspaceKey.space(display: "A", space: 5)
         model.hostMaximised(2, in: maximised)
         #expect(model.tabs.group(of: 1)?.members == [1, 3])
         #expect(model.rejoinMaximisedTabs { _ in true }.isEmpty)
@@ -124,7 +124,7 @@ import Testing
         for id: CGWindowID in [1, 2, 3] { model.assign(id, to: "1") }
         model.joinTab(2, onto: 1)
         model.joinTab(3, onto: 2)
-        let maximised = WindowManager.spaceWorkspace(display: "A", space: 5)
+        let maximised = WorkspaceKey.space(display: "A", space: 5)
         model.hostMaximised(2, in: maximised)
         model.leaveTab(3)
         model.assign(2, to: "2")

@@ -248,6 +248,12 @@ import Testing
         #expect(divider.position == 300)
     }
 
+    @Test func aRatioIsClampedToTheRange() {
+        #expect(SplitDivider.clamped(0.05) == 0.1)
+        #expect(SplitDivider.clamped(0.5) == 0.5)
+        #expect(SplitDivider.clamped(2) == 0.9)
+    }
+
     @Test func ratioStaysInRange() throws {
         let divider = try #require(SplitDivider(layout: .tall, slots: slots(.tall, count: 2, ratio: 0.5, gap: 0),
                                                 mainCount: 1, in: screen))
@@ -304,5 +310,20 @@ import Testing
         let frames = zip(slots, mins).map { clampToMinimum($0, min: $1, bounds: bounds) }
         #expect(frames == [CGRect(x: 0, y: 0, width: 500, height: 500), CGRect(x: 0, y: 100, width: 500, height: 500)])
         #expect(zip(frames, mins).map { clampToMinimum($0, min: $1, bounds: bounds) } == frames)
+    }
+}
+
+@Suite struct WrapAndDefaultTests {
+    @Test func anIndexWrapsBothWaysWithoutOverflow() {
+        #expect(2.wrapped(by: 1, in: 3) == 0)
+        #expect(0.wrapped(by: -1, in: 3) == 2)
+        #expect((-1).wrapped(by: 1, in: 3) == 0)
+        #expect(1.wrapped(by: Int.max, in: 4) == 0)
+        #expect(1.wrapped(by: Int.min, in: 4) == 1)
+    }
+
+    @Test func noLayoutsFallBackToTall() {
+        #expect([Layout]().primary == .tall)
+        #expect([Layout.wide, .tall].primary == .wide)
     }
 }

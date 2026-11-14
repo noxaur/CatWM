@@ -21,7 +21,7 @@ extension SortModel {
     func target() -> CGWindowID? { hover ?? selected }
 
     func place(_ id: CGWindowID, inLane i: Int, at index: Int? = nil, tabs: Bool = false) {
-        if let item = unplacedFullscreen(id) {
+        if let item = unplacedMaximised(id) {
             edit { $0.adopt(item, inLane: i, at: index) }
         } else if tabs {
             edit { $0.placeTabs(id, inLane: i) }
@@ -39,21 +39,21 @@ extension SortModel {
         show(id)
     }
 
-    func unplacedFullscreen(_ id: CGWindowID) -> SortItem? {
-        plan.items[id] == nil ? currentDisplay?.fullscreen.first { $0.id == id } : nil
+    func unplacedMaximised(_ id: CGWindowID) -> SortItem? {
+        plan.items[id] == nil ? currentDisplay?.maximised.first { $0.id == id } : nil
     }
 
-    func fullscreenMoves() -> [CGWindowID: String] {
+    func maximisedMoves() -> [CGWindowID: String] {
         var out: [CGWindowID: String] = [:]
         for display in displays {
             guard let displayPlan = plans[display.id] else { continue }
-            out.merge(displayPlan.moves(of: Set(display.fullscreen.map(\.id)))) { first, _ in first }
+            out.merge(displayPlan.moves(of: Set(display.maximised.map(\.id)))) { first, _ in first }
         }
         return out
     }
 
     func markClosing(_ id: CGWindowID) {
-        guard unplacedFullscreen(id) == nil else { return }
+        guard unplacedMaximised(id) == nil else { return }
         edit { $0.markClosing(id) }
         show(id)
     }
@@ -95,7 +95,7 @@ extension SortModel {
 
     func cycleNextLayout(by delta: Int = 1) {
         let i = layouts.firstIndex(of: nextLayout) ?? -1
-        nextLayout = layouts[((i + delta) % layouts.count + layouts.count) % layouts.count]
+        nextLayout = layouts[i.wrapped(by: delta, in: layouts.count)]
     }
 
     func closeLane(_ id: UUID) {

@@ -22,8 +22,8 @@ package struct CursorShortcutSpec: Identifiable, Sendable {
     package struct Context: Sendable {
         package let floating: Bool
         package let tiled: Bool
-        package let zoomed: Bool
-        package let nativeFullscreen: Bool
+        package let fullscreen: Bool
+        package let maximised: Bool
         package let canMakeMain: Bool
         package let multipleLayouts: Bool
         package let multipleDisplays: Bool
@@ -46,13 +46,13 @@ package enum PointerActions {
                                           dispatcher: WindowActions.fullscreen.name,
                                           args: "", symbol: "arrow.up.left.and.arrow.down.right"),
                            title: "Zoom", actionBefore: "sort ", hint: "Full", available: { $0.tiled },
-                           selected: { $0.zoomed }),
+                           selected: { $0.fullscreen }),
         CursorShortcutSpec(id: "native",
                            action: Action(title: "Toggle macOS Full Screen", category: .window,
                                           dispatcher: WindowActions.nativefullscreen.name, args: "",
                                           symbol: "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"),
                            title: "Native Full Screen", actionBefore: "sort ",
-                           hint: "Max", selected: { $0.nativeFullscreen }),
+                           hint: "Max", selected: { $0.maximised }),
         CursorShortcutSpec(id: "main",
                            action: Action(title: "Swap With Main Window", category: .move,
                                           dispatcher: WindowActions.layoutmsg.name,

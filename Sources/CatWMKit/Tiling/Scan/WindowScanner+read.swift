@@ -17,7 +17,7 @@ nonisolated extension WindowScanner {
             for (id, element) in entries where job.known[id] == nil { readNew(element, id: id, into: &scan) }
             if !job.known.isEmpty, scan.hasNewWindows(comparedTo: job.known) {
                 var discovery = scan
-                discovery.fullscreen.formUnion(job.fullscreen)
+                discovery.maximised.formUnion(job.maximised)
                 discovery.minimized.formUnion(job.minimized)
                 discovered(discovery)
             }
@@ -40,7 +40,7 @@ nonisolated extension WindowScanner {
 
     private static func readNew(_ element: AXUIElement, id: CGWindowID, into scan: inout AppScan) {
         let attributes = WindowAttributes.read(element)
-        if attributes.fullscreen { scan.fullscreen.insert(id) }
+        if attributes.maximised { scan.maximised.insert(id) }
         if attributes.minimized { scan.minimized.insert(id) }
         guard attributes.subrole == kAXStandardWindowSubrole,
               !scan.minimized.contains(id) else { return }
@@ -61,7 +61,7 @@ nonisolated extension WindowScanner {
     private static func readKnown(_ window: Window, into scan: inout AppScan) {
         let revision = window.frameRevision
         let attributes = WindowAttributes.read(window.element)
-        if attributes.fullscreen { scan.fullscreen.insert(window.id) }
+        if attributes.maximised { scan.maximised.insert(window.id) }
         if attributes.minimized { scan.minimized.insert(window.id) }
         scan.found[window.id] = Found(element: window.element, frame: attributes.frame, title: attributes.title,
                                       resizable: window.element.isSettable(kAXSizeAttribute), frameRevision: revision)

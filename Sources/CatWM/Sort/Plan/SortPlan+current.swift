@@ -21,15 +21,6 @@ extension SortPlan {
         return plan
     }
 
-    static func order(_ lhs: String, _ rhs: String) -> Bool {
-        switch (Int(WorkspaceKey.number(lhs)), Int(WorkspaceKey.number(rhs))) {
-        case let (x?, y?): return x < y
-        case (_?, nil): return true
-        case (nil, _?): return false
-        default: return lhs < rhs
-        }
-    }
-
     func available(avoiding other: Set<String>) -> [String] {
         let used = Set(lanes.map(\.workspace))
         var out: [String] = []
@@ -52,11 +43,11 @@ extension SortPlan {
         case 4: want = .bsp
         default: want = .tall
         }
-        return layouts.contains(want) ? want : layouts.first ?? .tall
+        return layouts.contains(want) ? want : layouts.primary
     }
 
     static func fit(_ forced: Layout?, _ count: Int, _ layouts: [Layout]) -> Layout {
-        if let forced { return layouts.contains(forced) ? forced : layouts.first ?? .tall }
+        if let forced { return layouts.contains(forced) ? forced : layouts.primary }
         return layout(forCount: count, in: layouts)
     }
 

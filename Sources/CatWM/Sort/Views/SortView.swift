@@ -71,8 +71,8 @@ struct SortView: View {
                     SortAddLane(model: model, plan: plan, rows: rows)
                         .tileItem(model.shown, style: model.motion,
                                   spread: CGSize(width: -CGFloat(plan.lanes.count) * (SortMetrics.lane + 4), height: 0))
-                    ForEach(Array(unplacedFullscreen(plan).enumerated()), id: \.element.id) { i, item in
-                        SortFullscreenLane(model: model, item: item, rows: rows)
+                    ForEach(Array(unplacedMaximised(plan).enumerated()), id: \.element.id) { i, item in
+                        SortMaximisedLane(model: model, item: item, rows: rows)
                             .tileItem(model.shown, style: model.motion,
                                       spread: CGSize(width: -CGFloat(plan.lanes.count + 1 + i) * (SortMetrics.lane + 4),
                                                      height: 0))
@@ -98,8 +98,8 @@ struct SortView: View {
         }
     }
 
-    private func unplacedFullscreen(_ plan: SortPlan) -> [SortItem] {
-        (model.currentDisplay?.fullscreen ?? []).filter { plan.items[$0.id] == nil }
+    private func unplacedMaximised(_ plan: SortPlan) -> [SortItem] {
+        (model.currentDisplay?.maximised ?? []).filter { plan.items[$0.id] == nil }
     }
 
     @ViewBuilder private func closedColumn(_ plan: SortPlan, rows: Int) -> some View {

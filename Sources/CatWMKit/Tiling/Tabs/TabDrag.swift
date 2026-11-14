@@ -4,9 +4,9 @@ import Foundation
 @MainActor package final class TabDrag {
     private enum Kind { case lifted, native }
     private struct Session {
-        package let id: CGWindowID
-        package let kind: Kind
-        package var allowsJoin = true
+        let id: CGWindowID
+        let kind: Kind
+        var allowsJoin = true
     }
 
     package struct Completion {

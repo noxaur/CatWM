@@ -96,13 +96,13 @@ extension TemplateRestorer {
         let screens = Screen.all()
         let mainID = NSScreen.screens.first?.displayID
         let mapping = template.displayMap(available: screens.map { ($0.uuid, $0.id == mainID) })
-        for saved in template.windows where !saved.minimized && !saved.fullscreen {
+        for saved in template.windows where !saved.minimized && !saved.maximised {
             guard let window = matched[saved.id], earlyRestored.insert(window.id).inserted else { continue }
             AXUIElementSetMessagingTimeout(window.element, axTimeout)
             if window.element.flag(kAXMinimizedAttribute) {
                 _ = window.element.set(kAXMinimizedAttribute, kCFBooleanFalse)
             }
-            guard initialWindowIDs?.contains(window.id) == false, !window.isNativeFullscreen,
+            guard initialWindowIDs?.contains(window.id) == false, !window.isMaximised,
                   let target = mapping[saved.display], let screen = screens.first(where: { $0.uuid == target }),
                   let original = template.displays.first(where: { $0.id == saved.display }) else { continue }
             window.setFrame(WorkspaceTemplate.restoredFrame(saved.frame, from: original.visible, to: screen.visible))

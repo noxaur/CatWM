@@ -81,21 +81,13 @@ import AppKit
     package var snapNextPlacement: Set<CGWindowID> = []
     package var restoredEarly: [CGWindowID: Date] = [:]
     package var present: Set<CGWindowID> = []
-    package var leavingFullscreen: [CGWindowID: Date] = [:]
+    package var leavingMaximised: [CGWindowID: Date] = [:]
     package var focusRequests = FocusRequests()
     package var closeAndSort = CloseAndSortState()
     package var floats = FloatState()
     package var windowsToMatch: [CGWindowID] = []
     package var previousWorkspace: [String: String] = [:]
     package var labels: [String: String] = [:]
-    package struct Slide {
-        package let monitor: String
-        package let workspace: String
-        package let outgoing: Set<CGWindowID>
-        package let forward: Bool
-        package let until: CFTimeInterval
-    }
-    package var slide: Slide?
     package var crowdWork: DispatchWorkItem?
     package var autoSwitchAfter = Date.distantPast
     package var lastSavedWorkspaces = ""
@@ -207,11 +199,6 @@ import AppKit
         guard input.pointerAndFocus else { return }
         warp(point)
         cursorRefresh.soon()
-    }
-
-    package var currentLayoutTitle: String {
-        guard let screen = currentScreen() else { return "" }
-        return state(for: screen).layout.title
     }
 
     package lazy var grabHints: [String: (fromLeft: CGPoint, fromRight: CGPoint)] = {

@@ -1,6 +1,6 @@
 # Agent display
 
-An agent display is a private virtual display that one owner object holds for an agent. The agent's apps open their windows on it, so they never take the user's focus, Desktop or cursor, and the user's CatWM never tiles them. `AgentDisplay` (`Sources/CatWMKit/Tiling/Spaces/`) is the engine part. The `agent.*` commands and the Python `Sandbox` drive it.
+An agent display is a private virtual display that one owner object holds for an agent. The agent's apps open their windows on it, so they never take the user's focus, Desktop or cursor, and the user's CatWM never tiles them. `AgentDisplay` (`Sources/CatWMKit/Tiling/AgentDisplay/`) is the engine part. The `agent.*` commands and the Python `Sandbox` drive it.
 
 ## Decisions
 
@@ -12,7 +12,7 @@ An agent display is a private virtual display that one owner object holds for an
 
 **An app that already runs is refused.** The claim moves every window of the pid, so claiming an app the user is working in would carry their documents away.
 
-**Moves follow an AX observer, with a retry.** `kAXWindowCreated` finds every later window, and each window also reports `kAXMoved`. Some apps (TextEdit) create a window inside the display and then apply their saved frame, so a single sweep at creation leaves the window on the user's display. A sweep polls for `settle` and a move notification starts it again. A new process refuses the registration until its launch has finished, so the observer retries every 10 ms for as long as the process lives (`kill`, because `NSRunningApplication` can lag behind a launch). A window that exists when the registration succeeds is swept at once.
+**Moves follow an AX observer, with a retry.** `kAXWindowCreated` finds every later window, and each window also reports `kAXMoved`. Some apps (TextEdit) create a window inside the display and then apply their saved frame, so a single sweep at creation leaves the window on the user's display. A sweep polls for `settle` and a move notification starts it again. A new process refuses the registration until its launch has finished, so the observer retries every 10 ms while the process lives (`kill`, because `NSRunningApplication` can lag behind a launch), and gives up after 1000 attempts. A window that exists when the registration succeeds is swept at once.
 
 **A lease hides the move, not the launch.** `WindowServerUpdates` holds the display updates from the first move until the window reports bounds on the agent display, then lets go before the 300 ms watchdog. The alternative is to hold the lease from the launch request. It would freeze the user's screen for the whole launch, which is longer than the watchdog and varies from app to app, to hide a window whose creation time nobody knows. The lease starts when the window is first known, so a window can still appear on the user's display before the notification arrives. The server lists it there, and no measurement without a screen recording says whether the panel shows it.
 

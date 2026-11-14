@@ -33,7 +33,7 @@ extension WindowManager {
                 "app": window.bundleID.map(JSON.string) ?? .null,
                 "title": window.title.map(JSON.string) ?? .null,
                 "focused": .bool(window.id == focused), "floating": .bool(window.isFloating),
-                "minimized": .bool(window.minimized), "fullscreen": .bool(window.fullscreen),
+                "minimized": .bool(window.minimized), "fullscreen": .bool(window.maximised),
                 "visible": .bool(visible.contains(window.id)),
                 "workspace": workspaceOf[window.id].map(JSON.string) ?? .null,
                 "screen": screen(of: window, in: screens).map { JSON.string($0.uuid) } ?? .null,
@@ -48,7 +48,7 @@ extension WindowManager {
             if let name = workspaceOf[id] { members[name, default: []].append(id) }
         }
         let names = Set(members.keys).union(shown.values)
-            .union(desktops.nativeCatalog.entries.map(\.name)).sorted(by: workspaceSort)
+            .union(desktops.nativeCatalog.entries.map(\.name)).sorted(by: WorkspaceKey.precedes)
         return .array(names.map { name in
             [
                 "name": .string(name), "windows": .array((members[name] ?? []).map { .int(Int($0)) }),

@@ -1,16 +1,20 @@
 import AppKit
 
 extension WindowManager {
+    package static let maxAnimatedMoves = 6
+
+    package static let restoreHold: TimeInterval = 1.5
+
     private struct ObservedWindows {
-        package var present = Set<CGWindowID>()
-        package var fresh: [Window] = []
-        package var titles: [CGWindowID: String?] = [:]
+        var present = Set<CGWindowID>()
+        var fresh: [Window] = []
+        var titles: [CGWindowID: String?] = [:]
     }
 
     private struct PlannedMoves {
-        package var moves: [Animator.Move] = []
-        package var instant: [Animator.Move] = []
-        package var motion: [(moves: [Animator.Move], spec: MotionSpec)] = []
+        var moves: [Animator.Move] = []
+        var instant: [Animator.Move] = []
+        var motion: [(moves: [Animator.Move], spec: MotionSpec)] = []
     }
 
     package func refresh(instant instantLayout: Bool = false, placing only: Set<CGWindowID>? = nil) {
@@ -128,7 +132,7 @@ extension WindowManager {
             }
             let listed = Set(scan.listed)
             for id in scan.listed + scan.found.keys.filter({ !listed.contains($0) }) {
-                let maximised = scan.fullscreen.contains(id)
+                let maximised = scan.maximised.contains(id)
                 guard !nativeMoves.isMoving(id),
                       maximised || managed(id) || (onScreenIDs.contains(id) && !onOtherSpace(id)) else {
                     continue
@@ -159,11 +163,11 @@ extension WindowManager {
         if let found = scan.found[id] { accept(found, from: scan, for: window) }
         let wasHeld = window.placementSuspended
         guard placementHolds.observe(window, scanStarted: scan.readAt, minimized: scan.minimized.contains(id),
-                                     fullscreen: scan.fullscreen.contains(id), restoring: restoringTemplate) else {
+                                     maximised: scan.maximised.contains(id), restoring: restoringTemplate) else {
             return false
         }
         if wasHeld && !window.placementSuspended { snapNextPlacement.insert(id) }
-        return !(scan.fullscreen.contains(id) || scan.minimized.contains(id))
+        return !(scan.maximised.contains(id) || scan.minimized.contains(id))
     }
 
     private func placeArrivals(_ observed: ObservedWindows, onScreen: [CGWindowInfo]) -> [Window] {
@@ -245,9 +249,9 @@ extension WindowManager {
             }
             let screenState = state(for: screen)
             let ids = tiled(on: screen).filter { !nativeMoves.isMoving($0) }
-            if let zoomed = screenState.zoomed,
-               windows[zoomed]?.isFloating != false || workspaceOf[zoomed] != shown[screen.uuid] {
-                screenState.zoomed = nil
+            if let fullscreen = screenState.fullscreen,
+               windows[fullscreen]?.isFloating != false || workspaceOf[fullscreen] != shown[screen.uuid] {
+                screenState.fullscreen = nil
             }
             guard let slots = layoutTargets(ids, screenState, on: screen) else {
                 ids.forEach { targets[$0] = nil }
@@ -283,11 +287,7 @@ extension WindowManager {
             return
         }
         if isParked(current, screens) {
-            if let from = slideStart(id, to: target, on: screen) {
-                planned.moves.append(.init(window: window, to: target, bounds: screen.visible, from: from))
-            } else {
-                planned.instant.append(.init(window: window, to: target, bounds: screen.visible))
-            }
+            planned.instant.append(.init(window: window, to: target, bounds: screen.visible))
             return
         }
         if animator.isMoving(id, to: target) { return }
@@ -305,15 +305,15 @@ extension WindowManager {
 
     package func accept(_ found: WindowScanner.Found, from scan: WindowScanner.AppScan, for window: Window) {
         guard scan.readAt > window.observedAt else { return }
-        let wasResizable = window.resizable || window.fullscreen
+        let wasResizable = window.resizable || window.maximised
         window.observedAt = scan.readAt
         window.minimized = scan.minimized.contains(window.id)
-        window.fullscreen = scan.fullscreen.contains(window.id)
+        window.maximised = scan.maximised.contains(window.id)
         window.remember(found.frame, ifRevision: found.frameRevision ?? window.frameRevision, readAt: scan.readAt)
         let retitled = window.title != found.title
         window.title = found.title
         window.resizable = found.resizable
-        let resizable = window.resizable || window.fullscreen
+        let resizable = window.resizable || window.maximised
         if retitled, !tabs.isGrouped(window.id), windows[window.id] === window { markForRules(window) }
         if (retitled && !tabs.isGrouped(window.id)) || wasResizable != resizable {
             window.autoFloating = shouldFloat(window, title: window.title, resizable: resizable)
@@ -343,10 +343,10 @@ extension WindowManager {
         guard let (raw, gap) = rawSlots(ids, on: screen, screenState, ratio: screenState.ratio,
                                         workspace: workspace) else { return nil }
         let slots = fitMinimums(raw, mins: ids.map(slotMinimum), gap: gap)
-        let zoomed = usableRect(screen, workspace: workspace).pixelAligned
+        let fullscreen = usableRect(screen, workspace: workspace).pixelAligned
         let bounds = screen.visible
         return Dictionary(zip(ids, slots).map { id, slot in
-            (id, id == screenState.zoomed ? zoomed : clampToMinimum(slot, min: slotMinimum(id), bounds: bounds))
+            (id, id == screenState.fullscreen ? fullscreen : clampToMinimum(slot, min: slotMinimum(id), bounds: bounds))
         },
                           uniquingKeysWith: { first, _ in first })
     }

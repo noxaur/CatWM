@@ -2,17 +2,17 @@ import AppKit
 import CatWMKit
 
 extension WindowManager {
-    func finishSort(closing ids: [CGWindowID], goTo: String?, focus: Bool, opening fullscreen: CGWindowID? = nil,
-                    leavingFullscreen moves: [CGWindowID: String] = [:]) {
+    func finishSort(closing ids: [CGWindowID], goTo: String?, focus: Bool, opening maximised: CGWindowID? = nil,
+                    leavingMaximised moves: [CGWindowID: String] = [:]) {
         Task { @MainActor in
             await self.commitNativeSort()
-            for (id, workspace) in moves { await self.leaveFullscreen(id, to: workspace) }
-            self.finishSortAfterNative(closing: ids, goTo: goTo, focus: focus, opening: fullscreen)
+            for (id, workspace) in moves { await self.leaveMaximised(id, to: workspace) }
+            self.finishSortAfterNative(closing: ids, goTo: goTo, focus: focus, opening: maximised)
         }
     }
 
     @MainActor private func commitNativeSort() async {
-        for name in desktops.nativeSortNames.sorted(by: workspaceSort) {
+        for name in desktops.nativeSortNames.sorted(by: WorkspaceKey.precedes) {
             guard let display = monitorOf[name],
                   let screen = backend.screens().first(where: { $0.uuid == display }) else {
                 continue
@@ -23,7 +23,7 @@ extension WindowManager {
         }
         let assignments = workspaceOf
         for (id, name) in assignments {
-            guard let target = desktops.nativeCatalog.entry(name), let window = windows[id], !window.fullscreen,
+            guard let target = desktops.nativeCatalog.entry(name), let window = windows[id], !window.maximised,
                   Spaces.of(window: id) != [target.space] else { continue }
             nativeMoves.begin(id)
             animator.cancel(id)
@@ -38,7 +38,7 @@ extension WindowManager {
         desktops.nativeSortNames = []
     }
 
-    @MainActor func leaveFullscreen(_ id: CGWindowID, to workspace: String) async {
+    @MainActor func leaveMaximised(_ id: CGWindowID, to workspace: String) async {
         guard let window = windows[id], let screen = backend.screens().first(where: {
             $0.uuid == monitorOf[workspace]
         }), window.unlessStalled(false, { window.element.set("AXFullScreen", kCFBooleanFalse) }) else {
@@ -48,7 +48,7 @@ extension WindowManager {
         nativeMoves.begin(id)
         defer { nativeMoves.finish(id); scheduleRefresh(after: 0) }
         let deadline = ProcessInfo.processInfo.systemUptime + 5
-        func leaving() -> Bool { window.fullscreenUnlessStalled || !DesktopUI.isSettled(screen) }
+        func leaving() -> Bool { window.maximisedUnlessStalled || !DesktopUI.isSettled(screen) }
         guard await poll(5, every: 50_000_000, until: { !leaving() || !window.isValidUnlessStalled }), !leaving() else {
             HUD.shared.show("macOS did not finish leaving full screen", on: screen.nsScreen)
             return
@@ -65,8 +65,8 @@ extension WindowManager {
             guard moved else { throw DesktopTransitionError.check("macOS couldn't move this window") }
             nativeMoves.finish(id, on: target.space)
             model.assign(id, to: workspace)
-            model.fullscreenHost = model.fullscreenHost.filter { $0.value != id }
-            leavingFullscreen[id] = Date()
+            model.maximisedHost = model.maximisedHost.filter { $0.value != id }
+            leavingMaximised[id] = Date()
         } catch {
             Log.info("sort: leave full screen failed: \(error.localizedDescription)")
             HUD.shared.show(error.localizedDescription, on: screen.nsScreen)

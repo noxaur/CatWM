@@ -1,11 +1,12 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
 @MainActor @Suite(.serialized) struct DesktopRemovalTests {
     @Test func anOccupiedDesktopIsNotRetried() async throws {
-        guard let screen = Screen.all().first else { return }
+        let screen = FakeBackend().addScreen()
         let manager = WindowManager(config: .parse(defaultText))
         var attempts = 0
         do {
@@ -19,7 +20,7 @@ import Testing
     }
 
     @Test func aTransientRemovalFailureStillRetries() async throws {
-        guard let screen = Screen.all().first else { return }
+        let screen = FakeBackend().addScreen()
         let manager = WindowManager(config: .parse(defaultText))
         var attempts = 0
         try await manager.removeDesktop(0, on: screen) { _, _ in

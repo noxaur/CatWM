@@ -51,7 +51,7 @@ extension WindowManager {
 
     @MainActor
     private func withAppStates(_ template: WorkspaceTemplate) async throws -> WorkspaceTemplate {
-        let windows = template.windows.filter { !$0.minimized && !$0.fullscreen }.map {
+        let windows = template.windows.filter { !$0.minimized && !$0.maximised }.map {
             AppStateCapture.Window(id: $0.windowID, bundleID: $0.bundleID, title: $0.title, frame: $0.frame,
                                    document: $0.document)
         }
@@ -78,13 +78,13 @@ extension WindowManager {
         guard !screens.isEmpty else { throw TemplateError.notReady }
         let mainID = NSScreen.screens.first?.displayID
         var displays: [WorkspaceTemplate.Display] = []
-        var zoomed: [String: CGWindowID] = [:]
+        var fullscreen: [String: CGWindowID] = [:]
         for screen in screens {
             let state = state(for: screen)
             displays.append(.init(id: screen.uuid, name: screen.name, frame: screen.frame,
                                   visible: screen.visible, isMain: screen.id == mainID, layout: state.layout.rawValue,
                                   ratio: state.ratio, mainCount: state.mainCount))
-            if let id = state.zoomed { zoomed[screen.uuid] = id }
+            if let id = state.fullscreen { fullscreen[screen.uuid] = id }
         }
         var knownFloating: [CGWindowID: Bool] = [:]
         var naturalFrames: [CGWindowID: CGRect] = [:]
@@ -99,7 +99,8 @@ extension WindowManager {
             if !isShown(workspace) { hidden.insert(id) }
             if let monitor = monitorOf[workspace], displayIDs.contains(monitor) { monitors[id] = monitor }
         }
-        let facts = TemplateCaptureFacts(tilingEnabled: tilingEnabled, displays: displays, zoomed: zoomed, order: order,
+        let facts = TemplateCaptureFacts(tilingEnabled: tilingEnabled, displays: displays, fullscreen: fullscreen,
+                                         order: order,
                                          currentSpaces: Set(screens.map { backend.currentSpace(display: $0.uuid) }),
                                          hiddenWorkspaceWindows: hidden, monitorForTiled: monitors,
                                          virtualWorkspaces: config.virtualWorkspaces, knownFloating: knownFloating,

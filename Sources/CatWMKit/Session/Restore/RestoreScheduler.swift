@@ -43,10 +43,10 @@ package struct RestoreScheduler {
     }
 
     private struct Attempt {
-        package var outcome: AttemptOutcome
-        package var time: Date
-        package var tries: Int
-        package var token: UUID
+        var outcome: AttemptOutcome
+        var time: Date
+        var tries: Int
+        var token: UUID
     }
 
     private enum Kind {

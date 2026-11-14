@@ -5,7 +5,7 @@ import SwiftUI
 extension Tips {
     func markSeen(_ id: String) {
         guard !seen.contains(id) else { return }
-        defaults.set(Array(seen.union([id])), forKey: Self.seenKey)
+        defaults.set(Array(seen.union([id])), forKey: DefaultsKey.tipsSeen)
     }
 
     func markSeen(_ known: Known) { markSeen(known.rawValue) }
@@ -57,9 +57,9 @@ extension Tips {
 
     func clicked(id: String, label: String, shortcut: [String]) {
         guard !shortcut.isEmpty, enabled, Onboarding.isDone else { return }
-        var counts = defaults.dictionary(forKey: Self.clicksKey) as? [String: Int] ?? [:]
+        var counts = defaults.dictionary(forKey: DefaultsKey.tipsClicks) as? [String: Int] ?? [:]
         counts[id, default: 0] += 1
-        defaults.set(counts, forKey: Self.clicksKey)
+        defaults.set(counts, forKey: DefaultsKey.tipsClicks)
         let tipID = "clicked.\(id)"
         guard counts[id, default: 0] >= Self.menuClicks, canShow(tipID) else { return }
         let keys = ShortcutIndex()
@@ -98,9 +98,9 @@ extension Tips {
             tip = nil
         }
         guard let tip, canShow(tip.id) else { return }
-        var opens = defaults.dictionary(forKey: Self.panesKey) as? [String: Int] ?? [:]
+        var opens = defaults.dictionary(forKey: DefaultsKey.tipsPanes) as? [String: Int] ?? [:]
         opens[tip.id, default: 0] += 1
-        defaults.set(opens, forKey: Self.panesKey)
+        defaults.set(opens, forKey: DefaultsKey.tipsPanes)
         guard opens[tip.id, default: 0] >= Self.paneOpens else { return }
         pendingWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -124,7 +124,7 @@ extension Tips {
             guard showPanel(tip) else { return }
         }
         markSeen(tip.id)
-        defaults.set(Date().timeIntervalSince1970, forKey: Self.lastKey)
+        defaults.set(Date().timeIntervalSince1970, forKey: DefaultsKey.tipsLast)
     }
 
     func dismiss(_ tip: Tip) {

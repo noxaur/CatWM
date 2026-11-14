@@ -6,7 +6,7 @@ import ScreenCaptureKit
 package struct TemplateCaptureFacts: Sendable {
     package var tilingEnabled: Bool
     package var displays: [WorkspaceTemplate.Display]
-    package var zoomed: [String: CGWindowID]
+    package var fullscreen: [String: CGWindowID]
     package var order: [CGWindowID]
     package var currentSpaces: Set<UInt64>
     package var hiddenWorkspaceWindows: Set<CGWindowID>
@@ -36,11 +36,11 @@ package enum TemplateCaptureAssembler {
         let focused = batch.focusedID ?? facts.fallbackFocus
         var captured: [SavedWindow] = []
         for window in batch.windows {
-            if facts.hiddenWorkspaceWindows.contains(window.windowID), !window.fullscreen { continue }
-            if !window.fullscreen, !window.spaces.isEmpty,
+            if facts.hiddenWorkspaceWindows.contains(window.windowID), !window.maximised { continue }
+            if !window.maximised, !window.spaces.isEmpty,
                facts.currentSpaces.isDisjoint(with: Set(window.spaces)) { continue }
             let natural = facts.naturalFrames[window.windowID] ?? .null
-            let frame = window.fullscreen && !natural.isNull ? natural : window.frame
+            let frame = window.maximised && !natural.isNull ? natural : window.frame
             guard !frame.isNull, !frame.isEmpty else { continue }
             let floating = facts.knownFloating[window.windowID] ?? window.floatingOverride
             guard let display = display(for: window.windowID, frame: frame, floating: floating, facts: facts) else {
@@ -48,8 +48,9 @@ package enum TemplateCaptureAssembler {
             }
             captured.append(.init(bundleID: window.bundleID, appName: window.appName, title: window.title,
                                   document: window.document, display: display, frame: frame, floating: floating,
-                                  minimized: window.minimized, fullscreen: window.fullscreen,
-                                  zoomed: facts.zoomed[display] == window.windowID, focused: focused == window.windowID,
+                                  minimized: window.minimized, maximised: window.maximised,
+                                  fullscreen: facts.fullscreen[display] == window.windowID,
+                                  focused: focused == window.windowID,
                                   windowID: window.windowID, launchDate: window.launchDate))
         }
         var positions: [CGWindowID: Int] = [:]

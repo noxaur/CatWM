@@ -190,7 +190,7 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
 func styleRejectsHardwareMouseReadsInTheKit(line: String) throws {
     let kit = "Sources/CatWMKit/Tiling/Manager/Example.swift"
     #expect(try styleFailures(path: kit, source: line).contains { $0.contains("Read it through WindowBackend") })
-    #expect(try styleFailures(path: "Sources/CatWMKit/Tiling/Access/WindowBackend.swift", source: line).isEmpty)
+    #expect(try styleFailures(path: "Sources/CatWMKit/Tiling/Access/AXBackend.swift", source: line).isEmpty)
     #expect(try styleFailures(path: "Sources/CatWM/Overlays/Example.swift", source: line).isEmpty)
 }
 

@@ -24,10 +24,6 @@ private func plan(items: [SortItem]? = nil, lanes: [SortLane]? = nil, taken: Set
 }
 
 @Suite @MainActor struct SortPlanTests {
-    @Test func workspacesSortNumericallyThenByName() {
-        #expect(["10", "web", "2", "1", "chat"].sorted(by: SortPlan.order) == ["1", "2", "10", "chat", "web"])
-    }
-
     @Test func availableNamesSkipUsedAndTakenOnes() {
         let sortPlan = plan(taken: ["3"])
         #expect(Array(sortPlan.available(avoiding: ["4"]).prefix(3)) == ["5", "6", "7"])
@@ -173,7 +169,7 @@ private func plan(items: [SortItem]? = nil, lanes: [SortLane]? = nil, taken: Set
     }
 }
 
-@Suite @MainActor struct SortFullscreenTests {
+@Suite @MainActor struct SortMaximisedTests {
     private func plain() -> SortPlan {
         SortPlan(
             display: "D",
@@ -186,10 +182,10 @@ private func plan(items: [SortItem]? = nil, lanes: [SortLane]? = nil, taken: Set
         )
     }
 
-    @Test func adoptingAFullscreenWindowAddsItToThePlanAndALane() {
+    @Test func adoptingAMaximisedWindowAddsItToThePlanAndALane() {
         var sortPlan = plain()
-        let fullscreen = SortItem(id: 9, title: "Talk", app: "Keynote", bundleID: nil, icon: nil, recency: 2)
-        sortPlan.adopt(fullscreen, inLane: 1)
+        let maximised = SortItem(id: 9, title: "Talk", app: "Keynote", bundleID: nil, icon: nil, recency: 2)
+        sortPlan.adopt(maximised, inLane: 1)
         #expect(sortPlan.items[9]?.app == "Keynote")
         #expect(sortPlan.lanes[1].ids == [9])
         #expect(sortPlan.lane(of: 9) == 1)

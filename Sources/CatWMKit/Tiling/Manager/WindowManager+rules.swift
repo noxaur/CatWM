@@ -66,7 +66,7 @@ extension WindowManager {
             Log.info(refusal)
             return
         }
-        if action.dispatcher == WindowActions.fullscreen.name, isZoomed(window) { return }
+        if action.dispatcher == WindowActions.fullscreen.name, isFullscreen(window) { return }
         guard let command = WindowActions.named(action.dispatcher) else {
             Log.info("unknown dispatcher \(action.dispatcher)")
             return
@@ -107,14 +107,15 @@ extension WindowManager {
         return auto
     }
 
-    private func isZoomed(_ window: Window) -> Bool {
-        floats.floatZoom[window.id] != nil || screen(of: window).map { state(for: $0).zoomed == window.id } == true
+    private func isFullscreen(_ window: Window) -> Bool {
+        floats.floatFullscreen[window.id] != nil
+            || screen(of: window).map { state(for: $0).fullscreen == window.id } == true
     }
 
     func ruleFacts(of window: Window) -> Facts {
         var facts: Facts = [
             .pid: .int(Int(window.pid)), .floating: .bool(window.isFloating),
-            .minimized: .bool(window.minimized), .fullscreen: .bool(window.fullscreen)
+            .minimized: .bool(window.minimized), .fullscreen: .bool(window.maximised)
         ]
         if let bundle = window.bundleID { facts[.app] = .string(bundle) }
         if let title = window.title { facts[.title] = .string(title) }

@@ -5,11 +5,11 @@ import Testing
 
 @Suite struct WindowPlacementStateTests {
     @Test(arguments: [[true, false], [false, true], [true, true]])
-    func fullscreenOrMinimizedWindowsBlockPlacement(_ flags: [Bool]) {
+    func maximisedOrMinimizedWindowsBlockPlacement(_ flags: [Bool]) {
         #expect(WindowPlacementState.decode(flags)?.blocked == true)
     }
 
-    @Test func anUnsupportedFullscreenFlagDoesNotHideTheMinimizedFlag() throws {
+    @Test func anUnsupportedMaximisedFlagDoesNotHideTheMinimizedFlag() throws {
         var error = AXError.attributeUnsupported
         let unsupported = try #require(AXValueCreate(.axError, &error))
         #expect(WindowPlacementState.decode([unsupported, true])?.blocked == true)

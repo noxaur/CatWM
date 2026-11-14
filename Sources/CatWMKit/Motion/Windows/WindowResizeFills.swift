@@ -70,7 +70,7 @@ import QuartzCore
     package func follow(_ moves: [Animator.Move]) {
         for move in moves {
             let id = move.window.id
-            let from = move.from ?? move.window.cachedFrame
+            let from = move.window.cachedFrame
             guard let cached = cache[id], cached.appearance.canFill(from: from, to: move.target) else { continue }
             active.insert(id)
         }

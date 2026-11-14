@@ -102,7 +102,7 @@ package struct DwindleTree: Equatable {
         guard !steps.isEmpty else { return nil }
         var ratio: CGFloat?
         modify(depth: steps.count - 1, along: steps) {
-            $0.ratio = min(0.9, max(0.1, change($0.ratio)))
+            $0.ratio = SplitDivider.clamped(change($0.ratio))
             ratio = $0.ratio
         }
         return ratio
@@ -202,10 +202,11 @@ package struct DwindleTree: Equatable {
         }
         let length = sideBySide ? rect.width : rect.height
         let low = sideBySide ? first.width : first.height, high = length - (sideBySide ? second.width : second.height)
-        var ratio = split.ratio, range: ClosedRange<CGFloat> = 0.1...0.9
+        var ratio = split.ratio, range = SplitDivider.ratioRange
         if length > 0, low <= high {
             ratio = min(max(ratio * length, low), high) / length
-            let lower = max(0.1, low / length), upper = min(0.9, high / length)
+            let lower = max(SplitDivider.ratioRange.lowerBound, low / length)
+            let upper = min(SplitDivider.ratioRange.upperBound, high / length)
             range = lower <= upper ? lower...upper : ratio...ratio
         }
         let edge: CGRectEdge = sideBySide ? (split.swapped ? .maxXEdge : .minXEdge)

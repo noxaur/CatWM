@@ -12,7 +12,7 @@ import Testing
 
     @Test func aBatchKeepsEachAttributeInItsOriginalPosition() throws {
         let read = try #require(WindowAttributes.decode(values()))
-        #expect(read.fullscreen && !read.minimized)
+        #expect(read.maximised && !read.minimized)
         #expect(read.subrole == kAXStandardWindowSubrole)
         #expect(read.title == "Window")
         #expect(read.frame == CGRect(x: -1200, y: 38, width: 800, height: 600))
@@ -24,7 +24,7 @@ import Testing
         attributes[2] = NSNull()
         attributes[5] = NSNull()
         let read = try #require(WindowAttributes.decode(attributes))
-        #expect(!read.fullscreen && !read.minimized)
+        #expect(!read.maximised && !read.minimized)
         #expect(read.subrole == nil && read.title == nil)
         #expect(!read.frame.isNull)
         attributes[3] = NSNull()
@@ -35,7 +35,7 @@ import Testing
         var error = AXError.attributeUnsupported
         let value = try #require(AXValueCreate(.axError, &error))
         let read = try #require(WindowAttributes.decode(Array(repeating: value, count: 6)))
-        #expect(!read.fullscreen && !read.minimized)
+        #expect(!read.maximised && !read.minimized)
         #expect(read.subrole == nil && read.title == nil)
         #expect(read.frame.isNull)
     }

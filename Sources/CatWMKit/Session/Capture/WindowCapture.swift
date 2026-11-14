@@ -16,7 +16,7 @@ package struct ObservedWindow: Sendable {
     package var document: String?
     package var frame: CGRect
     package var minimized: Bool
-    package var fullscreen: Bool
+    package var maximised: Bool
     package var resizable: Bool
     package var windowID: CGWindowID
     package var launchDate: Date?
@@ -121,7 +121,7 @@ package enum WindowCapture {
     private static func focusedID(_ pid: pid_t) -> CGWindowID? {
         guard let focused = axApp(pid).readElement(kAXFocusedWindowAttribute).value else { return nil }
         AXUIElementSetMessagingTimeout(focused, axTimeout)
-        return focused.windowNumber
+        return focused.windowID
     }
 
     private static func observe(_ element: AXUIElement, _ app: AppSnapshot) -> AXRead<ObservedWindow> {
@@ -132,10 +132,10 @@ package enum WindowCapture {
         case .value(let value): subrole = value
         }
         guard subrole == kAXStandardWindowSubrole || subrole == kAXDialogSubrole,
-              let id = element.windowNumber else { return .missing }
+              let id = element.windowID else { return .missing }
         guard case .value(let minimized) = flag(element, kAXMinimizedAttribute) else { return .stalled }
         guard WindowKind.includes(subrole: subrole, minimized: minimized) else { return .missing }
-        guard case .value(let fullscreen) = flag(element, "AXFullScreen") else { return .stalled }
+        guard case .value(let maximised) = flag(element, "AXFullScreen") else { return .stalled }
         let title: String
         switch element.readString(kAXTitleAttribute) {
         case .stalled: return .stalled
@@ -161,7 +161,7 @@ package enum WindowCapture {
         case .value(let value): frame = value
         }
         return .value(ObservedWindow(pid: app.pid, bundleID: app.bundleID, appName: app.name, title: title,
-                                     document: document, frame: frame, minimized: minimized, fullscreen: fullscreen,
+                                     document: document, frame: frame, minimized: minimized, maximised: maximised,
                                      resizable: resizable, windowID: id, launchDate: app.launchDate))
     }
 

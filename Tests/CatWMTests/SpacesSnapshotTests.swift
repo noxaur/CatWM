@@ -59,8 +59,8 @@ import Testing
         #expect(snapshot.list(display: "unknown") == nil)
     }
 
-    @Test func fullscreenTilesAndWallSpacesKeepTheirManagedDesktopIdentity() {
-        let fullscreen: [String: Any] = [
+    @Test func maximisedTilesAndWallSpacesKeepTheirManagedDesktopIdentity() {
+        let maximised: [String: Any] = [
             "ManagedSpaceID": UInt64(396), "id64": UInt64(396),
             "WallSpace": ["id64": UInt64(397), "ManagedSpaceID": UInt64(396)],
             "TileLayoutManager": ["TileSpaces": [
@@ -68,7 +68,7 @@ import Testing
             ]]
         ]
         let snapshot = Spaces.Snapshot(displays: [
-            ["Spaces": [space(4), fullscreen]], ["Spaces": [space(21)]]
+            ["Spaces": [space(4), maximised]], ["Spaces": [space(21)]]
         ])
         #expect(snapshot.managedSpaceIDs == [4: 4, 21: 21, 396: 396, 397: 396, 398: 396, 399: 396])
     }

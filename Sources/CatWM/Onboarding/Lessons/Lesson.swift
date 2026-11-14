@@ -27,8 +27,9 @@ final class TourLesson: Lesson {
 
     func prepare(_ coach: Coach) {
         plan = [Steps.modeOn(coach), Steps.help(coach), Steps.focus(coach), Steps.move(coach), Steps.main(coach),
-                Steps.resize(coach), Steps.zoom(coach), Steps.float(coach), Steps.layouts(coach), Steps.visit(coach),
-                Steps.send(coach), Steps.modeOff(coach), Steps.global(coach), Steps.sortIntro(coach)]
+                Steps.resize(coach), Steps.fullscreen(coach), Steps.float(coach), Steps.layouts(coach),
+                Steps.visit(coach), Steps.send(coach), Steps.modeOff(coach), Steps.global(coach),
+                Steps.sortIntro(coach)]
             .compactMap(\.self)
         plan.append(Steps.summary(coach, title: "You learned the *basics*", tutorial: true))
     }

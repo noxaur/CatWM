@@ -43,9 +43,10 @@ struct TrajectoryTests {
 
     @Test func retargetingKeepsTheCarriedVelocity() {
         let trajectory = Trajectory(from: 0.6, to: 0, spec: spec, velocity: 4)
-        let same = trajectory.retargeted(to: 0)
+        let moved = trajectory.retargeted(to: 1)
         for time in stride(from: 0.0, through: 0.2, by: 0.02) {
-            #expect(abs(same.value(at: time) - trajectory.value(at: time)) < 1e-12)
+            let expected = trajectory.value(at: time) + spec.curve.progress(time / 0.2, bounce: spec.bounce)
+            #expect(abs(moved.value(at: time) - expected) < 1e-9)
         }
     }
 }

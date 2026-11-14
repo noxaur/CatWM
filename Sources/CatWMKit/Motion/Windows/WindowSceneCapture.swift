@@ -28,8 +28,8 @@ package struct WindowSceneCapture {
     private static let windowLevel: Integer? = symbol("SLSGetWindowLevel")
 
     private final class Session: Sendable {
-        package let connection: Int32
-        package init?() {
+        let connection: Int32
+        init?() {
             guard let newConnection, releaseConnection != nil else { return nil }
             var connection: Int32 = 0
             guard newConnection(0, &connection) == 0, connection != 0 else { return nil }

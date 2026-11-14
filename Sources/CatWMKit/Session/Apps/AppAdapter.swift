@@ -93,9 +93,9 @@ package enum AppStateCapture {
     }
 
     private struct Pair {
-        package var window: Window
-        package var index: Int
-        package var cost: CGFloat
+        var window: Window
+        var index: Int
+        var cost: CGFloat
     }
 
     private static func cost(_ entry: ScriptedWindow, _ window: Window) -> CGFloat? {

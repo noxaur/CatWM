@@ -11,16 +11,22 @@ package struct SavedWindow: Codable, Identifiable, Equatable, Sendable {
     package var frame: CGRect
     package var floating: Bool
     package var minimized: Bool
+    package var maximised: Bool
     package var fullscreen: Bool
-    package var zoomed: Bool
     package var focused: Bool
     package var windowID: CGWindowID
     package var launchDate: Date?
     package var state: AppState?
     package var launch: LaunchSpec?
 
+    private enum CodingKeys: String, CodingKey {
+        case id, bundleID, appName, title, document, display, frame, floating, minimized
+        case maximised = "fullscreen"
+        case fullscreen = "zoomed", focused, windowID, launchDate, state, launch
+    }
+
     package init(id: UUID = UUID(), bundleID: String, appName: String, title: String, document: String?,
-                 display: String, frame: CGRect, floating: Bool, minimized: Bool, fullscreen: Bool, zoomed: Bool,
+                 display: String, frame: CGRect, floating: Bool, minimized: Bool, maximised: Bool, fullscreen: Bool,
                  focused: Bool, windowID: CGWindowID, launchDate: Date?, state: AppState? = nil,
                  launch: LaunchSpec? = nil) {
         self.id = id
@@ -32,8 +38,8 @@ package struct SavedWindow: Codable, Identifiable, Equatable, Sendable {
         self.frame = frame
         self.floating = floating
         self.minimized = minimized
+        self.maximised = maximised
         self.fullscreen = fullscreen
-        self.zoomed = zoomed
         self.focused = focused
         self.windowID = windowID
         self.launchDate = launchDate

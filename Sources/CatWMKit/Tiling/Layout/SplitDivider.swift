@@ -3,6 +3,10 @@ import CoreGraphics
 package struct SplitDivider: Equatable {
     package static let ratioRange: ClosedRange<CGFloat> = 0.1...0.9
 
+    package static func clamped(_ ratio: CGFloat) -> CGFloat {
+        min(ratioRange.upperBound, max(ratioRange.lowerBound, ratio))
+    }
+
     package let vertical: Bool
     package let fromStart: Bool
     package let frame: CGRect
@@ -13,11 +17,19 @@ package struct SplitDivider: Equatable {
         layout.singleMain ? 1 : max(1, min(mainCount, count))
     }
 
-    package init?(layout: Layout, slots: [CGRect], mainCount: Int, in rect: CGRect) {
+    package static func split(_ layout: Layout, mainCount: Int, count: Int, in rect: CGRect)
+        -> (mains: Int, axis: (horizontal: Bool, fromStart: Bool))? {
         guard var axis = layout.ratioAxis else { return nil }
         if layout == .bsp { axis = (rect.width >= rect.height, true) }
-        self.init(vertical: axis.horizontal, fromStart: axis.fromStart,
-                  mains: Self.mains(layout, mainCount: mainCount, count: slots.count), slots: slots, in: rect)
+        let main = mains(layout, mainCount: mainCount, count: count)
+        guard count > main else { return nil }
+        return (main, axis)
+    }
+
+    package init?(layout: Layout, slots: [CGRect], mainCount: Int, in rect: CGRect) {
+        guard let (mains, axis) = Self.split(layout, mainCount: mainCount, count: slots.count, in: rect)
+        else { return nil }
+        self.init(vertical: axis.horizontal, fromStart: axis.fromStart, mains: mains, slots: slots, in: rect)
     }
 
     package init?(vertical: Bool, fromStart: Bool, mains: Int, slots: [CGRect], in rect: CGRect) {
@@ -42,6 +54,6 @@ package struct SplitDivider: Equatable {
         let start = vertical ? rect.minX : rect.minY, length = (vertical ? rect.width : rect.height) + gap
         guard length > 0 else { return 0.5 }
         let main = fromStart ? position - start + gap / 2 : start + length - gap / 2 - position
-        return min(Self.ratioRange.upperBound, max(Self.ratioRange.lowerBound, main / length))
+        return Self.clamped(main / length)
     }
 }

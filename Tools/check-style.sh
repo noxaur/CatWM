@@ -59,12 +59,13 @@ AX_APP_OWNER = "Sources/CatWMKit/Session/AX/AXRead.swift"
 HARDWARE_INPUT = re.compile(
     r"\bNSEvent\.(?:pressedMouseButtons|mouseLocation)\b|\bCGEvent\(source: *nil\)\?\.location\b"
 )
-HARDWARE_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/WindowBackend.swift"
+HARDWARE_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/AXBackend.swift"
 REAL_INPUT = re.compile(r"\.post\(tap:|\bCGEventPost\(|\bCGWarpMouseCursorPosition\(")
 REAL_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/RealInput.swift"
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
 SYSTEM_LOG_ALLOW = ("Sources/CatWM/main.swift",)
 INTERNALS = "docs/internals"
+DOC_PATH = re.compile(r"`([\w./+-]+\.(?:swift|md|sh|py))`")
 RECIPE_HEADING = re.compile(r"^#+ +(?:Add|How to|Write|Repeat|Check|Run|Verify|Test)s?\b", re.I)
 IGNORED_WRITE = re.compile(r"^\s*try\? .*\.(?:write|moveItem|copyItem|replaceItem)\(")
 IGNORED_WRITE_ALLOW = ("Sources/CatWMKit/App/Log.swift",)
@@ -82,6 +83,9 @@ TEST_YIELD_POLL = re.compile(r"^\s*while\b.*\bDate\(\).*\bTask\.yield\(\)")
 TEST_RUNLOOP = re.compile(r"^\s*RunLoop\.(?:main|current)\.run\s*\(\s*until\s*:\s*Date\(\)\.addingTimeInterval\s*\(")
 DEFAULTS_LITERAL = re.compile(r'\bforKey: *"')
 DEFAULTS_KEYS = "Sources/CatWMKit/App/DefaultsKey.swift"
+DEFAULTS_KEY_CONSTANT = re.compile(r'\bstatic let (?:\w*Key|key)\b[^=\n]*= *"')
+with open(os.path.join(ROOT, DEFAULTS_KEYS), encoding="utf-8") as handle:
+    DEFAULTS_VALUES = re.compile('"(?:' + "|".join(re.escape(value) for value in re.findall(r'= "([^"]+)"', handle.read())) + ')"')
 STANDARD_DEFAULTS = re.compile(r"\bUserDefaults\.standard\b|\bUserDefaults *= *\.standard\b")
 INSTANCE = "Sources/CatWMKit/App/Instance.swift"
 TOOLS = "// swift-tools-version:"
@@ -213,6 +217,8 @@ def banned(path, code, uses_defaults=False):
         hits.append("UserDefaults.standard. Use Instance.defaults, which keeps each CatWM instance apart")
     if uses_defaults and path.startswith(SOURCES) and path != DEFAULTS_KEYS and DEFAULTS_LITERAL.search(code):
         hits.append("UserDefaults key literal. Add it to DefaultsKey")
+    if path.startswith(SOURCES) and path != DEFAULTS_KEYS and (DEFAULTS_KEY_CONSTANT.search(code) or DEFAULTS_VALUES.search(code)):
+        hits.append("UserDefaults key outside DefaultsKey. Add it to DefaultsKey and use DefaultsKey.<name>")
     return hits
 
 
@@ -361,6 +367,27 @@ def layout_violations(path, source, cases):
     return failures
 
 
+def test_violations(path, source):
+    if not path.startswith("Tests/CatWMTests/"):
+        return []
+    return [(path, source.count("\n", 0, match.end()) + 1,
+             "a test that returns early passes without testing. Use try #require, or run on a FakeBackend screen", match[0].splitlines()[-1].strip())
+            for match in re.finditer(r"@Test\b[^{]*?\bfunc [^\n]*\{\n\s*guard\b[^\n]*\belse *\{ *return *\}", source)]
+
+
+def package_violations(path, source):
+    if not path.startswith(SOURCES):
+        return []
+    failures = []
+    for match in re.finditer(r"^( *)(?:@\w+(?:\([^)\n]*\))? +)*(?:private|fileprivate) +(?:final +)?(?:struct|class|enum|actor|extension|protocol)\b[^\n]*\{$", source, re.M):
+        end = source.find("\n" + match[1] + "}", match.end())
+        body = source[match.end():end if end >= 0 else len(source)]
+        for inner in re.finditer(r"^ *(?:@\w+(?:\([^)\n]*\))? +)*package\b[^\n]*", body, re.M):
+            number = source.count("\n", 0, match.end() + inner.start()) + 1
+            failures.append((path, number, "package inside a private type has no effect. Delete the modifier", inner[0].strip()))
+    return failures
+
+
 def line_failures(path, source):
     failures = []
     in_multi = False
@@ -416,16 +443,38 @@ def line_failures(path, source):
     return failures
 
 
-def main():
+def repo_files():
+    found = []
+    for folder, names, files in os.walk(ROOT):
+        names[:] = [name for name in names if name not in (".git", ".build", "node_modules")]
+        found.extend(os.path.relpath(os.path.join(folder, name), ROOT) for name in files)
+    return found
+
+
+def doc_path_failures(files):
     failures = []
+    documents = ["CLAUDE.md"] + [INTERNALS + "/" + name for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS)))]
+    for path in documents:
+        with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
+            for number, line in enumerate(handle, 1):
+                for match in DOC_PATH.finditer(line):
+                    named = match[1].removeprefix("./")
+                    if not any(file == named or file.endswith("/" + named) for file in files):
+                        failures.append((path, number, "docs: `" + named + "` is not a file in the repo. Fix the path or delete the mention", line.strip()))
+    return failures
+
+
+def main():
+    failures = doc_path_failures(repo_files())
     cases = layout_cases()
     for path in sorted(swift_files()):
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
             source = handle.read()
-            failures.extend(catalog_violations(path, source))
-            failures.extend(layout_violations(path, source, cases))
-        with open(os.path.join(ROOT, path), encoding="utf-8") as handle:
-            failures.extend(line_failures(path, handle.read()))
+        failures.extend(catalog_violations(path, source))
+        failures.extend(layout_violations(path, source, cases))
+        failures.extend(test_violations(path, source))
+        failures.extend(package_violations(path, source))
+        failures.extend(line_failures(path, source))
     for name in sorted(os.listdir(os.path.join(ROOT, INTERNALS))):
         path = INTERNALS + "/" + name
         with open(os.path.join(ROOT, path), encoding="utf-8") as handle:

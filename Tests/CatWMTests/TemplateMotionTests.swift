@@ -26,7 +26,8 @@ import Testing
         let window = Window(id: 9, element: AXUIElementCreateApplication(-1), pid: -1, bundleID: nil)
         let held = CGRect(x: 100, y: 100, width: 400, height: 300)
         #expect(!animator.retarget(window, to: held))
-        animator.animate([.init(window: window, to: held, bounds: held, from: .zero.insetBy(dx: -1, dy: -1))],
+        window.remember(.zero.insetBy(dx: -1, dy: -1))
+        animator.animate([.init(window: window, to: held, bounds: held)],
                          duration: 5, curve: .spring, bounce: 0.3)
         #expect(animator.retarget(window, to: held.offsetBy(dx: 40, dy: 0)))
         #expect(animator.isBusy(window.id))
@@ -75,7 +76,7 @@ import Testing
         #expect(ran.value)
     }
 
-    @Test func collapsingDisplaysKeepsTheMainDisplaysLayoutAndZoomPriority() {
+    @Test func collapsingDisplaysKeepsTheMainDisplaysLayoutAndFullscreenPriority() {
         var template = WorkspaceTemplateTests().template()
         template.displays.reverse()
         let preferred = TemplatePlacementPlan.preferredDisplays(
@@ -84,7 +85,7 @@ import Testing
         #expect(preferred == ["only": "external"])
     }
 
-    @Test func separateDisplaysKeepTheirOwnLayoutAndZoomPriority() {
+    @Test func separateDisplaysKeepTheirOwnLayoutAndFullscreenPriority() {
         let template = WorkspaceTemplateTests().template()
         let preferred = TemplatePlacementPlan.preferredDisplays(
             template, mapping: ["external": "desk", "builtin": "laptop"]

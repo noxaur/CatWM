@@ -6,12 +6,12 @@ import QuartzCore
         package let pid: pid_t
         package let listWindows: Bool
         package let known: [CGWindowID: Window]
-        package let fullscreen: Set<CGWindowID>
+        package let maximised: Set<CGWindowID>
         package let minimized: Set<CGWindowID>
 
         @MainActor package init(pid: pid_t, listWindows: Bool, known: [CGWindowID: Window]) {
             self.pid = pid; self.listWindows = listWindows; self.known = known
-            fullscreen = Set(known.values.filter(\.fullscreen).map(\.id))
+            maximised = Set(known.values.filter(\.maximised).map(\.id))
             minimized = Set(known.values.filter(\.minimized).map(\.id))
         }
     }
@@ -34,7 +34,7 @@ import QuartzCore
         package var readAt = Date()
         package var listed: [CGWindowID] = []
         package var found: [CGWindowID: Found] = [:]
-        package var fullscreen: Set<CGWindowID> = []
+        package var maximised: Set<CGWindowID> = []
         package var minimized: Set<CGWindowID> = []
         package var gone: Set<CGWindowID> = []
 
@@ -234,27 +234,5 @@ import QuartzCore
 
     func discovered() {
         if finished { updated() } else { publish() }
-    }
-}
-
-package struct RunningApplicationSnapshot: Sendable {
-    package let pid: pid_t
-    package let bundleID: String?
-    package let regular: Bool
-    package let hidden: Bool
-
-    package init(pid: pid_t, bundleID: String?, regular: Bool, hidden: Bool) {
-        (self.pid, self.bundleID, self.regular, self.hidden) = (pid, bundleID, regular, hidden)
-    }
-
-    package static func read() -> [Self] {
-        dispatchPrecondition(condition: .notOnQueue(.main))
-        return NSWorkspace.shared.runningApplications.compactMap { app in
-            let pid = app.processIdentifier
-            guard pid != getpid() else { return nil }
-            let regular = app.activationPolicy == .regular
-            return Self(pid: pid, bundleID: regular ? app.bundleIdentifier : nil,
-                        regular: regular, hidden: regular && app.isHidden)
-        }
     }
 }

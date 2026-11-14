@@ -12,6 +12,7 @@ swiftc -package-name CatWM -D CATWM_RESIZE_PROBE \
   Sources/CatWMKit/Chrome/CatWMPanel.swift \
   Sources/CatWMKit/Tiling/Access/Screen.swift \
   Sources/CatWMKit/Tiling/Scan/WindowServerList.swift \
-  Sources/CatWMKit/Tiling/Access/PrivateSymbols.swift \
+  Sources/CatWMKit/Tiling/Access/CGRect+frame.swift \
+  Sources/CatWMKit/Tiling/Access/SymbolLookup.swift \
   -o "$PROBE_DIR/probe"
 .agents/skills/verify-catwm/scripts/with-lock.sh "$PROBE_DIR/probe"

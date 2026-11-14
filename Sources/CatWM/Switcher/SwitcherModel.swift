@@ -26,7 +26,7 @@ import SwiftUI
 
     func move(_ delta: Int) {
         guard !results.isEmpty else { return }
-        selection = (selection + delta % results.count + results.count) % results.count
+        selection = selection.wrapped(by: delta, in: results.count)
     }
 
     func type(_ text: String) { setQuery(query + text) }

@@ -28,31 +28,31 @@ package enum ConfigMigration {
 }
 
 private struct MigrationVariable {
-    package let name: String
-    package let identifier: String
-    package let value: String
-    package let mods: [String]?
+    let name: String
+    let identifier: String
+    let value: String
+    let mods: [String]?
 }
 
 private struct MigrationBind {
-    package let submap: String
-    package let comments: [String]
-    package let calls: [String]
+    let submap: String
+    let comments: [String]
+    let calls: [String]
 }
 
 private struct MigrationReader {
-    package let parsed: Config
-    package var comments: [String] = []
-    package var variables: [MigrationVariable] = []
-    package var paths: [(path: String, comments: [String])] = []
-    package var binds: [MigrationBind] = []
-    package var submap = ""
-    package var blocks: [String] = []
-    package var resolved: [(String, String)] = []
-    package var variableComments: [String: [String]] = [:]
-    package var given: [String: JSON] = [:]
+    let parsed: Config
+    var comments: [String] = []
+    var variables: [MigrationVariable] = []
+    var paths: [(path: String, comments: [String])] = []
+    var binds: [MigrationBind] = []
+    var submap = ""
+    var blocks: [String] = []
+    var resolved: [(String, String)] = []
+    var variableComments: [String: [String]] = [:]
+    var given: [String: JSON] = [:]
 
-    package init(_ parsed: Config) { self.parsed = parsed }
+    init(_ parsed: Config) { self.parsed = parsed }
 }
 
 extension MigrationReader {

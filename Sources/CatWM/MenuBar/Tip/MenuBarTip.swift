@@ -12,7 +12,6 @@ import SwiftUI
     static let shared = MenuBarTip()
 
     weak var statusButton: NSStatusBarButton?
-    var suppressed = false { didSet { if suppressed != oldValue { update() } } }
 
     private let glide = PanelGlide()
     private var panel: CatWMPanel?
@@ -51,7 +50,7 @@ import SwiftUI
         if model.state != state { withAnimation(Motion.fadeSlow) { model.state = state } }
         if state == .good { goodSince = goodSince ?? Date() } else { goodSince = nil }
         let settled = goodSince.map { Date().timeIntervalSince($0) > 3 } ?? false
-        guard let screen, !suppressed, !settled, timer != nil else { return setVisible(false) }
+        guard let screen, !settled, timer != nil else { return setVisible(false) }
         let size = host.fittingSize
         let top = screen.visibleFrame.maxY - 4 + (MenuBarTipView.inset.top - 10)
         var x = (anchor?.midX ?? screen.frame.maxX - 40) - size.width / 2

@@ -2,38 +2,35 @@ import AppKit
 import CatWMKit
 import SwiftUI
 
-extension Onboarding {
+@MainActor final class Onboarding {
+    static let shared = Onboarding()
+
+    static var isDone: Bool { Instance.defaults.bool(forKey: DefaultsKey.didOnboard) }
+    static var isStarted: Bool { Instance.defaults.bool(forKey: DefaultsKey.onboardingStarted) }
+
+    weak var statusButton: NSStatusBarButton? {
+        didSet { MenuBarTip.shared.statusButton = statusButton }
+    }
+    var welcome: CatWMPanel?
+    let welcomeModel = WelcomeModel()
+    var poll: Timer?
+    var openedLoginItems = false
+
+    var isRunning: Bool { welcome != nil }
+
     static func shouldShow(firstRun: Bool, trusted: Bool, done: Bool = isDone, started: Bool = isStarted) -> Bool {
         !done && (firstRun || !trusted || started)
     }
 
     func start() {
         guard !isRunning else { return }
-        let resuming = Self.isStarted && !LaunchFlag.onboarding.isSet
-        firstRun = true
         Instance.defaults.set(true, forKey: DefaultsKey.onboardingStarted)
         guard let screen = CatWMPanel.pointerScreen() else { return }
-        let card = makeWelcome(on: screen)
-        guard !resuming, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return showWelcome() }
-        let margin = WelcomeView.margin
-        let intro = Intro(screen: screen, landing: card.frame.insetBy(dx: margin, dy: margin)) { [weak self] in
-            self?.intro = nil
-            self?.showWelcome()
-        }
-        self.intro = intro
-        intro.run()
+        makeWelcome(on: screen)
+        showWelcome()
     }
 
-    func playIntro(_ arrangement: IntroScore.Arrangement = .standard) {
-        guard !isRunning, let screen = CatWMPanel.pointerScreen() else { return }
-        let visible = screen.visibleFrame
-        let landing = NSRect(x: visible.midX - 230, y: visible.midY - 200, width: 460, height: 400)
-        let intro = Intro(screen: screen, landing: landing, music: arrangement) { [weak self] in self?.intro = nil }
-        self.intro = intro
-        intro.run()
-    }
-
-    func makeWelcome(on screen: NSScreen) -> CatWMPanel {
+    private func makeWelcome(on screen: NSScreen) {
         welcomeModel.page = .permissions
         welcomeModel.style = KeyStyle.current
         welcomeModel.allowAccessibility = { Permission.accessibility.request() }
@@ -55,19 +52,19 @@ extension Onboarding {
             }
         }
         PermissionGuide.shared.onGranted = { [weak self] in self?.welcome?.makeKeyAndOrderFront(nil) }
-        welcomeModel.skip = { [weak self] in self?.hideWelcome { self?.finish() } }
+        welcomeModel.skip = { [weak self] in self?.finish() }
         welcomeModel.next = { [weak self] in
             guard Permission.accessibility.isGranted else { Permission.accessibility.request(); return }
             self?.welcomeModel.page = .keys
         }
-        welcomeModel.start = { [weak self] in
+        welcomeModel.done = { [weak self] in
             guard let self else { return }
             guard Permission.accessibility.isGranted else { welcomeModel.page = .permissions; return }
             if let style = welcomeModel.style, style != KeyStyle.current,
                let config = SettingsWindow.shared.library.config(id: style.configID) {
                 SettingsWindow.shared.library.select(config)
             }
-            hideWelcome { self.startTour() }
+            finish()
         }
         refreshWelcome()
         let host = CatWMHostingView(rootView: WelcomeView(model: welcomeModel))
@@ -78,10 +75,9 @@ extension Onboarding {
         panel.contentView = host
         panel.isMovableByWindowBackground = true
         welcome = panel
-        return panel
     }
 
-    func refreshWelcome() {
+    private func refreshWelcome() {
         let accessibility = Permission.accessibility.isGranted, login = LoginItem.shared.isEnabled
         if welcomeModel.accessibility != accessibility { welcomeModel.accessibility = accessibility }
         let inputMonitoring = Permission.inputMonitoring.isGranted
@@ -99,7 +95,7 @@ extension Onboarding {
         }
     }
 
-    func showWelcome() {
+    private func showWelcome() {
         guard let panel = welcome else { return }
         let end = panel.frame
         welcomeModel.landed = false
@@ -122,28 +118,17 @@ extension Onboarding {
         poll?.tolerance = 0.1
     }
 
-    func hideWelcome(then: @escaping () -> Void) {
+    private func finish() {
         poll?.invalidate()
         poll = nil
         PermissionGuide.shared.onGranted = nil
-        guard let panel = welcome else { return then() }
+        guard let panel = welcome else { return }
         welcome = nil
         Motion.group(0.3, changes: { Motion.setAlpha(0, on: panel) }, completion: {
             panel.orderOut(nil)
-            then()
+            MenuBarTip.shared.hide()
+            Instance.defaults.set(true, forKey: DefaultsKey.didOnboard)
+            if Permission.accessibility.isGranted { HUD.shared.show("Tiling on", on: nil) }
         })
-    }
-
-    func startTour() {
-        let lesson = TourLesson()
-        run(lesson) { [weak self] how in
-            guard let self else { return }
-            if how == .tutorial {
-                finish()
-                startTutorial()
-            } else {
-                offerSort { self.finish() }
-            }
-        }
     }
 }

@@ -93,13 +93,6 @@ package enum CommandRegistry {
         Command(name: "panelfx", group: "dev", summary: "Preview a panel motion",
                 args: [.text("style", "Motion name or `all`", required: false)], access: .dev) { call in
             try preview("panelfx", call, "style")
-        },
-        Command(name: "intro", group: "dev", summary: "Play the intro",
-                args: [.text("arrangement", "Arrangement name", required: false)], access: .dev) { call in
-            try preview("intro", call, "arrangement")
-        },
-        Command(name: "introlab", group: "dev", summary: "Open the intro lab", access: .dev) { call in
-            try preview("introlab", call, nil)
         }
     ]
 

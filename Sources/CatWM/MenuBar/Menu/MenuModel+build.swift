@@ -123,25 +123,14 @@ extension MenuModel {
     }
 
     private static func helpItems(_ manager: WindowManager, keys: ShortcutIndex, trusted: Bool) -> [MenuItem] {
-        let paused = TutorialLesson.paused
-        let news = [whatsNewItem(dot: WhatsNew.shared.hasNews)]
-        return news + [
-            MenuItem(id: "tutorial", label: paused == nil ? "Keyboard Tutorial…" : "Resume Tutorial…",
-                     symbol: "graduationcap",
-                     value: paused?.name, enabled: trusted,
-                     keywords: "learn practice drill keys lessons onboarding help",
-                     action: { Onboarding.shared.startTutorial() }),
+        [
+            whatsNewItem(dot: WhatsNew.shared.hasNews),
             MenuItem(id: "map", label: "Shortcut Map", symbol: "keyboard", shortcut: ["⌘", "/"],
                      keywords: "keys overview cheat sheet",
                      action: { SettingsWindow.shared.show(pane: .shortcuts, map: true) }),
             MenuItem(id: "keyhelp", label: "Keyboard Help", symbol: "keyboard.badge.ellipsis", shortcut: keys.modeChord,
                      enabled: trusted, hidden: true, keywords: "keys overlay cheat sheet window mode",
                      action: { KeyHelp.shared.showFromMenu(preferredMode: keys.modeName) }),
-            MenuItem(id: "tour", label: "Quick Tour", symbol: "play.circle", enabled: trusted,
-                     keywords: "learn tutorial onboarding keyboard tour", action: { Onboarding.shared.startTour() }),
-            MenuItem(id: "tutorial-restart", label: "Restart Tutorial", symbol: "arrow.counterclockwise",
-                     enabled: trusted, hidden: true, keywords: "learn tutorial start over",
-                     action: { Onboarding.shared.startTutorial(fromStart: true) }),
             MenuItem(id: "tips", kind: .check, label: "Show Tips", checked: Tips.shared.enabled, hidden: true,
                      keywords: "hints help tooltips",
                      keepOpen: true, action: { Tips.shared.enabled.toggle() }),

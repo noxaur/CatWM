@@ -18,9 +18,9 @@ A change to a token or a component rule is not finished until `Sources/CatWM/UI/
 ## Principles
 
 1. **Show the key.** Every command that a person can click shows its shortcut on the right, set in `Kbd` or `kbd` text. Clicking teaches the keys. It does not replace them.
-2. **One floating surface.** Menus, tooltips, tips, coach marks, the HUD and the welcome card are one component: `.surface(_ density:)`, at five densities. A new floating thing gets a density, never a new look.
+2. **One floating surface.** Menus, tooltips, tips, the HUD and the welcome card are one component: `.surface(_ density:)`, at five densities. A new floating thing gets a density, never a new look.
 3. **Two levels, then search.** Menus nest one level, two at most. Deeper items go behind the search field at the top of every menu.
-4. **Containers nest twice, then stop.** In Settings the content pane is one `surface` container on the ground, and each group of rows is one `surfaceRaised` container inside it (`OGroup`). Hairlines separate the rows inside a group. Nothing else gets a box. Floating things (menus, tips, tour cards, HUD) get depth from the `popover` and `float` elevations, not from borders.
+4. **Containers nest twice, then stop.** In Settings the content pane is one `surface` container on the ground, and each group of rows is one `surfaceRaised` container inside it (`OGroup`). Hairlines separate the rows inside a group. Nothing else gets a box. Floating things (menus, tips, HUD) get depth from the `popover` and `float` elevations, not from borders.
 5. **Chrome is flat.** Window chrome and the Settings rail sit on `Theme.wash`, which is flat: `wash1` and `wash2` equal `background`, black in the dark theme and white in the light theme. Items sit on it as pills. The content is one rounded pane without a shadow (`.pane(shadow: false)`, `surface`, radius 14), inset 10 pt on the top, bottom and trailing sides.
 6. **Two faces.** Pilcrow Rounded for the wordmark and keycaps (Bold for the wordmark, Semibold for keycaps). Alpino Bold, the website heading face, for display, titles and headings. The system font for body text, labels, captions and menu rows. Nothing else.
 7. **Symbols move with meaning.** An SF Symbol effect always reports something: an action landed, a thing refused, the app is busy, a tip is waiting. Never decoration.
@@ -36,7 +36,6 @@ One palette, `Palette.catwm`, with a light and a dark theme. It comes from the C
 - Sky is the accent. Use `accent` for one thing per view: the primary button, the switch that is on, the current workspace, the progress bar, the selected layout, a drop target. Its text is `onAccent`, black in both themes. Accent-coloured text uses `accentInk`, which is darker in the light theme so it meets 4.5:1. Everything else is neutral: row symbols, step numbers, workspace numbers in the overview, group titles and page titles are `ink` or `inkMuted`. A selected pill (a rail page, a modifier layer in the shortcut map) is `ink` with `background` text, never `accent`.
 - A hovered or highlighted row is a `hover` fill. Its text keeps its colour. Hover and keyboard highlight never use `accent`.
 - A selected rail item is an `ink` pill with `background` text: white on black in the dark theme, black on white in the light theme. Other items are `inkMuted` text and get a `surface` pill on hover. Rail items have no symbols.
-- Tour cards are plain raised surfaces. They are not filled with `accent`.
 - `tint` is for shapes only: layout thumbnails and illustrations. Never text.
 - `success`, `warning` and `danger` always come with a symbol and a word.
 - Focus is a 2 pt `focus` ring, offset 2 pt. It is 3:1 on every surface in every theme.
@@ -47,7 +46,7 @@ One palette, `Palette.catwm`, with a light and a dark theme. It comes from the C
 - `wordmark` Pilcrow Rounded Bold, tracking -0.03 em. `Theme.wordmark`.
 - `display` 44/48, Alpino Bold. Welcome title and showcase headlines. One per screen.
 - `numeral` 34, weight 300, in `inkMuted`. Step numbers.
-- `title` 22/27, Alpino Bold. Tour cards, pane titles, the HUD.
+- `title` 22/27, Alpino Bold. Pane titles, the HUD.
 - `heading` 15/20, Alpino Bold. Group titles in Settings (`sectionTitle`) use it in `ink`. `body` 13.5/19, system font at 400. `body-medium` is `body` at 500. `caption` 12/16. `label` 12/16, weight 500.
 - `kbd` is Pilcrow Rounded Semibold through `Theme.keys`. The face has no modifier glyphs, so the font cascades to the system font for ⌘ ⇧ ⌥ ⌃ ⇥ ↩. `kicker` is Pilcrow Rounded Semibold 12 in `inkMuted`, tracking 0.05 em, and the only uppercase text: "STEP 2 OF 6". `code` uses the mono face.
 
@@ -57,7 +56,7 @@ Labels, captions, buttons, keys and menu rows never wrap. They are one line and 
 
 - The grid is 4 pt: `Theme.Space` 2, 4, 8, 12, 16, 24, 32.
 - Radii nest. The panel radius equals the row radius plus the panel padding: `Radius.large` 12 = `Radius.small` 6 + 6 menu padding. Rows sit concentric inside menus.
-- Rows are 30 pt (`Theme.rowHeight`). Settings rows are at least 44 pt. Controls are 28 pt (26 small, 36 large). Small keycaps are 20 pt, medium 30 pt, tour keycaps 40 pt. Menus are 272 pt wide, submenus 232 pt, the command menu 360 pt.
+- Rows are 30 pt (`Theme.rowHeight`). Settings rows are at least 44 pt. Controls are 28 pt (26 small, 36 large). Small keycaps are 20 pt, medium 30 pt, large 40 pt. Menus are 272 pt wide, submenus 232 pt, the command menu 360 pt.
 
 ## Surface
 
@@ -79,10 +78,10 @@ caret     optional: top, bottom or leading, pointing at the real target
 | `extraSmall` | Tooltip                                    | `medium` 8      | 5 x 8        | popover      |
 | `small`      | Toast, "config reloaded"                   | `large` 12      | 12 x 16      | float, glass |
 | `medium`     | Menus, submenus, command menu, inline tips | `large` 12      | 6            | popover      |
-| `large`      | Coach marks (tour steps), 344 pt wide      | `extraLarge` 18 | 20 x 20 x 16 | float, glass |
+| `large`      | What's New, 344 pt wide                    | `extraLarge` 18 | 20 x 20 x 16 | float, glass |
 | `extraLarge` | Welcome card, 480 pt wide                  | 24              | 32           | float        |
 
-Choose the density by job, not by size. A tooltip never holds a button. Anything with a button is `medium` or larger. Tour cards always point with the caret at the real menu bar item or real window. They never dim or cover the desktop. Tips after onboarding are `medium` with a lead `lightbulb`, a close button and "No more tips". Nothing inside a surface gets its own box.
+Choose the density by job, not by size. A tooltip never holds a button. Anything with a button is `medium` or larger. Tips after onboarding are `medium` with a lead `lightbulb`, a close button and "No more tips". Nothing inside a surface gets its own box.
 
 ## Components
 
@@ -117,7 +116,7 @@ Each entry gives the design intent. The Swift type is in brackets.
 
 **Template save row** [`TemplateSaveRow`]. Cursor actions show a name field beside Save and Cancel. Return saves the template. Escape returns to the action list. The menu receives text input while the field is present. Saving does not open Settings. Hovering a saved template replaces its number with an X. Clicking the X deletes the template and keeps the menu open.
 
-**Kbd** [`Kbd`]. Keycaps for a shortcut, a chord or a sequence. Small keycaps (20 pt, `well`) go in tooltips, labels and buttons. Menu rows use plain `kbd` text. Medium keycaps (30 pt) go in onboarding key pickers and summaries. Large keycaps (40 pt) go only in coach marks, where the real key press fills them with `accent` and sinks them 2 pt. Medium and large keycaps are flat `surfaceRaised` tiles, with no shadow and no bottom edge. Order modifiers the macOS way: control, option, shift, command, then the key.
+**Kbd** [`Kbd`]. Keycaps for a shortcut, a chord or a sequence. Small keycaps (20 pt, `well`) go in tooltips, labels and buttons. Menu rows use plain `kbd` text. Medium keycaps (30 pt) go in onboarding key pickers and summaries. A pressed large keycap (40 pt) fills with `accent` and sinks 2 pt. Medium and large keycaps are flat `surfaceRaised` tiles, with no shadow and no bottom edge. Order modifiers the macOS way: control, option, shift, command, then the key.
 
 **Tooltip** [`OTooltip`, `Tooltip`]. The smallest surface (`extraSmall`). A tooltip is rare. Add one only when a person cannot tell what a control does without it.
 
@@ -131,7 +130,7 @@ Each entry gives the design intent. The Swift type is in brackets.
 **Menu** [`Popup`, `OMenuRow`, `OMenuButton`, `OMenuPicker`]. A dropdown with groups, checks, radios, switches, inline controls and nested submenus, with type-to-search. The picker button is an outlined pill (`borderControl`) with the current value in `body-medium` and the up-down chevron.
 
 - Menu rows carry no symbols. The lead column holds only a check, a radio dot or an app icon. A notification dot sits after the label.
-- The status menu root holds five rows: search, Layout, Workspaces, Settings and Help, then the footer with the version and Quit. The search row is a `well` row at the top. The workspace strip, Bring Window Here, What's New and the tutorial live one level down, in Workspaces and Help. Search finds them all.
+- The status menu root holds five rows: search, Layout, Workspaces, Settings and Help, then the footer with the version and Quit. The search row is a `well` row at the top. The workspace strip, Bring Window Here and What's New live one level down, in Workspaces and Help. Search finds them all.
 - Nest one level, two at most. Put the current choice of a radio group in the parent row's value.
 - Every actionable row shows its shortcut.
 - Give hidden aliases to commands that live inside a custom control, so search still finds them.
@@ -153,15 +152,13 @@ Each entry gives the design intent. The Swift type is in brackets.
 - *Discoverability.* A right click is never the only hint. Put the same commands in a place that is visible: a hover button, a menu bar item or a setting. Do not add a tip to teach right click.
 - *Motion.* The menu appears with `Motion.easeOut` at `Theme.fast`. It does not scale or bounce. With Reduce Motion on, it fades only.
 
-**Welcome card and intro** [`WelcomeView`, `WordmarkView`]. The welcome card opens with the cat mascot at 72 pt, not the app icon, above the `display` title. Permission rows use `inkMuted` symbols and the page dots are `ink`. The intro wordmark is the lockup: the cat beside the wordmark, both white, with the tagline below.
+**Welcome card** [`WelcomeView`]. The welcome card opens with the cat mascot at 72 pt, not the app icon, above the `display` title. Permission rows use `inkMuted` symbols and the page dots are `ink`.
 
 **Settings window** [`SettingsView`, `Sidebar`, `SideItem`, `PaneHost`]. 880 by 620 pt by default, at least 760 by 520, at the normal window level, so it never floats above other windows. The rail is 196 pt: the animated cat mascot at 56 pt beside the 26 pt wordmark, then the search field, then the pages as text pills. The cat follows the cursor with its eyes while the cursor is over the rail. Its feeling and colour report the state: `content` in `ink` while CatWM runs, `sleepy` in `inkMuted` while tiling is paused, `annoyed` in `warning` while a shortcut has a problem, `alert` in `warning` while Accessibility or the event tap is missing, and `sad` in `danger` when the config cannot be saved. The pane shows the page title in `title`, then the groups. The status line at the top of General appears only when Accessibility or the event tap is missing. The only floating pill over the pane carries a save error, the shortcut problem count or skipped config lines.
 
 **Overview** [`SortView`]. A flat `surface` panel with the `float` elevation, not glass. Each workspace, the Close lane and each full screen window is a `surfaceRaised` container. The add lane is a dashed slot. A hovered or selected window row is a `hover` fill, and its window in the thumbnail is `ink`. Only a drop target uses `accent` (`accentSoft` fill, `dangerSoft` on Close). The layout pill is an outlined pill, like the picker. A window, tab group or workspace dropped outside the panel closes. While the cursor is outside the panel, the drag image follows it past the panel edge with a `danger` tint, and the Drop to close zone shows as the drop target.
 
 **Command menu**. A menu that opens with the search field first, 360 pt wide. Results group under their top-level parent and show the rest of the path as a breadcrumb. It shares its data with the menu so the two never disagree.
-
-**Coach mark** [`.surface(.large, caret:)`]. One step of the keyboard tour: step dots, a title, a body, live keycaps and Next. A step completes only when the person presses the real key. Next appears, with the return key, after that. The kicker counts ("STEP 3 OF 6"). The done line is short ("Focus moved").
 
 **HUD**. Confirms a keyboard action in the middle of the screen: a glass surface with a layout thumbnail and its name. Shown for about one second. Never interactive. It ignores the mouse. The warning variant wiggles `exclamationmark.triangle.fill` and names the app that refused.
 
@@ -189,9 +186,8 @@ Use SF Symbols only, at the weight of the text, in hierarchical rendering. Use t
 | Tiling toggled off or on               | `rectangle.split.3x1` and `macwindow.on.rectangle`                           | `.replace.magic(fallback: .downUp)`    |
 | Retile, Reload Config                  | `arrow.triangle.2.circlepath`                                                | `.rotate`                              |
 | Settings opened                        | `gearshape`                                                                  | `.rotate.byLayer`                      |
-| Update found, tour step passed         | `arrow.down.circle`, `checkmark.circle.fill`                                 | `.bounce`, `.appear`                   |
+| Update found                           | `arrow.down.circle`                                                          | `.bounce`                              |
 | Window refuses to resize               | `exclamationmark.triangle.fill`                                              | `.wiggle`                              |
-| Waiting for a key press in the tour    | `cursorarrow.rays`                                                           | `.pulse`                               |
 | Tip available                          | `lightbulb`                                                                  | `.breathe`                             |
 | Checkmark in menus, permission granted | `checkmark`                                                                  | `.drawOn` (macOS 26), `.appear` before |
 | Menu row hovered                       | the row's symbol                                                             | `.scale.up`                            |
@@ -208,7 +204,7 @@ Two curves: `Motion.easeOut` for things that appear, `Motion.spring` for things 
 
 ## Voice
 
-Short, second person, sentence case. No exclamation marks, except "Nice". Name the key, not the concept: "Press L to focus the window to the right", not "Use directional focus". Buttons are verbs: "Take the 2-minute tour", "Grant Access", "Got it". Kickers count. They never cheer.
+Short, second person, sentence case. No exclamation marks, except "Nice". Name the key, not the concept: "Press L to focus the window to the right", not "Use directional focus". Buttons are verbs: "Grant Access", "Got it". Kickers count. They never cheer.
 
 ## Assets
 

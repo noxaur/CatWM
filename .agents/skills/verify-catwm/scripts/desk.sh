@@ -2,7 +2,7 @@
 # desk.sh start [count]: go to an empty workspace and open test windows there (default 4).
 # desk.sh stop:          close them and go back to the workspace you came from.
 # The test windows are scratch files in a new TextEdit process (DESK_PID). A new process does not touch
-# the user's own TextEdit. CatWM floats its own windows, so the onboarding practice windows cannot test tiling.
+# the user's own TextEdit.
 set -e
 . "$(dirname "$0")/env.sh"
 

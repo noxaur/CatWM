@@ -87,8 +87,6 @@ Use the build's own binary as the CLI: `CLI=build/CatWM.app/Contents/MacOS/CatWM
 
 Test windows: `$S/desk.sh start [count]` goes to a new workspace (the number after the last workspace of the display) and opens `count` (default 4) scratch files `verify-1.txt` and up in a NEW TextEdit process. The user's own TextEdit is not touched. All test windows belong to that process, `DESK_PID` in the state file. Select them by `pid`. The script gives a test window the focus with `cyclenext`. The user's windows stay parked on their own workspace. `$S/desk.sh stop` quits that TextEdit process and goes back.
 
-Do not use the onboarding practice windows (`CatWM practice`) as test windows. CatWM floats every window of its own bundle (`WindowManager.shouldFloat`), except during the tour, so they never tile.
-
 Each workspace is a macOS Desktop. When you show workspace N, CatWM makes the missing Desktops up to N, and it removes the empty ones when you leave. Use the next free number, not a high number such as 9.
 
 ```sh
@@ -127,7 +125,7 @@ $S/evidence.sh after     # after the action
 
 Proof rules:
 
-- Use the real user path: a dispatcher through the socket, a key press, a config edit and `reload`. Do not call internal setters. The `dev` commands (`grabtest`, `modefx`, `panelfx`, `poststyle`, `intro`, `introlab`) are only previews.
+- Use the real user path: a dispatcher through the socket, a key press, a config edit and `reload`. Do not call internal setters. The `dev` commands (`grabtest`, `modefx`, `panelfx`, `poststyle`) are only previews.
 - Capture the state before and after the action, not only the end state.
 - Check the side effects too: the frames in `dump` (each tiled window must be `OK`, not `MISMATCH`), the file `$CONF` after `config.set`, and the log lines (`config:`, `ipc:`, `tiling:`).
 - For a speed change, use the timings in the log (`tiling: refresh windows 6 17.7ms`, `native workspaces: request to motion ...`), not your impression.

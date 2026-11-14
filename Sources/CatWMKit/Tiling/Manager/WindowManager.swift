@@ -42,9 +42,7 @@ import AppKit
     package var pendingLaunches: [PendingLaunch] = []
     package var onChange: (() -> Void)?
     package var onDispatch: ((_ dispatcher: String, _ arg: String, _ inMode: Bool) -> Void)?
-    package var onModeChange: ((String) -> Void)?
     package var surface: any TilingSurface = HeadlessSurface()
-    package var practice: (pid: pid_t, workspaces: [String: String])?
     package var keyPostStyle = Hotkeys.PostStyle.physical
 
     package var windows: [CGWindowID: Window] = [:]

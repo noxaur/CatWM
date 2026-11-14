@@ -65,7 +65,6 @@ extension WindowManager {
     }
 
     package func shouldFloat(_ window: Window, title: String?, resizable: Bool) -> Bool {
-        if let practice, window.pid == practice.pid { return false }
         if let bundle = window.bundleID,
            bundle == Bundle.main.bundleIdentifier || bundle.hasPrefix("local.catwm")
             || Legacy.isBundle(bundle) {

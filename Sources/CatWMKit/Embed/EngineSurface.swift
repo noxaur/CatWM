@@ -3,7 +3,7 @@ import AppKit
 struct EngineSurface: TilingSurface {
     func start(_ manager: WindowManager) {
         Hotkeys.shared.handler = { [weak manager] binding in manager?.run(binding) }
-        Hotkeys.shared.onSubmapChange = { [weak manager] name in manager?.modeChanged(name) }
+        Hotkeys.shared.onSubmapChange = { [weak manager] _ in manager?.notifyChange() }
         if !Notifications.shared.hasSources { Notifications.shared.installBuiltIn() }
         Notifications.shared.setEnabled(manager.config.tabNotificationBadges)
         setKeyBinds(enabled: manager.config.features.contains(.keys))

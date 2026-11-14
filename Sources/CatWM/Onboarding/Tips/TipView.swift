@@ -34,14 +34,7 @@ struct TipView: View {
                 OButton("No more tips", variant: .ghost, size: .small) { Tips.shared.noMore() }
                     .padding(.leading, -11)
                 Spacer(minLength: 8)
-                if let action = tip.action {
-                    OButton(action.label, variant: .primary) {
-                        Tips.shared.dismiss(tip)
-                        action.run()
-                    }
-                } else {
-                    OButton("Got it", variant: .primary) { Tips.shared.dismiss(tip) }
-                }
+                OButton("Got it", variant: .primary) { Tips.shared.dismiss(tip) }
             }
             .padding(.top, 12)
         }

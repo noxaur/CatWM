@@ -696,12 +696,6 @@ export const USER: Category[] = [
         line: "Save, share and switch whole setups.",
         body: "Save, share and switch between whole setups.",
       },
-      {
-        id: "onboarding",
-        name: "Tutorial and tour",
-        line: "Learn the keys with practice windows.",
-        body: "A short tutorial with practice windows. Open it again from the Help menu.",
-      },
     ],
   },
   {

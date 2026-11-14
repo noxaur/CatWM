@@ -8,7 +8,6 @@ extension WindowManager {
     private struct ObservedWindows {
         var present = Set<CGWindowID>()
         var fresh: [Window] = []
-        var titles: [CGWindowID: String?] = [:]
     }
 
     private struct PlannedMoves {
@@ -148,7 +147,6 @@ extension WindowManager {
                 accept(found, from: scan, for: window)
                 if !maximised { window.naturalFrame = found.frame }
                 window.autoFloating = shouldFloat(window, title: found.title, resizable: found.resizable || maximised)
-                observed.titles[id] = found.title
                 windows[id] = window
                 markForRules(window)
                 watch(window)
@@ -175,7 +173,7 @@ extension WindowManager {
         let stacking = Dictionary(onScreen.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         let arrivals = fresh.sorted(by: { (stacking[$0.id] ?? 0) < (stacking[$1.id] ?? 0) })
         for window in arrivals where config.virtualWorkspaces {
-            restoreSavedWorkspace(window, titles: observed.titles)
+            restoreSavedWorkspace(window)
         }
         if !pendingLaunches.isEmpty { arrivals.forEach(claimLaunch) }
         for window in fresh {
@@ -217,16 +215,11 @@ extension WindowManager {
         }
     }
 
-    private func restoreSavedWorkspace(_ window: Window, titles: [CGWindowID: String?]) {
+    private func restoreSavedWorkspace(_ window: Window) {
         if floats.savedOwnerOf[window.id] == owner(window) {
             if let float = floats.savedFloating[window.id] { window.userFloating = .chosen(float) }
         }
         restoreNativeMigration(window)
-        if let practice, window.pid == practice.pid,
-           let workspace = titles[window.id].flatMap(\.self).flatMap({ practice.workspaces[$0] }) {
-            model.assign(window.id, to: workspace)
-            if monitorOf[workspace] == nil, let here = currentScreen() { monitorOf[workspace] = here.uuid }
-        }
     }
 
     private func forgetGoneWindows(present: Set<CGWindowID>) {

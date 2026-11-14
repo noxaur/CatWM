@@ -2,8 +2,9 @@ import AppKit
 import CatWMKit
 
 extension WindowManager {
+    @discardableResult
     func finishSort(closing ids: [CGWindowID], goTo: String?, focus: Bool, opening maximised: CGWindowID? = nil,
-                    leavingMaximised moves: [CGWindowID: String] = [:]) {
+                    leavingMaximised moves: [CGWindowID: String] = [:]) -> Task<Void, Never> {
         Task { @MainActor in
             await self.commitNativeSort()
             for (id, workspace) in moves { await self.leaveMaximised(id, to: workspace) }
@@ -18,7 +19,7 @@ extension WindowManager {
                 continue
             }
             do { _ = try await ensureNativeWorkspace(name, on: screen) } catch {
-                HUD.shared.show(error.localizedDescription, on: screen.nsScreen)
+                showSortHUD(error.localizedDescription, on: screen.nsScreen)
             }
         }
         let assignments = workspaceOf
@@ -32,7 +33,7 @@ extension WindowManager {
             }
             nativeMoves.finish(id)
             if moved { nativeMoves.finish(id, on: target.space) } else {
-                HUD.shared.show("macOS couldn't move a window to workspace \(name)", on: currentScreen()?.nsScreen)
+                showSortHUD("macOS couldn't move a window to workspace \(name)", on: currentScreen()?.nsScreen)
             }
         }
         desktops.nativeSortNames = []
@@ -50,7 +51,7 @@ extension WindowManager {
         let deadline = ProcessInfo.processInfo.systemUptime + 5
         func leaving() -> Bool { window.maximisedUnlessStalled || !DesktopUI.isSettled(screen) }
         guard await poll(5, every: 50_000_000, until: { !leaving() || !window.isValidUnlessStalled }), !leaving() else {
-            HUD.shared.show("macOS did not finish leaving full screen", on: screen.nsScreen)
+            showSortHUD("macOS did not finish leaving full screen", on: screen.nsScreen)
             return
         }
         do {
@@ -69,7 +70,12 @@ extension WindowManager {
             leavingMaximised[id] = Date()
         } catch {
             Log.info("sort: leave full screen failed: \(error.localizedDescription)")
-            HUD.shared.show(error.localizedDescription, on: screen.nsScreen)
+            showSortHUD(error.localizedDescription, on: screen.nsScreen)
         }
+    }
+
+    private func showSortHUD(_ text: String, on screen: NSScreen?) {
+        guard config.features.contains(.hud) else { return }
+        surface.showHUD(text, on: screen)
     }
 }

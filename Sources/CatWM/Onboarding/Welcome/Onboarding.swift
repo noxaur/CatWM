@@ -108,7 +108,7 @@ import SwiftUI
             Motion.setAlpha(1, on: panel)
             Motion.setFrame(end, on: panel)
         }
-        DispatchQueue.main.asyncAfter( // style-ok: the welcome panel finishes its entrance
+        DispatchQueue.main.asyncAfter( // style-ok: lands the welcome content partway through the panel entrance
             deadline: .now() + 0.3
         ) { [weak self] in self?.welcomeModel.landed = true }
         DispatchQueue.main.asyncAfter( // style-ok: the welcome entrance finishes before the tip

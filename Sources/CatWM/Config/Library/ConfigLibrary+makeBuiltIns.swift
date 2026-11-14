@@ -135,7 +135,7 @@ extension ConfigLibrary {
         case .full: doc.applyFull(config.text)
         }
         doc.save()
-        DispatchQueue.main.asyncAfter( // style-ok: the saved config finishes applying
+        DispatchQueue.main.asyncAfter( // style-ok: keeps reconcile from reading this apply as an outside edit
             deadline: .now() + 0.6
         ) { [weak self] in self?.applying = false }
     }

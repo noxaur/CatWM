@@ -129,7 +129,7 @@ import SwiftUI
     private func setDismissMonitor(_ active: Bool) {
         if let dismissMonitor { NSEvent.removeMonitor(dismissMonitor); self.dismissMonitor = nil }
         guard active else { return }
-        DispatchQueue.main.asyncAfter( // style-ok: the help panel finishes opening
+        DispatchQueue.main.asyncAfter( // style-ok: ignores the click that opened the help from the menu
             deadline: .now() + 0.25
         ) { [weak self] in
             guard let self, model.shown, model.reason == .menu, dismissMonitor == nil else { return }

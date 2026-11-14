@@ -95,7 +95,7 @@ struct AppSurface: TilingSurface {
         guard manager.config.features.contains(.keys) else { return Log.info("start: key binds are off in the config") }
         guard !Hotkeys.shared.start(input: manager.input) else { return }
         Log.info("start: could not create the keyboard event tap")
-        DispatchQueue.main.asyncAfter( // style-ok: gives the key tap time to start
+        DispatchQueue.main.asyncAfter( // style-ok: shows the Accessibility hint a moment after the tap failed
             deadline: .now() + 3
         ) {
             guard !Hotkeys.shared.isActive else { return }

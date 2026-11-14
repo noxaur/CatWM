@@ -62,8 +62,7 @@ import CatWMKit
     }
 
     private func moved() {
-        let point = NSEvent.mouseLocation
-        let cursor = CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.height ?? 0) - point.y)
+        let cursor = NSEvent.mouseLocation.flipped
         let heading = last.map { CGVector(dx: cursor.x - $0.x, dy: cursor.y - $0.y) }
         last = cursor
         let hit = targets.first { target in

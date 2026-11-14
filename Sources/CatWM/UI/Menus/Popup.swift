@@ -25,11 +25,12 @@ import SwiftUI
     var windowNumbers: Set<Int> { Set(stack.map(\.panel.windowNumber)) }
 
     func hitsMenu(at point: CGPoint) -> Bool {
-        guard let height = NSScreen.screens.first?.frame.height else { return false }
+        guard !NSScreen.screens.isEmpty else { return false }
+        let flipped = point.flipped
         return stack.contains { entry in
             guard let model = entry.model else { return false }
             let frame = entry.panel.frame
-            let local = CGPoint(x: point.x - frame.minX, y: frame.maxY - (height - point.y))
+            let local = CGPoint(x: flipped.x - frame.minX, y: frame.maxY - flipped.y)
             let slack = Theme.Space.small
             return model.rowFrames.values.contains { $0.insetBy(dx: -slack, dy: -slack).contains(local) }
         }

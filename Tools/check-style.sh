@@ -60,6 +60,10 @@ HARDWARE_INPUT = re.compile(
     r"\bNSEvent\.(?:pressedMouseButtons|mouseLocation)\b|\bCGEvent\(source: *nil\)\?\.location\b"
 )
 HARDWARE_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/AXBackend.swift"
+SCREEN_FLIP = re.compile(
+    r"NSScreen\.screens\.(?:first[?!]?|\[0\][?!]?)\.frame\.(?:height|maxY)"
+)
+SCREEN_FLIP_OWNER = "Sources/CatWMKit/Tiling/Access/Screen.swift"
 REAL_INPUT = re.compile(r"\.post\(tap:|\bCGEventPost\(|\bCGWarpMouseCursorPosition\(")
 REAL_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/RealInput.swift"
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
@@ -186,6 +190,8 @@ def banned(path, code, uses_defaults=False):
     if path.startswith("Sources/CatWMKit/") and path != HARDWARE_INPUT_OWNER and HARDWARE_INPUT.search(code):
         hits.append("hardware mouse read in CatWMKit. Read it through WindowBackend (pointerLocation, primaryButtonDown, "
                     "anyButtonDown), so FakeBackend and embed hosts control it")
+    if path != SCREEN_FLIP_OWNER and SCREEN_FLIP.search(code):
+        hits.append("coordinate flip. Use CGRect.flipped or CGPoint.flipped")
     if path.startswith(SOURCES) and path != REAL_INPUT_OWNER and REAL_INPUT.search(code):
         hits.append("real input post. Use RealInput.post or RealInput.warpPointer, which refuse in tests and fake-backed processes")
     if path.startswith(SOURCES) and path not in SYSTEM_LOG_ALLOW and SYSTEM_LOG.search(code):

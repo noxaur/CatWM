@@ -19,18 +19,32 @@ package struct Screen {
     package var name: String { nsScreen?.localizedName ?? uuid }
 
     package static func all() -> [Screen] {
-        guard let primary = NSScreen.screens.first else { return [] }
-        let height = primary.frame.height
-        func flip(_ rect: CGRect) -> CGRect {
-            CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
-        }
+        guard !NSScreen.screens.isEmpty else { return [] }
         let screens = NSScreen.userScreens.compactMap { screen -> Screen? in
             guard let id = screen.displayID else { return nil }
             let uuid = screen.displayUUID ?? "\(id)"
-            return Screen(id: id, uuid: uuid, frame: flip(screen.frame), visible: flip(screen.visibleFrame),
+            return Screen(id: id, uuid: uuid, frame: screen.frame.flipped, visible: screen.visibleFrame.flipped,
                           isBuiltin: CGDisplayIsBuiltin(id) != 0, nsScreen: screen)
         }
         .sorted { ($0.frame.minX, $0.frame.minY) < ($1.frame.minX, $1.frame.minY) }
         return (Instance.scope ?? Instance.embedding.scope)?.filter(screens) ?? screens
+    }
+}
+
+private func primaryScreenHeight() -> CGFloat { NSScreen.screens.first?.frame.height ?? 0 }
+
+extension CGPoint {
+    package var flipped: CGPoint { flipped(primaryHeight: primaryScreenHeight()) }
+
+    package func flipped(primaryHeight: CGFloat) -> CGPoint {
+        CGPoint(x: x, y: primaryHeight - y)
+    }
+}
+
+extension CGRect {
+    package var flipped: CGRect { flipped(primaryHeight: primaryScreenHeight()) }
+
+    package func flipped(primaryHeight: CGFloat) -> CGRect {
+        CGRect(x: minX, y: primaryHeight - maxY, width: width, height: height)
     }
 }

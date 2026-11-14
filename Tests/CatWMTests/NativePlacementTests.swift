@@ -57,9 +57,7 @@ struct NativePlacementTests {
         panel.level = .normal
         defer { panel.close() }
         let test = try fixture(id: CGWindowID(panel.windowNumber))
-        let height = try #require(NSScreen.screens.first).frame.height
-        panel.setFrame(CGRect(x: test.frame.minX, y: height - test.frame.maxY,
-                              width: test.frame.width, height: test.frame.height), display: false)
+        panel.setFrame(test.frame.flipped, display: false)
         panel.orderFrontRegardless()
         let ready = await poll(1) {
             WindowServerQuery.frames(for: [test.window.id])?[test.window.id]?.approxEqual(test.frame) == true

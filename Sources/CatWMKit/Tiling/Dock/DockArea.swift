@@ -44,12 +44,8 @@ import AppKit
         let tile = number("tilesize") ?? 64
         let magnified = (CFPreferencesCopyAppValue("magnification" as CFString, dock) as? Bool) == true
         let icon = magnified ? max(tile, number("largesize") ?? 128) : tile
-        guard let primary = NSScreen.screens.first else { bands = nil; return }
-        let height = primary.frame.height
-        func flip(_ rect: CGRect) -> CGRect {
-            CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
-        }
-        bands = Self.bands(screens: NSScreen.screens.map { (flip($0.frame), flip($0.visibleFrame)) }, edge: edge,
+        guard !NSScreen.screens.isEmpty else { bands = nil; return }
+        bands = Self.bands(screens: NSScreen.screens.map { ($0.frame.flipped, $0.visibleFrame.flipped) }, edge: edge,
                            depth: min(max(icon, 16), 512) + 48)
     }
 

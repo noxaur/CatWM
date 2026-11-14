@@ -183,6 +183,18 @@ func styleRejectsRawSwiftUIAnimation(line: String) throws {
 }
 
 @Test(arguments: [
+    "let y = (NSScreen.screens." + "first?.frame.height ?? 0) - raw.y",
+    "let y = NSScreen.screens." + "[0].frame.height",
+    "let y = NSScreen.screens." + "first!.frame.maxY - rect.maxY",
+    "let y = NSScreen.screens." + "[0]?.frame.maxY"
+])
+func styleRejectsAHandWrittenScreenFlip(line: String) throws {
+    let overlay = "Sources/CatWM/Overlays/Example.swift"
+    #expect(try styleFailures(path: overlay, source: line).contains { $0.contains("CGRect.flipped") }, "\(line)")
+    #expect(try styleFailures(path: "Sources/CatWMKit/Tiling/Access/Screen.swift", source: line).isEmpty, "\(line)")
+}
+
+@Test(arguments: [
     "guard NSEvent.pressedMouseButtons == 0 else { return }",
     "let point = NSEvent.mouseLocation",
     "let here = CGEvent(source: nil)?.location"

@@ -10,8 +10,7 @@ extension CursorActions {
             queuePointerNote()
             return
         }
-        let raw = CGEvent(source: nil)?.location ?? cgPoint
-        let point = CGPoint(x: raw.x, y: (NSScreen.screens.first?.frame.height ?? 0) - raw.y)
+        let point = (CGEvent(source: nil)?.location ?? cgPoint).flipped
         guard point != lastFollow else { return }
         lastFollow = point
         placeDot(at: point)

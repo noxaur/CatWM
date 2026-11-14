@@ -1,5 +1,6 @@
 import AppKit
 @testable import CatWM
+import CatWMFakes
 @testable import CatWMKit
 import Testing
 
@@ -112,5 +113,20 @@ private final class RecordingSurface: TilingSurface {
         pending?.perform()
         #expect(hints == 0)
         #expect(drag.hover == nil)
+    }
+
+    @Test @MainActor func aSortErrorGoesThroughTheSurface() async {
+        let fake = FakeBackend()
+        let screen = fake.addScreen()
+        let manager = fake.makeManager()
+        let surface = RecordingSurface()
+        manager.surface = surface
+        manager.monitorOf["2"] = screen.uuid
+        manager.desktops.nativeSortNames = ["2"]
+        manager.desktops.nativeCreationBusy = true
+        let task = manager.finishSort(closing: [], goTo: nil, focus: false)
+        task.cancel()
+        await task.value
+        #expect(surface.hud == ["The previous Desktop action did not finish"])
     }
 }

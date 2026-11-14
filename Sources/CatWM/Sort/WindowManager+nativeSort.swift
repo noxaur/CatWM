@@ -19,7 +19,7 @@ extension WindowManager {
                 continue
             }
             do { _ = try await ensureNativeWorkspace(name, on: screen) } catch {
-                showSortHUD(error.localizedDescription, on: screen.nsScreen)
+                surface.showHUD(error.localizedDescription, on: screen.nsScreen)
             }
         }
         let assignments = workspaceOf
@@ -33,7 +33,7 @@ extension WindowManager {
             }
             nativeMoves.finish(id)
             if moved { nativeMoves.finish(id, on: target.space) } else {
-                showSortHUD("macOS couldn't move a window to workspace \(name)", on: currentScreen()?.nsScreen)
+                surface.showHUD("macOS couldn't move a window to workspace \(name)", on: currentScreen()?.nsScreen)
             }
         }
         desktops.nativeSortNames = []
@@ -51,7 +51,7 @@ extension WindowManager {
         let deadline = ProcessInfo.processInfo.systemUptime + 5
         func leaving() -> Bool { window.maximisedUnlessStalled || !DesktopUI.isSettled(screen) }
         guard await poll(5, every: 50_000_000, until: { !leaving() || !window.isValidUnlessStalled }), !leaving() else {
-            showSortHUD("macOS did not finish leaving full screen", on: screen.nsScreen)
+            surface.showHUD("macOS did not finish leaving full screen", on: screen.nsScreen)
             return
         }
         do {
@@ -70,12 +70,7 @@ extension WindowManager {
             leavingMaximised[id] = Date()
         } catch {
             Log.info("sort: leave full screen failed: \(error.localizedDescription)")
-            showSortHUD(error.localizedDescription, on: screen.nsScreen)
+            surface.showHUD(error.localizedDescription, on: screen.nsScreen)
         }
-    }
-
-    private func showSortHUD(_ text: String, on screen: NSScreen?) {
-        guard config.features.contains(.hud) else { return }
-        surface.showHUD(text, on: screen)
     }
 }

@@ -85,9 +85,22 @@ extension WindowManager {
             }
             refresh()
         } else {
-            assignTabs(of: window.id, to: shown[dst.uuid])
-            refresh()
+            move(window, toDisplay: dst)
         }
         if target == nil { focus(window) }
+    }
+
+    package func move(_ window: Window, toDisplay screen: Screen) {
+        assignTabs(of: window.id, to: shown[screen.uuid])
+        refresh(recording: [window.id: screen.uuid])
+    }
+
+    package func refresh(recording destinations: [CGWindowID: String]) {
+        refresh()
+        for (id, display) in destinations {
+            for member in tabs.group(of: id)?.members ?? [id] where animator.isBusy(member) {
+                displayOf[member] = display
+            }
+        }
     }
 }

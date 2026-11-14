@@ -49,6 +49,7 @@ extension WindowManager {
     private func finishMouseDrag(_ finished: [CGWindowID: Bool], at point: CGPoint, hovered: CGWindowID?,
                                  joins: Bool) {
         let screens = backend.screens()
+        var swapped: [CGWindowID: String] = [:]
         for (id, resized) in finished {
             guard let window = windows[id], let src = screen(of: window, in: screens) else { continue }
             let band = joins && holds(window, at: point) ? tabDropTarget(for: id, at: point) : nil
@@ -71,12 +72,13 @@ extension WindowManager {
             if config.mouseSwapsWindows,
                let hit = tiled(on: dst).first(where: { $0 != id && targets[$0]?.contains(point) == true }) {
                 swapOrder(id, hit)
+                if dst.uuid != src.uuid { swapped[hit] = src.uuid }
             } else if dst.uuid != src.uuid {
                 assignTabs(of: id, to: shown[dst.uuid])
             }
         }
         corrections = [:]
-        refresh()
+        refresh(recording: swapped)
     }
 
     func applyMouseResize(_ window: Window, on screen: Screen) {

@@ -142,7 +142,8 @@ final class TabStripInput: NSView {
         let strip = CGRect(x: 0, y: 0, width: bounds.width, height: TabStrip.height)
         let lifted = !strip.insetBy(dx: 0, dy: -Self.liftSlack).contains(local(event))
         if lifted {
-            WindowManager.shared.dragTab(press.id, grab: press.hold, to: mouseLocation())
+            let manager = WindowManager.shared
+            manager.dragTab(press.id, grab: press.hold, to: manager.mouseLocation())
         } else if model.lifted {
             WindowManager.shared.cancelTabDrag(press.id)
         }
@@ -187,7 +188,7 @@ final class TabStripInput: NSView {
                 model.lifted = false
             }
             if lifted {
-                manager.dropTab(press.id, at: mouseLocation())
+                manager.dropTab(press.id, at: manager.mouseLocation())
             } else if let index {
                 manager.reorderTab(press.id, to: index)
             }

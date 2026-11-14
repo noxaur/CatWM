@@ -46,5 +46,3 @@ extension CGRect {
             && abs(width - other.width) <= tolerance && abs(height - other.height) <= tolerance
     }
 }
-
-package func mouseLocation() -> CGPoint { CGEvent(source: nil)?.location ?? .zero }

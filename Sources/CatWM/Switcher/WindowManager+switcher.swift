@@ -71,6 +71,7 @@ extension WindowManager {
     }
 
     func switchTo(_ item: SwitcherItem) {
+        desktops.spaceArrival = nil
         if let space = Spaces.of(window: item.id).first, let workspace = workspace(on: space),
            let display = desktops.nativeCatalog.entry(workspace)?.display,
            backend.currentSpace(display: display) != space {
@@ -84,32 +85,17 @@ extension WindowManager {
         }
         noteFocus(item.id)
         if let window = windows[item.id], showMaximised(window) { return }
-        if stepToSpace(of: item.id) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.spaceSettle) {
-                if !WindowServerFocus.focus(pid: item.pid, window: item.id) {
-                    NSRunningApplication(processIdentifier: item.pid)?.activate()
-                }
-            }
-            return
-        }
+        if let space = Spaces.of(window: item.id).first, stepToSpace(space, then: { Self.focus(item) }) { return }
         if let window = windows[item.id] {
             scanner.run(window.pid) { window.focus() }
-        } else if !WindowServerFocus.focus(pid: item.pid, window: item.id) {
-            NSRunningApplication(processIdentifier: item.pid)?.activate()
+        } else {
+            Self.focus(item)
         }
     }
 
-    private static let spaceSettle = 0.6
-
-    private func stepToSpace(of id: CGWindowID) -> Bool {
-        guard let space = Spaces.of(window: id).first else { return false }
-        for screen in backend.screens() {
-            guard let info = backend.spaceList(display: screen.uuid), let target = info.ids.firstIndex(of: space),
-                  let cur = info.current, cur != target, let combo = backend.stepShortcut(right: target > cur)
-            else { continue }
-            for _ in 0..<abs(target - cur) { postKey(combo) }
-            return true
+    private static func focus(_ item: SwitcherItem) {
+        if !WindowServerFocus.focus(pid: item.pid, window: item.id) {
+            NSRunningApplication(processIdentifier: item.pid)?.activate()
         }
-        return false
     }
 }

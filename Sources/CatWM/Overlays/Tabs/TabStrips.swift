@@ -9,6 +9,7 @@ import CatWMKit
     private var queuedUpdate = false
     private var queuedInstant = false
     private var queuedRestack = false
+    var onPerformUpdate: ((Bool, Bool) -> Void)?
 
     func batch(_ changes: () -> Void) {
         batchDepth += 1
@@ -32,13 +33,17 @@ import CatWMKit
     func update(instant: Bool = false) {
         guard batchDepth == 0 else {
             queuedUpdate = true
-            queuedInstant = instant
+            queuedInstant = queuedInstant || instant
             return
         }
         performUpdate(instant: instant, restackAll: false)
     }
 
     private func performUpdate(instant: Bool, restackAll: Bool) {
+        if let onPerformUpdate {
+            onPerformUpdate(instant, restackAll)
+            return
+        }
         let manager = WindowManager.shared
         guard !strips.isEmpty || !manager.tabs.isEmpty else { return }
         let still = instant || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion

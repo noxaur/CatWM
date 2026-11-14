@@ -32,16 +32,14 @@ extension Tips {
     }
 
     func modeChanged(_ name: String) {
-        pendingWork?.cancel()
+        pendingWork.cancel()
         if name.isEmpty {
             if case .modeBar = global?.place { dismissGlobal() }
             return
         }
         modeEntries += 1
         guard modeEntries >= Self.modeEntriesNeeded, canShow(Known.keyHelp.rawValue) else { return }
-        let work = DispatchWorkItem { [weak self] in self?.show(.keyHelp) }
-        pendingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
+        pendingWork.schedule(after: 1.2) { [weak self] in self?.show(.keyHelp) }
     }
 
     func clicked(id: String, label: String, shortcut: [String]) {
@@ -54,7 +52,9 @@ extension Tips {
         let keys = ShortcutIndex()
         let global = shortcut.contains { ["⌘", "⌥", "⌃"].contains($0) }
         let chords = global || keys.modeChord.isEmpty ? [shortcut] : [keys.modeChord, shortcut]
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter( // style-ok: the menu closes before the tip
+            deadline: .now() + 0.5
+        ) { [weak self] in
             guard let self, canShow(tipID) else { return }
             present(Tip(id: tipID, title: "\(label) has a key", body: "Faster than the menu.",
                         chords: chords, place: .menuBar))
@@ -91,17 +91,14 @@ extension Tips {
         opens[tip.id, default: 0] += 1
         defaults.set(opens, forKey: DefaultsKey.tipsPanes)
         guard opens[tip.id, default: 0] >= Self.paneOpens else { return }
-        pendingWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
+        pendingWork.schedule(after: Self.paneDelay) { [weak self] in
             guard let self, canShow(tip.id), SettingsWindow.shared.settingsUI.pane == pane else { return }
             present(tip)
         }
-        pendingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.paneDelay, execute: work)
     }
 
     func settingsClosed() {
-        pendingWork?.cancel()
+        pendingWork.cancel()
         dismissSettings()
     }
 
@@ -125,7 +122,7 @@ extension Tips {
     }
 
     func dismissAll() {
-        pendingWork?.cancel()
+        pendingWork.cancel()
         dismissSettings()
         dismissGlobal()
     }

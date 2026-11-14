@@ -37,3 +37,44 @@ extension Timer {
         return timer
     }
 }
+
+@MainActor package final class Delay {
+    private let enqueue: @MainActor (TimeInterval, DispatchWorkItem) -> Void
+    private var ticket = 0
+    private nonisolated(unsafe) var work: DispatchWorkItem?
+
+    package var isPending: Bool { work != nil }
+
+    package init(enqueue: @escaping @MainActor (TimeInterval, DispatchWorkItem) -> Void = Delay.enqueueOnMain) {
+        self.enqueue = enqueue
+    }
+
+    package func schedule(after seconds: TimeInterval, _ body: @escaping @MainActor () -> Void) {
+        cancel()
+        ticket += 1
+        let mine = ticket
+        let item = DispatchWorkItem { [weak self] in
+            onMainThread {
+                guard let self, self.ticket == mine else { return }
+                self.work = nil
+                body()
+            }
+        }
+        work = item
+        enqueue(seconds, item)
+    }
+
+    package func cancel() {
+        ticket += 1
+        work?.cancel()
+        work = nil
+    }
+
+    package func perform() { work?.perform() }
+
+    deinit { work?.cancel() }
+
+    private static func enqueueOnMain(_ seconds: TimeInterval, _ item: DispatchWorkItem) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: item)
+    }
+}

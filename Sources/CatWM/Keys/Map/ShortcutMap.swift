@@ -37,8 +37,8 @@ struct ShortcutMap: View {
     @Published var hotRow: UUID?
     private var monitor: Any?
     private var fireObserver: NSObjectProtocol?
-    private var tipTimer: DispatchWorkItem?
-    private var flashTimer: DispatchWorkItem?
+    private let tipTimer = Delay()
+    private let flashTimer = Delay()
 
     var flags: NSEvent.ModifierFlags { held.isEmpty ? picked : held }
 
@@ -66,34 +66,28 @@ struct ShortcutMap: View {
     }
 
     func hover(_ code: UInt16, _ inside: Bool) {
-        tipTimer?.cancel()
+        tipTimer.cancel()
         if inside {
             hovered = code
             if tip != nil { tip = code; return }
-            let work = DispatchWorkItem { [weak self] in
+            tipTimer.schedule(after: OTooltip.delay) { [weak self] in
                 guard let self, self.hovered == code else { return }
                 withAnimation(Motion.fade) { self.tip = code }
             }
-            tipTimer = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + OTooltip.delay, execute: work)
         } else if hovered == code {
             hovered = nil
-            let work = DispatchWorkItem { [weak self] in
+            tipTimer.schedule(after: 0.08) { [weak self] in
                 guard let self, self.hovered == nil else { return }
                 withAnimation(Motion.fade) { self.tip = nil }
             }
-            tipTimer = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
         }
     }
 
     private func flash(_ code: UInt16, flags pressedFlags: NSEvent.ModifierFlags, submap: String?) {
         guard pressedFlags == flags, submap.map({ $0 == mode }) ?? true else { return }
-        flashTimer?.cancel()
+        flashTimer.cancel()
         withAnimation(Motion.fade) { pressed = code }
-        let work = DispatchWorkItem { [weak self] in withAnimation(Motion.fadeSlow) { self?.pressed = nil } }
-        flashTimer = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
+        flashTimer.schedule(after: 0.35) { [weak self] in withAnimation(Motion.fadeSlow) { self?.pressed = nil } }
     }
 
     private static let watched: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
@@ -125,7 +119,7 @@ struct ShortcutMap: View {
         if let fireObserver { NotificationCenter.default.removeObserver(fireObserver) }
         monitor = nil
         fireObserver = nil
-        tipTimer?.cancel()
+        tipTimer.cancel()
         held = []
         tip = nil
         hovered = nil

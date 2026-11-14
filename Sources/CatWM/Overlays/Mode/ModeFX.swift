@@ -9,8 +9,8 @@ import SwiftUI
     private let model = ModeFXModel()
     private var panels: [CGDirectDisplayID: (panel: NSPanel, screen: ModeFXScreen)] = [:]
     private var isOn = false
-    private var hideWork: DispatchWorkItem?
-    private var demo: [DispatchWorkItem] = []
+    private let hideWork = Delay()
+    private var demo: [Delay] = []
     private var observers: [NSObjectProtocol] = []
 
     private init() {
@@ -19,7 +19,9 @@ import SwiftUI
                 NSWorkspace.activeSpaceDidChangeNotification
             ) { [weak self] in
                 self?.reshape()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self?.reshape() }
+                DispatchQueue.main.asyncAfter( // style-ok: waits for the Desktop slide to finish
+                    deadline: .now() + 0.3
+                ) { self?.reshape() }
             },
             NotificationCenter.default.observeOnMain(
                 NSApplication.didChangeScreenParametersNotification
@@ -43,7 +45,7 @@ import SwiftUI
     private func setActive(_ active: Bool, style: ModeEffect) {
         guard active != isOn, !active || style != .none else { return }
         isOn = active
-        hideWork?.cancel()
+        hideWork.cancel()
         if active {
             model.style = style
             layoutPanels()
@@ -56,15 +58,13 @@ import SwiftUI
             }
         } else {
             model.active = false
-            let work = DispatchWorkItem { [weak self] in self?.panels.values.forEach { $0.panel.orderOut(nil) } }
-            hideWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+            hideWork.schedule(after: 0.5) { [weak self] in self?.panels.values.forEach { $0.panel.orderOut(nil) } }
         }
     }
 
     func command(_ args: [String]) {
         demo.forEach { $0.cancel() }
-        demo = []
+        demo.removeAll()
         switch args.first?.lowercased() {
         case "all":
             for (i, choice) in ModeEffect.allCases.filter({ $0 != .none }).enumerated() {
@@ -87,7 +87,7 @@ import SwiftUI
 
     private func preview(_ choice: ModeEffect) {
         setActive(false)
-        hideWork?.cancel()
+        hideWork.cancel()
         HUD.shared.show(choice.rawValue.capitalized, on: NSScreen.main)
         schedule(0.05) { [weak self] in self?.setActive(true, style: choice) }
         schedule(1.9) { [weak self] in
@@ -95,10 +95,10 @@ import SwiftUI
         }
     }
 
-    private func schedule(_ delay: Double, _ block: @escaping () -> Void) {
-        let work = DispatchWorkItem(block: block)
-        demo.append(work)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    private func schedule(_ delay: Double, _ block: @escaping @MainActor () -> Void) {
+        let pending = Delay()
+        demo.append(pending)
+        pending.schedule(after: delay, block)
     }
 
     private func layoutPanels() {

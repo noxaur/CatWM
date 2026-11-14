@@ -17,9 +17,9 @@ import SwiftUI
     var searchable = true
     var source: @MainActor () -> [MenuItem] = MenuModel.build
 
-    var openWork: DispatchWorkItem?
+    let openWork = Delay()
     var opening: String?
-    var trimWork: DispatchWorkItem?
+    let trimWork = Delay()
     var trimLevel = 0
 
     var results: [(item: MenuItem, crumb: String)] {

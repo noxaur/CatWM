@@ -40,7 +40,9 @@ import QuartzCore
 
     func track(_ kind: String, for seconds: Double) {
         guard let run = begin(kind) else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds + 0.05) { run.end() }
+        DispatchQueue.main.asyncAfter( // style-ok: the measured moment ends
+            deadline: .now() + seconds + 0.05
+        ) { run.end() }
     }
 
     func start() {

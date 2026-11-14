@@ -70,7 +70,9 @@ import SwiftUI
         pane = entry.pane
         highlight = nil
         DispatchQueue.main.async { self.highlight = entry.id }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { [weak self] in
+        DispatchQueue.main.asyncAfter( // style-ok: the highlight stays up for a moment
+            deadline: .now() + 1.8
+        ) { [weak self] in
             if self?.highlight == entry.id { withAnimation(Motion.fadeAway) { self?.highlight = nil } }
         }
     }

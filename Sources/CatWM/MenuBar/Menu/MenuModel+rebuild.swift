@@ -12,8 +12,8 @@ extension MenuModel {
         path = []
         highlight = [:]
         appeared = false
-        openWork?.cancel()
-        trimWork?.cancel()
+        openWork.cancel()
+        trimWork.cancel()
     }
 
     func item(_ id: String, in list: [MenuItem]? = nil) -> MenuItem? {
@@ -34,23 +34,19 @@ extension MenuModel {
     func hover(_ item: MenuItem, level: Int) {
         guard item.selectable else { return }
         highlight[level] = item.id
-        trimWork?.cancel()
-        openWork?.cancel()
+        trimWork.cancel()
+        openWork.cancel()
         let open = path.count > level ? path[level] : nil
         if item.kind == .sub {
             guard open != item.id else { return }
-            let work = DispatchWorkItem { [weak self] in
+            opening = item.id
+            openWork.schedule(after: 0.1) { [weak self] in
                 guard let self else { return }
                 withAnimation(Motion.easeOut) { self.path = Array(self.path.prefix(level)) + [item.id] }
             }
-            openWork = work
-            opening = item.id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
         } else if open != nil {
-            let work = DispatchWorkItem { [weak self] in self?.trim(to: level) }
-            trimWork = work
             trimLevel = level
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: work)
+            trimWork.schedule(after: 0.18) { [weak self] in self?.trim(to: level) }
         }
     }
 }

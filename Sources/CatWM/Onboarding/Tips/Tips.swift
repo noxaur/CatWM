@@ -22,8 +22,8 @@ import SwiftUI
     @Published var settings: Tip?
     var global: Tip?
     var panel: CatWMPanel?
-    var hideWork: DispatchWorkItem?
-    var pendingWork: DispatchWorkItem?
+    let hideWork = Delay()
+    let pendingWork = Delay()
     var modeEntries = 0
 
     static let minDaysUsed = 7
@@ -106,15 +106,12 @@ extension Tips {
         panel?.orderOut(nil)
         panel = shown
         global = tip
-        hideWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.dismissGlobal() }
-        hideWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 25, execute: work)
+        hideWork.schedule(after: 25) { [weak self] in self?.dismissGlobal() }
         return true
     }
 
     func dismissGlobal() {
-        hideWork?.cancel()
+        hideWork.cancel()
         global = nil
         guard let hidden = panel else { return }
         panel = nil

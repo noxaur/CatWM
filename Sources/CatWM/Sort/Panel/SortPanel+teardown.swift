@@ -31,7 +31,8 @@ extension SortPanel {
         }
         model.shown = false
         panel.ignoresMouseEvents = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + model.motion.outDuration + 0.02, execute: done)
+        DispatchQueue.main.asyncAfter( // style-ok: the panel fade finishes before order out
+            deadline: .now() + model.motion.outDuration + 0.02, execute: done)
     }
 
     func windowDidResignKey(_: Notification) {
@@ -82,21 +83,16 @@ extension SortPanel {
 
     func undoApplied() {
         guard manager.undoSort() else { return }
-        undoWork?.cancel()
-        undoWork = nil
+        undoWork.cancel()
         HUD.shared.show("Overview changes undone", on: nil)
     }
 
     func keepUndo() {
-        undoWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.dropUndo() }
-        undoWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+        undoWork.schedule(after: 6) { [weak self] in self?.dropUndo() }
     }
 
     func dropUndo() {
-        undoWork?.cancel()
-        undoWork = nil
+        undoWork.cancel()
         manager.dropSortSnapshot()
     }
 }

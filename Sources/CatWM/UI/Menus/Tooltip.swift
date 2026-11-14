@@ -7,7 +7,7 @@ import SwiftUI
 
     private var panel: NSPanel?
     private weak var owner: NSView?
-    private var work: DispatchWorkItem?
+    private let work = Delay()
     private var lastHidden = Date.distantPast
     private var monitor: Any?
     private var watch: Timer?
@@ -15,15 +15,13 @@ import SwiftUI
 
     func hover(_ view: NSView, text: String, chords: [[String]]) {
         guard !text.isEmpty else { return }
-        work?.cancel()
+        work.cancel()
         owner = view
         let warm = Date().timeIntervalSince(lastHidden) < 0.6 || panel?.isVisible == true
-        let item = DispatchWorkItem { [weak self, weak view] in
+        work.schedule(after: warm ? 0.05 : OTooltip.delay) { [weak self, weak view] in
             guard let self, let view, self.owner === view else { return }
             self.show(over: view, text: text, chords: chords)
         }
-        work = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + (warm ? 0.05 : OTooltip.delay), execute: item)
     }
 
     func leave(_ view: NSView) {
@@ -32,7 +30,7 @@ import SwiftUI
     }
 
     func hide() {
-        work?.cancel()
+        work.cancel()
         owner = nil
         if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
         watch?.invalidate()

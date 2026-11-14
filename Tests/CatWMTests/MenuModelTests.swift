@@ -4,7 +4,7 @@ import AppKit
 import Testing
 
 @Suite struct MenuModelTests {
-    @Test @MainActor func keyboardMoveCancelsPendingHoverSubmenu() throws {
+    @Test @MainActor func keyboardMoveCancelsPendingHoverSubmenu() {
         let model = MenuModel()
         let layout = MenuItem(id: "layout", kind: .sub, label: "Layout", children: [
             MenuItem(id: "next-layout", label: "Next Layout")
@@ -12,16 +12,16 @@ import Testing
         model.items = [layout, MenuItem(id: "settings", label: "Settings…")]
 
         model.hover(layout, level: 0)
-        let pendingOpen = try #require(model.openWork)
-        defer { pendingOpen.cancel() }
+        #expect(model.openWork.isPending)
+        defer { model.openWork.cancel() }
         model.move(1)
-        pendingOpen.perform()
+        model.openWork.perform()
 
         #expect(model.highlight[0] == "settings")
         #expect(model.path.isEmpty)
     }
 
-    @Test @MainActor func hoverStillOpensSubmenuWithoutKeyboardInput() throws {
+    @Test @MainActor func hoverStillOpensSubmenuWithoutKeyboardInput() {
         let model = MenuModel()
         let layout = MenuItem(id: "layout", kind: .sub, label: "Layout", children: [
             MenuItem(id: "next-layout", label: "Next Layout")
@@ -29,14 +29,14 @@ import Testing
         model.items = [layout]
 
         model.hover(layout, level: 0)
-        let pendingOpen = try #require(model.openWork)
-        defer { pendingOpen.cancel() }
-        pendingOpen.perform()
+        #expect(model.openWork.isPending)
+        defer { model.openWork.cancel() }
+        model.openWork.perform()
 
         #expect(model.path == ["layout"])
     }
 
-    @Test @MainActor func keyboardReopenCancelsPendingHoverTrim() throws {
+    @Test @MainActor func keyboardReopenCancelsPendingHoverTrim() {
         let model = MenuModel()
         let layout = MenuItem(id: "layout", kind: .sub, label: "Layout", children: [
             MenuItem(id: "next-layout", label: "Next Layout")
@@ -46,11 +46,11 @@ import Testing
         model.path = ["layout"]
 
         model.hover(settings, level: 0)
-        let pendingTrim = try #require(model.trimWork)
-        defer { pendingTrim.cancel() }
+        #expect(model.trimWork.isPending)
+        defer { model.trimWork.cancel() }
         model.move(-1)
         model.openHighlighted()
-        pendingTrim.perform()
+        model.trimWork.perform()
 
         #expect(model.path == ["layout"])
         #expect(model.highlight[1] == "next-layout")

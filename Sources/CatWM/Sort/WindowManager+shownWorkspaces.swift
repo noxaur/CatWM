@@ -16,20 +16,16 @@ extension WindowManager {
 
     func watchCrowding(_ screens: [Screen]) {
         guard config.virtualWorkspaces, tilingEnabled, config.sortNudge > 0, isCrowded(screens) else {
-            crowdWork?.cancel()
-            crowdWork = nil
+            crowdWork.cancel()
             return
         }
-        guard crowdWork == nil else { return }
-        let work = DispatchWorkItem { [weak self] in
+        guard !crowdWork.isPending else { return }
+        crowdWork.schedule(after: 10) { [weak self] in
             guard let self else { return }
-            crowdWork = nil
             if let hit = shownWorkspaces().first(where: { $0.count > self.config.sortNudge }) {
                 SortNudge.shared.offer(workspace: hit.workspace, count: hit.count, on: hit.screen)
             }
         }
-        crowdWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: work)
     }
 
     private func isCrowded(_ screens: [Screen]) -> Bool {

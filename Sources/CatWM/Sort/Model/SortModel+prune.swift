@@ -82,7 +82,11 @@ extension SortModel {
         guard let index else { return nil }
         let id = plan.lanes[index].id
         reveal = SortReveal(id: 0, lane: id, token: reveal.token + 1)
-        if focus { DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.focusName = id } }
+        if focus {
+            DispatchQueue.main.asyncAfter( // style-ok: the new lane finishes appearing
+                deadline: .now() + 0.25
+            ) { [weak self] in self?.focusName = id }
+        }
         return index
     }
 

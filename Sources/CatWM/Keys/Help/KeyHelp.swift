@@ -8,9 +8,9 @@ import SwiftUI
     private let model = KeyHelpModel()
     private var panel: CatWMPanel?
     private var host: NSHostingView<KeyHelpView>?
-    private var holdWork: DispatchWorkItem?
-    private var orderOutWork: DispatchWorkItem?
-    private var flashWork: DispatchWorkItem?
+    private let holdWork = Delay()
+    private let orderOutWork = Delay()
+    private let flashWork = Delay()
     private var dismissMonitor: Any?
     private var fireObserver: NSObjectProtocol?
     private var chordMods: NSEvent.ModifierFlags = []
@@ -33,7 +33,7 @@ import SwiftUI
     }
 
     func modeChanged(_ name: String) {
-        holdWork?.cancel()
+        holdWork.cancel()
         guard !name.isEmpty else {
             if model.shown && model.reason != .menu { hide() }
             return
@@ -45,32 +45,30 @@ import SwiftUI
         guard enabled else { return }
         chordMods = Self.mods(CGEventSource.flagsState(.combinedSessionState)).subtracting(.shift)
         guard !chordMods.isEmpty else { return }
-        let work = DispatchWorkItem { [weak self] in
+        holdWork.schedule(after: Self.holdDelay) { [weak self] in
             guard let self, Hotkeys.shared.submap == name,
                   Self.mods(CGEventSource.flagsState(.combinedSessionState)).isSuperset(of: chordMods) else { return }
             show(mode: name, reason: .hold)
         }
-        holdWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.holdDelay, execute: work)
     }
 
     func toggle() {
         let mode = Hotkeys.shared.submap
         if model.shown { hide(); return }
         guard enabled, !mode.isEmpty else { return }
-        holdWork?.cancel()
+        holdWork.cancel()
         show(mode: mode, reason: .toggle)
     }
 
     func showFromMenu(preferredMode: String? = nil) {
-        holdWork?.cancel()
+        holdWork.cancel()
         let active = Hotkeys.shared.submap
         let mode = active.isEmpty ? (preferredMode ?? "") : active
         show(mode: mode, reason: .menu)
     }
 
     private func flagsChanged(_ flags: NSEvent.ModifierFlags) {
-        if holdWork != nil, !flags.isSuperset(of: chordMods) { holdWork?.cancel(); holdWork = nil }
+        if holdWork.isPending, !flags.isSuperset(of: chordMods) { holdWork.cancel() }
         guard model.shown else { return }
         if model.reason == .hold, !flags.isSuperset(of: chordMods) { hide(); return }
         if model.held != flags { model.held = flags }
@@ -78,17 +76,15 @@ import SwiftUI
 
     private func fired(_ bind: KeyBinding) {
         guard model.shown, bind.submap == model.mode, bind.keyCode < 0x1000 else { return }
-        flashWork?.cancel()
+        flashWork.cancel()
         withAnimation(Motion.fade) { model.pressed = bind.keyCode }
-        let work = DispatchWorkItem { [weak self] in
+        flashWork.schedule(after: 0.22) { [weak self] in
             withAnimation(Motion.fadeSlow) { self?.model.pressed = nil }
         }
-        flashWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
     }
 
     private func show(mode: String, reason: KeyHelpModel.Reason) {
-        orderOutWork?.cancel()
+        orderOutWork.cancel()
         guard let screen = WindowManager.shared.focusedScreen ?? CatWMPanel.pointerScreen() else { return }
         let wasShown = model.shown
         Tips.shared.markSeen(.keyHelp)
@@ -117,25 +113,25 @@ import SwiftUI
     }
 
     func hide() {
-        holdWork?.cancel()
+        holdWork.cancel()
         setDismissMonitor(false)
         Hotkeys.shared.heldChord = []
         guard model.shown else { return }
         model.shown = false
-        let work = DispatchWorkItem { [weak self] in
+        let delay = max(Theme.medium, model.motion.outDuration) + 0.05
+        orderOutWork.schedule(after: delay) { [weak self] in
             self?.panel?.orderOut(nil)
             self?.panel?.contentView = nil
             self?.host = nil
         }
-        orderOutWork = work
-        let delay = max(Theme.medium, model.motion.outDuration) + 0.05
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func setDismissMonitor(_ active: Bool) {
         if let dismissMonitor { NSEvent.removeMonitor(dismissMonitor); self.dismissMonitor = nil }
         guard active else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        DispatchQueue.main.asyncAfter( // style-ok: ignores the click that opened the help from the menu
+            deadline: .now() + 0.25
+        ) { [weak self] in
             guard let self, model.shown, model.reason == .menu, dismissMonitor == nil else { return }
             let events: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .keyDown]
             dismissMonitor = NSEvent.addGlobalMonitorForEvents(matching: events) { [weak self] _ in

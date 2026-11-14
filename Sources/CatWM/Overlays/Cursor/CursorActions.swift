@@ -17,7 +17,7 @@ import SwiftUI
     var lastFollow = CGPoint(x: -1, y: -1)
     var shown = false
     var opening = false
-    var closeWork: DispatchWorkItem?
+    let closeWork = Delay()
     var screenshotTask: Task<Void, Never>?
     static let dotSize = CursorActionsView.markSize
 

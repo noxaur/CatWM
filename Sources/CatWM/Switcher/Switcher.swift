@@ -11,10 +11,10 @@ import SwiftUI
     private var sticky = false
     private var revealed = false
     private var holdMods: CGEventFlags = []
-    private var showWork: DispatchWorkItem?
-    private var jumpWork: DispatchWorkItem?
-    private var orderOutWork: DispatchWorkItem?
-    private var releaseWork: DispatchWorkItem?
+    private let showWork = Delay()
+    private let jumpWork = Delay()
+    private let orderOutWork = Delay()
+    private let releaseWork = Delay()
     private var clickMonitor: Any?
     private static let holdDelay = 0.15
     private static let releaseDelay = 0.3
@@ -38,12 +38,10 @@ import SwiftUI
         sticky = false
         holdMods = held
         model.begin(items, selection: start)
-        let work = DispatchWorkItem { [weak self] in
+        showWork.schedule(after: Self.holdDelay) { [weak self] in
             guard let self else { return }
             if CGEventSource.flagsState(.combinedSessionState).contains(holdMods) { reveal() } else { released() }
         }
-        showWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.holdDelay, execute: work)
     }
 
     private func intercept(_ type: CGEventType, _ event: CGEvent) -> Bool {
@@ -51,7 +49,7 @@ import SwiftUI
         if type == .flagsChanged {
             let lifted = !event.flags.contains(holdMods)
             DispatchQueue.main.async { [weak self] in
-                if lifted { self?.released() } else { self?.releaseWork?.cancel() }
+                if lifted { self?.released() } else { self?.releaseWork.cancel() }
             }
             return false
         }
@@ -68,10 +66,7 @@ import SwiftUI
     private func released() {
         guard active else { return }
         guard sticky else { confirmSelection(); return }
-        releaseWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.confirmSelection() }
-        releaseWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseDelay, execute: work)
+        releaseWork.schedule(after: Self.releaseDelay) { [weak self] in self?.confirmSelection() }
     }
 
     private func confirmSelection() {
@@ -80,8 +75,8 @@ import SwiftUI
 
     private func key(_ code: UInt16, _ flags: CGEventFlags, isRepeat: Bool) {
         guard active else { return }
-        jumpWork?.cancel()
-        releaseWork?.cancel()
+        jumpWork.cancel()
+        releaseWork.cancel()
         let command = flags.contains(.maskCommand), extra = flags.subtracting(holdMods)
         switch code {
         case 48: move(flags.contains(.maskShift) ? -1 : 1)
@@ -138,12 +133,10 @@ import SwiftUI
         }
         guard config.switcherJumpDelay > 0 else { confirm(target); return }
         let query = model.query
-        let work = DispatchWorkItem { [weak self] in
+        jumpWork.schedule(after: Double(config.switcherJumpDelay) / 1000) { [weak self] in
             guard let self, active, model.query == query else { return }
             confirm(target)
         }
-        jumpWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(config.switcherJumpDelay) / 1000, execute: work)
     }
 
     private func confirm(_ item: SwitcherItem) {
@@ -155,24 +148,22 @@ import SwiftUI
     private func cancel() {
         guard active else { return }
         active = false
-        showWork?.cancel()
-        jumpWork?.cancel()
-        releaseWork?.cancel()
+        showWork.cancel()
+        jumpWork.cancel()
+        releaseWork.cancel()
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor); self.clickMonitor = nil }
         guard revealed else { return }
         revealed = false
         model.shown = false
         panel?.ignoresMouseEvents = true
-        let work = DispatchWorkItem { [weak self] in self?.panel?.orderOut(nil) }
-        orderOutWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Theme.fast + 0.05, execute: work)
+        orderOutWork.schedule(after: Theme.fast + 0.05) { [weak self] in self?.panel?.orderOut(nil) }
     }
 
     private func reveal() {
-        showWork?.cancel()
+        showWork.cancel()
         guard active, !revealed else { return }
         revealed = true
-        orderOutWork?.cancel()
+        orderOutWork.cancel()
         let shown = panel ?? makePanel()
         panel = shown
         layout()

@@ -20,7 +20,7 @@ import CatWMKit
     private var reading: Set<CGWindowID> = []
     private let titleBars = TitleBarCache()
     private var monitors: [Any] = []
-    private var hideWork: DispatchWorkItem?
+    private let hideWork = Delay()
     private var last: CGPoint?
 
     func watch(_ targets: [Target]) {
@@ -54,8 +54,7 @@ import CatWMKit
     private func stop() {
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
-        hideWork?.cancel()
-        hideWork = nil
+        hideWork.cancel()
         revealed = nil
         bars = [:]
         last = nil
@@ -71,16 +70,10 @@ import CatWMKit
                                 revealed: revealed == target.group, heading: heading)
         }
         if let hit {
-            hideWork?.cancel()
-            hideWork = nil
+            hideWork.cancel()
             reveal(hit.group)
-        } else if revealed != nil, hideWork == nil {
-            let work = DispatchWorkItem { [weak self] in
-                self?.hideWork = nil
-                self?.reveal(nil)
-            }
-            hideWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.linger, execute: work)
+        } else if revealed != nil, !hideWork.isPending {
+            hideWork.schedule(after: Self.linger) { [weak self] in self?.reveal(nil) }
         }
     }
 

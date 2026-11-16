@@ -133,38 +133,31 @@ package final class AXWriter: Sendable {
     }
 
     private func write(_ window: Window, _ frame: CGRect, previous: CGSize?) -> Write {
-        var result = Write()
+        let box = OSAllocatedUnfairLock(initialState: Write())
         func move() {
             let moved = attempt { window.setPosition(frame.origin) }
-            result.position += moved.seconds
-            result.applied = result.applied && moved.applied
+            box.withLock {
+                $0.position += moved.seconds
+                $0.applied = $0.applied && moved.applied
+            }
         }
         func resize() {
             let sized = attempt { window.setSize(frame.size) }
-            result.size += sized.seconds
-            result.applied = result.applied && sized.applied
-            result.lastSize = .some(sized.applied ? frame.size : nil)
+            box.withLock {
+                $0.size += sized.seconds
+                $0.applied = $0.applied && sized.applied
+                $0.lastSize = .some(sized.applied ? frame.size : nil)
+            }
         }
-        guard previous != frame.size || window.cachedFrame.size != frame.size else { move(); return result }
-        let box = OSAllocatedUnfairLock(initialState: Write())
+        guard previous != frame.size || window.cachedFrame.size != frame.size else {
+            move()
+            return box.withLock { $0 }
+        }
         let pair = {
-            var local = Write()
-            func move() {
-                let moved = self.attempt { window.setPosition(frame.origin) }
-                local.position += moved.seconds
-                local.applied = local.applied && moved.applied
-            }
-            func resize() {
-                let sized = self.attempt { window.setSize(frame.size) }
-                local.size += sized.seconds
-                local.applied = local.applied && sized.applied
-                local.lastSize = .some(sized.applied ? frame.size : nil)
-            }
             switch WindowFrameOrder(from: window.cachedFrame, to: frame) {
             case .positionFirst: move(); resize()
             case .sizeFirst: resize(); move()
             }
-            box.withLock { $0 = local }
         }
         if AXStalls.shared.isStalled(window.pid) { pair() } else { backend.performFrameUpdate(pair) }
         return box.withLock { $0 }

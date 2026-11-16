@@ -1,6 +1,6 @@
 import CatWMFakes
-import CoreGraphics
 @testable import CatWMKit
+import CoreGraphics
 import Testing
 
 @Suite struct ResizeEdgeTests {
@@ -13,27 +13,27 @@ import Testing
         let narrower = CGRect(x: 980, y: 38, width: 730, height: 600)
         let left = CGRect(x: 40, y: 38, width: 700, height: 600)
         let taller = CGRect(x: 40, y: 38, width: 700, height: 760)
-        try expectEdge(.maxX, from: right, to: wider, curve: curve, moving: \.minX)
-        try expectEdge(.maxX, from: wider, to: narrower, curve: curve, moving: \.minX)
-        try expectEdge(.minX, from: left, to: CGRect(x: 40, y: 38, width: 860, height: 600), curve: curve,
+        try expectEdge(.maxX, from: right, target: wider, curve: curve, moving: \.minX)
+        try expectEdge(.maxX, from: wider, target: narrower, curve: curve, moving: \.minX)
+        try expectEdge(.minX, from: left, target: CGRect(x: 40, y: 38, width: 860, height: 600), curve: curve,
                        moving: \.width)
         try expectEdge(.minX, from: CGRect(x: 40, y: 38, width: 860, height: 600),
-                       to: CGRect(x: 40, y: 38, width: 540, height: 600), curve: curve, moving: \.width)
-        try expectEdge(.minY, from: left, to: taller, curve: curve, moving: \.height)
+                       target: CGRect(x: 40, y: 38, width: 540, height: 600), curve: curve, moving: \.width)
+        try expectEdge(.minY, from: left, target: taller, curve: curve, moving: \.height)
         try expectEdge(.maxY, from: CGRect(x: 40, y: 200, width: 700, height: 500),
-                       to: CGRect(x: 40, y: 80, width: 700, height: 620), curve: curve, moving: \.minY)
+                       target: CGRect(x: 40, y: 80, width: 700, height: 620), curve: curve, moving: \.minY)
     }
 
     @Test func carriedSpeedDoesNotDragTheEdgeThatStays() throws {
         let from = CGRect(x: 910, y: 38, width: 800, height: 600)
-        let to = CGRect(x: 850, y: 38, width: 860, height: 600)
-        let item = try item(from: from, to: to, curve: .easeOut, velocity: [240, 0, 0, 0])
+        let target = CGRect(x: 850, y: 38, width: 860, height: 600)
+        let item = try item(from: from, target: target, curve: .easeOut, velocity: [240, 0, 0, 0])
         for step in 0...8 {
             let frame = item.frame(at: item.duration * Double(step) / 8, aligned: false)
             #expect(abs(frame.maxX - from.maxX) < 0.001)
         }
         let anchored = try item(from: CGRect(x: 40, y: 38, width: 500, height: 600),
-                                to: CGRect(x: 40, y: 38, width: 680, height: 600),
+                                target: CGRect(x: 40, y: 38, width: 680, height: 600),
                                 curve: .easeOut, velocity: [180, 0, -90, 0])
         for step in 0...8 {
             let frame = anchored.frame(at: anchored.duration * Double(step) / 8, aligned: false)
@@ -88,11 +88,9 @@ import Testing
         #expect(shrunk[0].width > grown[0].width)
     }
 
-    private enum Edge { case minX, maxX, minY, maxY }
-
-    private func expectEdge(_ edge: Edge, from: CGRect, to: CGRect, curve: AnimationCurve,
+    private func expectEdge(_ edge: Edge, from: CGRect, target: CGRect, curve: AnimationCurve,
                             moving: KeyPath<CGRect, CGFloat>? = nil) throws {
-        let item = try item(from: from, to: to, curve: curve, velocity: nil)
+        let item = try item(from: from, target: target, curve: curve, velocity: nil)
         let stayed = edge.value(from)
         for step in 0...8 {
             let frame = item.frame(at: item.duration * Double(step) / 8, aligned: false)
@@ -106,23 +104,26 @@ import Testing
         }
     }
 
-    private func item(from: CGRect, to: CGRect, curve: AnimationCurve, velocity: [Double]?) throws -> Animator.Item {
+    private func item(from: CGRect, target: CGRect, curve: AnimationCurve,
+                      velocity: [Double]?) throws -> Animator.Item {
         let backend = FakeBackend()
         let id = backend.addWindow(frame: from)
         let window = Window(id: id, element: try #require(backend.element(id)), pid: -140,
                             bundleID: nil, backend: backend)
-        return Animator.Item(move: .init(window: window, to: to, bounds: from.union(to)), from: from,
+        return Animator.Item(move: .init(window: window, to: target, bounds: from.union(target)), from: from,
                              start: 0, spec: .init(duration: 0.12, curve: curve, bounce: 0.4), velocity: velocity)
     }
-}
 
-extension ResizeEdgeTests.Edge {
-    fileprivate func value(_ frame: CGRect) -> CGFloat {
-        switch self {
-        case .minX: frame.minX
-        case .maxX: frame.maxX
-        case .minY: frame.minY
-        case .maxY: frame.maxY
+    private enum Edge {
+        case minX, maxX, minY, maxY
+
+        func value(_ frame: CGRect) -> CGFloat {
+            switch self {
+            case .minX: frame.minX
+            case .maxX: frame.maxX
+            case .minY: frame.minY
+            case .maxY: frame.maxY
+            }
         }
     }
 }

@@ -34,7 +34,7 @@ private final class SlowBackend: WindowBackend {
 
     var frames: [CGRect] { state.withLock { $0.frames } }
     func clearFrames() { state.withLock { $0.frames.removeAll(); $0.pending.removeAll() } }
-    func setCommitFrames(_ on: Bool) { state.withLock { $0.commitFrames = on } }
+    func setCommitFrames(_ enabled: Bool) { state.withLock { $0.commitFrames = enabled } }
     func performFrameUpdate(_ body: () -> Void) {
         state.withLock { $0.batch += 1 }
         body()

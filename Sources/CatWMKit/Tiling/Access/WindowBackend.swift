@@ -13,6 +13,7 @@ package protocol WindowBackend: Sendable {
     func frame(of window: Window) -> CGRect
     func setPosition(_ window: Window, _ point: CGPoint) -> Bool
     func setSize(_ window: Window, _ size: CGSize) -> Bool
+    func performFrameUpdate(_ body: () -> Void)
     func blocksPlacement(_ window: Window) -> Bool
     func suspendEnhancedUI(_ pid: pid_t) -> Bool
     func resumeEnhancedUI(_ pid: pid_t)
@@ -33,6 +34,8 @@ package protocol WindowBackend: Sendable {
 }
 
 extension WindowBackend {
+    package func performFrameUpdate(_ body: () -> Void) { body() }
+
     @MainActor package func pointerLocation() -> CGPoint { .zero }
     @MainActor package func primaryButtonDown() -> Bool { false }
     @MainActor package func anyButtonDown() -> Bool { false }

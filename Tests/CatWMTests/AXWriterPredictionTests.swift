@@ -11,6 +11,9 @@ private final class SlowBackend: WindowBackend {
         var time = 0.0, cost = 0.0, fails = false
         var failures = 0
         var frames: [CGRect] = []
+        var batch = 0
+        var pending: [CGRect] = []
+        var commitFrames = false
     }
     let inner = FakeBackend()
     private let state = OSAllocatedUnfairLock(initialState: State())
@@ -30,11 +33,23 @@ private final class SlowBackend: WindowBackend {
     }
 
     var frames: [CGRect] { state.withLock { $0.frames } }
-    func clearFrames() { state.withLock { $0.frames.removeAll() } }
+    func clearFrames() { state.withLock { $0.frames.removeAll(); $0.pending.removeAll() } }
+    func setCommitFrames(_ on: Bool) { state.withLock { $0.commitFrames = on } }
+    func performFrameUpdate(_ body: () -> Void) {
+        state.withLock { $0.batch += 1 }
+        body()
+        state.withLock {
+            $0.batch -= 1
+            if $0.batch == 0, $0.commitFrames, let last = $0.pending.last { $0.frames.append(last) }
+            if $0.batch == 0 { $0.pending.removeAll() }
+        }
+    }
     private func apply(_ window: Window, _ write: () -> Bool) -> Bool {
         guard spend(), write() else { return false }
         let frame = inner.frame(of: window.id)
-        state.withLock { $0.frames.append(frame) }
+        state.withLock {
+            if $0.commitFrames, $0.batch > 0 { $0.pending.append(frame) } else { $0.frames.append(frame) }
+        }
         return true
     }
     func setPosition(_ window: Window, _ point: CGPoint) -> Bool { apply(window) { inner.setPosition(window, point) } }
@@ -181,6 +196,30 @@ private final class SlowBackend: WindowBackend {
         await drain()
         #expect(!backend.frames.isEmpty)
         #expect(backend.frames.allSatisfy { $0.maxX <= 1710 })
+    }
+
+    @Test func aWidthChangeShowsTheStationaryEdgeWhereItFinishes() async {
+        let right = CGRect(x: 910, y: 38, width: 800, height: 600)
+        let grown = CGRect(x: 850, y: 38, width: 860, height: 600)
+        let shrunk = CGRect(x: 960, y: 38, width: 750, height: 600)
+        let left = CGRect(x: 40, y: 38, width: 700, height: 600)
+        let wider = CGRect(x: 40, y: 38, width: 820, height: 600)
+        let narrower = CGRect(x: 40, y: 38, width: 540, height: 600)
+        backend.setCommitFrames(true)
+        for (source, target, edge) in [
+            (right, grown, \CGRect.maxX), (grown, shrunk, \CGRect.maxX),
+            (left, wider, \CGRect.minX), (wider, narrower, \CGRect.minX)
+        ] {
+            backend.clearFrames()
+            _ = backend.inner.setPosition(window, source.origin)
+            _ = backend.inner.setSize(window, source.size)
+            window.remember(source)
+            writer.step(window) { _ in target }
+            await drain()
+            #expect(!backend.frames.isEmpty)
+            #expect(backend.frames.allSatisfy { abs($0[keyPath: edge] - source[keyPath: edge]) < 0.5 })
+            #expect(abs(backend.inner.frame(of: window.id).width - target.width) < 0.5)
+        }
     }
 
     @Test func aShrinkingRightTileNeverMovesPastTheScreenEdge() async {

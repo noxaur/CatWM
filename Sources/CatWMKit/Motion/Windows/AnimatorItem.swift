@@ -59,9 +59,25 @@ extension Animator.Item {
     }
     package func frame(at now: CFTimeInterval, aligned: Bool = true) -> CGRect {
         let elapsed = now - start
-        let values = tracks.map { $0.value(at: elapsed) }
+        var values = tracks.map { $0.value(at: elapsed) }
+        pinSharedEdges(&values)
         let frame = CGRect(x: values[0], y: values[1], width: max(1, values[2]), height: max(1, values[3]))
         return aligned ? frame.pixelAligned : frame
+    }
+
+    private func pinSharedEdges(_ values: inout [Double]) {
+        guard tracks.count == 4 else { return }
+        func pin(origin: Int, size: Int) {
+            let start = tracks[origin].origin, end = tracks[origin].destination
+            if abs(start - end) < 0.5 { values[origin] = end }
+            let startFar = tracks[origin].origin + tracks[size].origin
+            let endFar = tracks[origin].destination + tracks[size].destination
+            guard abs(startFar - endFar) < 0.5 else { return }
+            if values[origin] > endFar - 1 { values[origin] = endFar - 1 }
+            values[size] = endFar - values[origin]
+        }
+        pin(origin: 0, size: 2)
+        pin(origin: 1, size: 3)
     }
 
     package func velocity(at now: CFTimeInterval) -> [Double] {

@@ -15,8 +15,15 @@ package struct ColorFillSizing {
         guard bounds.width >= 1, bounds.height >= 1 else { return viewport.pixelAligned }
         let size = CGSize(width: max(1, floor(min(predicted.width, bounds.width))),
                           height: max(1, floor(min(predicted.height, bounds.height))))
-        return CGRect(x: min(max(predicted.minX.rounded(), bounds.minX), bounds.maxX - size.width),
-                      y: min(max(predicted.minY.rounded(), bounds.minY), bounds.maxY - size.height),
-                      width: size.width, height: size.height)
+        var frame = CGRect(x: min(max(predicted.minX.rounded(), bounds.minX), bounds.maxX - size.width),
+                           y: min(max(predicted.minY.rounded(), bounds.minY), bounds.maxY - size.height),
+                           width: size.width, height: size.height)
+        if abs(predicted.maxX - viewport.maxX) < 0.5, bounds.maxX - frame.width >= bounds.minX {
+            frame.origin.x = bounds.maxX - frame.width
+        }
+        if abs(predicted.maxY - viewport.maxY) < 0.5, bounds.maxY - frame.height >= bounds.minY {
+            frame.origin.y = bounds.maxY - frame.height
+        }
+        return frame
     }
 }

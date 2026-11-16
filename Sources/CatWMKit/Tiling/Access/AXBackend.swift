@@ -38,6 +38,8 @@ package final class AXBackend: WindowBackend, Sendable {
         return window.element.set(kAXSizeAttribute, value)
     }
 
+    package func performFrameUpdate(_ body: () -> Void) { ScreenUpdates.perform(body) }
+
     package func blocksPlacement(_ window: Window) -> Bool { WindowPlacementState.blocksPlacement(window.element) }
 
     package func suspendEnhancedUI(_ pid: pid_t) -> Bool {

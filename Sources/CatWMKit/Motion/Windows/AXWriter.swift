@@ -146,11 +146,28 @@ package final class AXWriter: Sendable {
             result.lastSize = .some(sized.applied ? frame.size : nil)
         }
         guard previous != frame.size || window.cachedFrame.size != frame.size else { move(); return result }
-        switch WindowFrameOrder(from: window.cachedFrame, to: frame) {
-        case .positionFirst: move(); resize()
-        case .sizeFirst: resize(); move()
+        let box = OSAllocatedUnfairLock(initialState: Write())
+        let pair = {
+            var local = Write()
+            func move() {
+                let moved = self.attempt { window.setPosition(frame.origin) }
+                local.position += moved.seconds
+                local.applied = local.applied && moved.applied
+            }
+            func resize() {
+                let sized = self.attempt { window.setSize(frame.size) }
+                local.size += sized.seconds
+                local.applied = local.applied && sized.applied
+                local.lastSize = .some(sized.applied ? frame.size : nil)
+            }
+            switch WindowFrameOrder(from: window.cachedFrame, to: frame) {
+            case .positionFirst: move(); resize()
+            case .sizeFirst: resize(); move()
+            }
+            box.withLock { $0 = local }
         }
-        return result
+        if AXStalls.shared.isStalled(window.pid) { pair() } else { backend.performFrameUpdate(pair) }
+        return box.withLock { $0 }
     }
 
     private func refuse(_ item: Pending, wasAnimating: Bool) {

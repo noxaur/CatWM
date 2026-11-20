@@ -19,7 +19,6 @@ package struct NativeDesktopState {
     package var lastNativeCatalogSaved: [String: UInt64] = [:]
     package var lastNativeCatalogHomes: [String: String] = [:]
     package var lastNativeCatalogUUIDs: [String: String] = [:]
-    package var nativeGestureSign: Double?
     package var nativeMigration: [CGWindowID: String] = [:]
     package var desktopRemovalFailures: [UInt64: Date] = [:]
     package var nativeSortNames: Set<String> = []

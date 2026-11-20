@@ -27,16 +27,16 @@ import QuartzCore
     package var isRunning: Bool { machine.slide != nil }
     package var isBusy: Bool { !machine.isIdle }
     package var isLocked: Bool { machine.held != nil }
+    package var isTracking: Bool { machine.isTracking }
 
     package func request(_ target: Switch, since start: CFTimeInterval = CACurrentMediaTime()) {
         requestedAt = start
         send(.request(target))
     }
 
-    package func beginGesture(_ target: Switch) -> Bool {
+    package func beginGesture(_ target: Switch, direction: Double) {
         requestedAt = CACurrentMediaTime()
-        send(.beginGesture(target))
-        return machine.isTracking
+        send(.beginGesture(target, direction: direction))
     }
 
     package func scrub(_ value: Double) { send(.scrub(value)) }

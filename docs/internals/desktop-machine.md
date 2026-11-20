@@ -11,7 +11,7 @@ A pure reducer is what makes the checks possible. The alternative was an actor o
 ## What it holds
 
 - **wanted**: the switch the user asked for most recently. The running slide reads it every frame, so a newer request on the same display retargets the slide instead of queueing behind it.
-- **slide**: the slide in progress and, for a swipe, whether the fingers are still down. A gesture is tracked only inside a slide that it started, so ending or interrupting a gesture can't touch a switch that a key started.
+- **slide**: the slide in progress and, for a swipe, its direction, its progress and whether the fingers are still down. A gesture is tracked only inside a slide that it started, so ending or interrupting a gesture can't touch a switch that a key started. A new swipe ends a gesture whose end event was lost, so a lost event can no longer hold the slide, and with it every refresh, for the 180 s swipe limit. The event tap still decides on its own whether a swipe is CatWM's, because it must answer synchronously at the first event, before the direction is known.
 - **held** and **queue**: Desktop jobs, which create or remove a Desktop. One runs at a time, and never during a slide. A job waits its turn in a queue instead of polling with a timeout, so it can no longer give up after 5 s while a removal sweep with retries is still running.
 
 A slide comes before queued jobs, because the user is watching it. A request for a workspace that has no Desktop yet becomes a job that creates the Desktop and then switches to it. While a job holds the lock, a request is resolved by name after that job finishes, because a removal renumbers the workspaces when each display numbers its own.

@@ -113,8 +113,8 @@ extension WindowManager {
     }
 
     package func handleNativeSwipe(_ sample: DesktopGestureTap.Sample) {
-        if sample.phase == 1 { desktops.nativeGestureSign = nil }
-        if desktops.nativeGestureSign == nil, abs(sample.progress) > 0.001, !nativeDesktop.isBusy {
+        if sample.phase == 1 { nativeDesktop.endGesture(commit: false) }
+        if !nativeDesktop.isBusy, abs(sample.progress) > 0.001 {
             guard let screen = backend.screens().first(where: { $0.frame.contains(mouseLocation()) }) else { return }
             updateNativeCatalog(backend.screens())
             let space = backend.currentSpace(display: screen.uuid)
@@ -123,16 +123,14 @@ extension WindowManager {
             guard let name = desktops.nativeCatalog.step(from: source.name, by: direction),
                   let target = desktops.nativeCatalog.entry(name) else { return }
             let request = DesktopMachine.Request(workspace: name, display: target.display, space: target.space)
-            guard nativeDesktop.beginGesture(.init(request: request, options: .init(motion: currentWorkspace)))
-            else { return }
-            desktops.nativeGestureSign = Double(direction)
+            nativeDesktop.beginGesture(.init(request: request, options: .init(motion: currentWorkspace)),
+                                       direction: Double(direction))
         }
-        guard let sign = desktops.nativeGestureSign else { return }
-        let progress = min(1, max(0, sample.progress * sign))
-        nativeDesktop.scrub(progress)
+        guard nativeDesktop.isTracking, let direction = nativeDesktop.machine.slide?.gesture?.direction else { return }
+        nativeDesktop.scrub(sample.progress)
         if sample.phase == 4 || sample.phase == 8 {
-            nativeDesktop.endGesture(commit: sample.phase != 8 && (progress >= 0.5 || sample.velocity * sign > 0.5))
-            desktops.nativeGestureSign = nil
+            let fast = sample.velocity * direction > 0.5
+            nativeDesktop.endGesture(commit: sample.phase != 8 && (nativeDesktop.machine.progress >= 0.5 || fast))
         }
     }
 

@@ -26,9 +26,10 @@ package struct DesktopMachine: Hashable {
         package var options = Options()
     }
 
-    package enum Gesture: Hashable {
-        case tracking(Double)
-        case released(Double)
+    package struct Gesture: Hashable {
+        package let direction: Double
+        package var progress = 0.0
+        package var released = false
     }
 
     package struct Slide: Hashable {
@@ -59,7 +60,7 @@ package struct DesktopMachine: Hashable {
 
     package enum Event: Hashable {
         case request(Switch)
-        case beginGesture(Switch)
+        case beginGesture(Switch, direction: Double)
         case scrub(Double)
         case endGesture(commit: Bool)
         case stop
@@ -86,17 +87,9 @@ package struct DesktopMachine: Hashable {
 
     package var isIdle: Bool { slide == nil && held == nil }
 
-    package var isTracking: Bool {
-        if case .tracking = slide?.gesture { return true }
-        return false
-    }
+    package var isTracking: Bool { slide?.gesture?.released == false }
 
-    package var progress: Double {
-        switch slide?.gesture {
-        case .tracking(let value), .released(let value): return value
-        case nil: return 0
-        }
-    }
+    package var progress: Double { slide?.gesture?.progress ?? 0 }
 
     package func wants(_ target: Request) -> Bool {
         guard let wanted else { return false }
@@ -148,13 +141,14 @@ package struct DesktopMachine: Hashable {
             supersedeShows(&effects)
             wanted = target
             if slide?.target.request == target.request { slide?.target = target }
-        case .beginGesture(let target):
+        case .beginGesture(let target, let direction):
             guard isIdle else { break }
             wanted = target
-            slide = Slide(target: target, gesture: .tracking(0))
+            slide = Slide(target: target, gesture: Gesture(direction: direction))
             effects.append(.slide(target))
         case .scrub(let value):
-            if isTracking { slide?.gesture = .tracking(min(1, max(0, value))) }
+            guard isTracking, let direction = slide?.gesture?.direction else { break }
+            slide?.gesture?.progress = min(1, max(0, value * direction))
         case .endGesture(let commit):
             guard isTracking else { break }
             releaseGesture()
@@ -204,7 +198,7 @@ package struct DesktopMachine: Hashable {
     }
 
     private mutating func releaseGesture() {
-        if case .tracking(let value) = slide?.gesture { slide?.gesture = .released(value) }
+        if isTracking { slide?.gesture?.released = true }
     }
 
     private mutating func supersedeShows(_ effects: inout [Effect]) {

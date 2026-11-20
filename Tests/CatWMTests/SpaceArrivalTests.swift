@@ -38,12 +38,54 @@ import Testing
         #expect(arrived == [4])
     }
 
+    @Test func aDirectJumpCancelsTheCorrectionOfAnEarlierStep() async throws {
+        let (fake, manager) = await start()
+        manager.goToSpace(3)
+        let token = try #require(manager.nativeDesktop.machine.step?.token)
+        fake.setDirectShortcuts(true)
+        manager.goToSpace(1)
+        #expect(fake.currentDesktop == 1)
+        manager.correctSpace(token)
+        #expect(fake.currentDesktop == 1)
+    }
+
+    @Test func aNewerStepStopsTheCorrectionOfAWindowDrag() async throws {
+        let (fake, manager) = await start()
+        manager.nativeDesktop.grab(true)
+        manager.goToSpace(3, autoCorrect: false)
+        let token = try #require(manager.nativeDesktop.machine.step?.token)
+        manager.goToSpace(1)
+        manager.holdUntilArrived(space: 3, release: .zero, restore: .zero, settle: 0, step: token)
+        #expect(await fake.wait(manager) { !manager.nativeDesktop.isGrabbing })
+        #expect(fake.currentDesktop == 1)
+    }
+
+    @Test func aDirectJumpKeepsCorrectionsForAWindowDrag() async throws {
+        let (fake, manager) = await start()
+        manager.goToSpace(3)
+        let stale = try #require(manager.nativeDesktop.machine.step?.token)
+        fake.setDirectShortcuts(true)
+        manager.goToSpace(2, autoCorrect: false)
+        let step = try #require(manager.nativeDesktop.machine.step)
+        #expect(step.token != stale)
+        #expect(step.goal.target == 1 && step.goal.corrections == 2)
+    }
+
+    @Test func aStepReplacesTheWaitingArrival() async {
+        let (_, manager) = await start()
+        var arrivals = 0
+        #expect(manager.stepToSpace(4) { arrivals += 1 })
+        manager.goToSpace(2)
+        manager.activeSpaceChanged()
+        #expect(arrivals == 0)
+    }
+
     @Test func aDesktopThatArrivesTooLateRunsNothing() async {
         let (_, manager) = await start()
         var arrivals = 0
         #expect(manager.stepToSpace(4) { arrivals += 1 })
         manager.activeSpaceChanged(at: Date().addingTimeInterval(60))
-        #expect(manager.desktops.spaceArrival == nil)
+        #expect(manager.nativeDesktop.machine.step == nil)
         manager.activeSpaceChanged()
         #expect(arrivals == 0)
     }

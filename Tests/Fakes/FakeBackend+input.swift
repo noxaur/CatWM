@@ -12,12 +12,17 @@ extension FakeBackend {
 
     package func setDesktops(_ count: Int) { state.withLockUnchecked { state in state.desktopCount = count } }
 
+    package func setDirectShortcuts(_ enabled: Bool) {
+        state.withLockUnchecked { state in state.directShortcuts = enabled }
+    }
+
     package func setPointer(_ point: CGPoint) { state.withLockUnchecked { state in state.pointer = point } }
 }
 
 extension FakeBackend {
     private static let leftArrow: UInt16 = 123
     private static let rightArrow: UInt16 = 124
+    private static let firstDesktopKey: UInt16 = 200
 
     @MainActor package func pointerLocation() -> CGPoint { state.withLockUnchecked { state in state.pointer } }
 
@@ -36,8 +41,9 @@ extension FakeBackend {
         state.withLockUnchecked { state in
             state.inputLog.append(.key(keyCode, flags: flags.rawValue))
             let step = keyCode == Self.rightArrow ? 1 : keyCode == Self.leftArrow ? -1 : 0
-            let next = min(max(state.desktop + step, 1), state.desktopCount)
-            guard step != 0, next != state.desktop else { return }
+            let direct = keyCode >= Self.firstDesktopKey ? Int(keyCode - Self.firstDesktopKey) + 1 : nil
+            let next = min(max(direct ?? state.desktop + step, 1), state.desktopCount)
+            guard step != 0 || direct != nil, next != state.desktop else { return }
             state.desktop = next
             state.desktopSwitches.append(next)
             if let held = state.held { state.desktopOf[held.id] = next }
@@ -77,7 +83,10 @@ extension FakeBackend {
         }
     }
 
-    @MainActor package func desktopShortcut(_: Int) -> SystemShortcut.Combo? { nil }
+    @MainActor package func desktopShortcut(_ number: Int) -> SystemShortcut.Combo? {
+        guard state.withLockUnchecked({ $0.directShortcuts }) else { return nil }
+        return SystemShortcut.Combo(keyCode: Self.firstDesktopKey + UInt16(number - 1), flags: [.maskControl])
+    }
 
     @MainActor package func stepShortcut(right: Bool) -> SystemShortcut.Combo? {
         SystemShortcut.Combo(keyCode: right ? Self.rightArrow : Self.leftArrow, flags: [.maskControl, .maskSecondaryFn])

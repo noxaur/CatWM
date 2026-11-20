@@ -4,15 +4,20 @@ import QuartzCore
 extension WindowManager {
     @discardableResult
     package func goToSpace(_ number: Int, autoCorrect: Bool = true) -> Int? {
+        let point = mouseLocation()
+        let screen = backend.screens().first(where: { $0.frame.contains(point) }) ?? currentScreen()
+        let info = screen.flatMap { backend.spaceList(display: $0.uuid) }
         if let combo = backend.desktopShortcut(number) {
             postKey(combo)
-            desktops.pendingSpace = nil
+            if let screen, let info, info.desktops.indices.contains(number - 1) {
+                _ = nativeDesktop.step(.init(display: screen.uuid, target: info.desktops[number - 1],
+                                             until: Date().addingTimeInterval(0.6), corrections: 2))
+            } else {
+                nativeDesktop.endStep()
+            }
             return 1
         }
-        let screens = backend.screens()
-        let point = mouseLocation()
-        guard let screen = screens.first(where: { $0.frame.contains(point) }) ?? currentScreen(),
-              let info = backend.spaceList(display: screen.uuid), var cur = info.current else {
+        guard let screen, let info, var cur = info.current else {
             Log.info("spaces: can't read the space list")
             return nil
         }
@@ -20,10 +25,11 @@ extension WindowManager {
             surface.showHUD("There is no space \(number)", on: screen.nsScreen)
             return nil
         }
-        if let pending = desktops.pendingSpace, pending.display == screen.uuid, Date() < pending.until {
-            cur = pending.index
+        if let step = nativeDesktop.machine.step, step.goal.display == screen.uuid, Date() < step.goal.until {
+            cur = step.goal.target
         }
-        let delta = info.desktops[number - 1] - cur
+        let target = info.desktops[number - 1]
+        let delta = target - cur
         guard delta != 0 else { return 0 }
         guard let combo = backend.stepShortcut(right: delta > 0) else {
             surface.showHUD("Turn on “Move left/right a space” in Keyboard Shortcuts", on: screen.nsScreen)
@@ -35,36 +41,29 @@ extension WindowManager {
         )
         for _ in 0..<abs(delta) { postKey(combo) }
         let settle = 0.6 + 0.15 * Double(abs(delta))
-        desktops.pendingSpace = .init(display: screen.uuid, index: info.desktops[number - 1],
-                                      until: Date().addingTimeInterval(settle))
-        desktops.spaceGeneration += 1
-        let generation = desktops.spaceGeneration
+        let until = Date().addingTimeInterval(settle)
+        let token = nativeDesktop.step(.init(display: screen.uuid, target: target, until: until, corrections: 2))
         guard autoCorrect else { return abs(delta) }
         DispatchQueue.main.asyncAfter( // style-ok: no event marks the last queued Desktop step
             deadline: .now() + settle
-        ) { [weak self] in
-            self?.correctSpace(display: screen.uuid, target: info.desktops[number - 1], generation: generation,
-                               attemptsLeft: 2)
-        }
+        ) { [weak self] in self?.correctSpace(token) }
         return abs(delta)
     }
 
     package func switchSpace(_ number: Int) { goToSpace(number) }
 
-    package func correctSpace(display: String, target: Int, generation: Int, attemptsLeft: Int) {
-        guard generation == desktops.spaceGeneration, attemptsLeft > 0,
-              let info = backend.spaceList(display: display), let cur = info.current, cur != target,
-              let combo = backend.stepShortcut(right: target > cur) else { return }
-        let delta = target - cur
-        Log.info("spaces: landed on \(cur + 1) instead of \(target + 1); correcting by \(delta)")
+    package func correctSpace(_ token: Int) {
+        guard let step = nativeDesktop.machine.step, step.token == token, step.goal.corrections > 0,
+              let info = backend.spaceList(display: step.goal.display), let cur = info.current,
+              cur != step.goal.target, let combo = backend.stepShortcut(right: step.goal.target > cur) else { return }
+        let delta = step.goal.target - cur
+        Log.info("spaces: landed on \(cur + 1) instead of \(step.goal.target + 1); correcting by \(delta)")
         for _ in 0..<abs(delta) { postKey(combo) }
         let settle = 0.6 + 0.15 * Double(abs(delta))
-        desktops.pendingSpace = .init(display: display, index: target, until: Date().addingTimeInterval(settle))
+        nativeDesktop.corrected(token, until: Date().addingTimeInterval(settle))
         DispatchQueue.main.asyncAfter( // style-ok: no event marks the last queued Desktop step
             deadline: .now() + settle
-        ) { [weak self] in
-            self?.correctSpace(display: display, target: target, generation: generation, attemptsLeft: attemptsLeft - 1)
-        }
+        ) { [weak self] in self?.correctSpace(token) }
     }
 
     package func stepToSpace(_ space: UInt64, then arrived: @escaping @MainActor () -> Void) -> Bool {
@@ -73,8 +72,9 @@ extension WindowManager {
                   let cur = info.current, cur != target, let combo = backend.stepShortcut(right: target > cur)
             else { continue }
             let steps = abs(target - cur)
-            desktops.spaceArrival = .init(display: screen.uuid, space: space,
-                                          until: Date().addingTimeInterval(1 + 0.5 * Double(steps)), arrived: arrived)
+            let until = Date().addingTimeInterval(1 + 0.5 * Double(steps))
+            let token = nativeDesktop.step(.init(display: screen.uuid, target: target, until: until, arrival: space))
+            desktops.spaceArrival = (token, arrived)
             for _ in 0..<steps { postKey(combo) }
             return true
         }
@@ -82,14 +82,16 @@ extension WindowManager {
     }
 
     package func activeSpaceChanged(at now: Date = Date()) {
-        guard let arrival = desktops.spaceArrival,
-              now > arrival.until || backend.currentSpace(display: arrival.display) == arrival.space else { return }
+        guard let step = nativeDesktop.machine.step, let space = step.goal.arrival,
+              now > step.goal.until || backend.currentSpace(display: step.goal.display) == space else { return }
+        nativeDesktop.endStep(step.token)
+        guard let arrival = desktops.spaceArrival, arrival.token == step.token else { return }
         desktops.spaceArrival = nil
-        if now <= arrival.until { arrival.arrived() }
+        if now <= step.goal.until { arrival.action() }
     }
 
     package func moveToSpace(_ number: Int) {
-        guard !desktops.movingToSpace, let window = focusedWindow() else { return }
+        guard !nativeDesktop.isGrabbing, let window = focusedWindow() else { return }
         let frame = window.frameUnlessStalled
         guard !frame.isNull else { return }
         let points = grabPoints(for: window, frame: frame)
@@ -98,7 +100,7 @@ extension WindowManager {
             Log.info("move to space: no grab point for \(window.bundleID ?? "pid \(window.pid)")")
             return
         }
-        desktops.movingToSpace = true
+        nativeDesktop.grab(true)
         focus(window, warp: false)
         tryGrab(window, points[...], space: number, restore: mouseLocation())
     }

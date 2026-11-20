@@ -2,19 +2,6 @@ import CoreGraphics
 import Foundation
 
 package struct NativeDesktopState {
-    package struct PendingSpace {
-        package let display: String
-        package let index: Int
-        package let until: Date
-    }
-
-    package struct SpaceArrival {
-        package let display: String
-        package let space: UInt64
-        package let until: Date
-        package let arrived: @MainActor () -> Void
-    }
-
     package var nativeCatalog = NativeWorkspaceCatalog()
     package var lastNativeCatalogSaved: [String: UInt64] = [:]
     package var lastNativeCatalogHomes: [String: String] = [:]
@@ -24,8 +11,5 @@ package struct NativeDesktopState {
     package var nativeSortNames: Set<String> = []
     package var nativeDroppedWorkspaces: Set<String> = []
     package var homeSpace: [String: UInt64] = [:]
-    package var pendingSpace: PendingSpace?
-    package var spaceArrival: SpaceArrival?
-    package var spaceGeneration = 0
-    package var movingToSpace = false
+    package var spaceArrival: (token: Int, action: @MainActor () -> Void)?
 }

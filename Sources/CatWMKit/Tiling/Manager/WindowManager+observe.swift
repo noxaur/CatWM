@@ -56,7 +56,7 @@ extension WindowManager {
             surface.focusChanged()
         case kAXWindowMovedNotification, kAXWindowResizedNotification:
             guard let window = windows.values.first(where: { CFEqual($0.element, element) }),
-                  !animator.isBusy(window.id), !desktops.movingToSpace, window.id != tabUI.drag.lifted else { return }
+                  !animator.isBusy(window.id), !nativeDesktop.isGrabbing, window.id != tabUI.drag.lifted else { return }
             let id = window.id
             observeFrame(window)
             if primaryButtonDown() {

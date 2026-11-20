@@ -48,7 +48,7 @@ import Testing
         let (fake, manager, window) = (setup.fake, setup.manager, setup.window)
         let refused = RealInput.refusals
         manager.dispatch("movetoworkspace", "3")
-        #expect(await fake.wait(manager) { !manager.desktops.movingToSpace && fake.currentDesktop == 3 })
+        #expect(await fake.wait(manager) { !manager.nativeDesktop.isGrabbing && fake.currentDesktop == 3 })
         #expect(fake.desktop(of: window) == 3)
         #expect(fake.desktopSwitches == [2, 3])
         #expect(RealInput.refusals == refused)

@@ -21,7 +21,8 @@ import Testing
     private static let maxInputs = 5
 
     private static func inputs(_ node: Node) -> [Machine.Event] {
-        var events = requests.flatMap { [Machine.Event.request($0), .beginGesture($0)] }
+        var events = requests.flatMap { [Machine.Event.request($0), .beginGesture($0, direction: 1)] }
+        events.append(.beginGesture(requests[1], direction: -1))
         events += [.scrub(0.5), .endGesture(commit: true), .endGesture(commit: false), .stop, .cancelWindow(7)]
         events += (0..<maxJobs).map { .cancel(job: $0) }
         if node.nextID < maxJobs { events += works.map { .enqueue(.init(id: node.nextID, work: $0)) } }
@@ -101,8 +102,8 @@ import Testing
 
     @Test func aReleasedSwipeKeepsItsProgressForTheLastFrame() {
         var machine = Machine()
-        _ = machine.send(.beginGesture(Self.requests[0]))
-        _ = machine.send(.scrub(0.7))
+        _ = machine.send(.beginGesture(Self.requests[0], direction: -1))
+        _ = machine.send(.scrub(-0.7))
         _ = machine.send(.endGesture(commit: true))
         #expect(!machine.isTracking)
         #expect(machine.progress == 0.7)
@@ -121,7 +122,7 @@ import Testing
         #expect(machine.send(.enqueue(.init(id: 0, work: .create("3", .window(7))))) == [.grant(0)])
         _ = machine.send(.request(Self.requests[0]))
         #expect(machine.slide == nil)
-        #expect(machine.send(.beginGesture(Self.requests[1])).isEmpty)
+        #expect(machine.send(.beginGesture(Self.requests[1], direction: 1)).isEmpty)
         #expect(machine.send(.finished(job: 0, nil)) == [.slide(Self.requests[0])])
     }
 

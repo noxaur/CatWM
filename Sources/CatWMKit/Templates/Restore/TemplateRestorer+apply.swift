@@ -172,8 +172,6 @@ extension TemplateRestorer {
     }
 
     private func moveTemplateWindow(_ window: Window, to space: UInt64) async -> Bool {
-        await withCheckedContinuation { continuation in
-            Spaces.move(window: window.id, to: space) { continuation.resume(returning: $0) }
-        }
+        await manager.nativeDesktop.move(window: window.id, to: space)
     }
 }

@@ -28,9 +28,7 @@ extension WindowManager {
                   Spaces.of(window: id) != [target.space] else { continue }
             nativeMoves.begin(id)
             animator.cancel(id)
-            let moved = await withCheckedContinuation { continuation in
-                Spaces.move(window: id, to: target.space) { continuation.resume(returning: $0) }
-            }
+            let moved = await nativeDesktop.move(window: id, to: target.space)
             nativeMoves.finish(id)
             if moved { nativeMoves.finish(id, on: target.space) } else {
                 surface.showHUD("macOS couldn't move a window to workspace \(name)", on: currentScreen()?.nsScreen)
@@ -58,9 +56,7 @@ extension WindowManager {
             let target = try await ensureNativeWorkspace(workspace, on: screen)
             var moved = false
             repeat {
-                moved = await withCheckedContinuation { continuation in
-                    Spaces.move(window: id, to: target.space) { continuation.resume(returning: $0) }
-                }
+                moved = await nativeDesktop.move(window: id, to: target.space)
                 if !moved {
                     try await Task.sleep(nanoseconds: 100_000_000) // style-ok: retries a Space move; no event yet
                 }

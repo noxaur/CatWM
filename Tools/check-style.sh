@@ -66,6 +66,9 @@ SCREEN_FLIP = re.compile(
 SCREEN_FLIP_OWNER = "Sources/CatWMKit/Tiling/Access/Screen.swift"
 REAL_INPUT = re.compile(r"\.post\(tap:|\bCGEventPost\(|\bCGWarpMouseCursorPosition\(")
 REAL_INPUT_OWNER = "Sources/CatWMKit/Tiling/Access/RealInput.swift"
+DESKTOP_MOVE = re.compile(r"\bSpaces\.move\(")
+DESKTOP_MOVE_ALLOW = {"Sources/CatWMKit/Tiling/Desktops/NativeDesktopController.swift",
+                      "Sources/CatWM/Overlays/Tabs/TabStrips+Strip.swift"}
 SYSTEM_LOG = re.compile(r"\bNSLog\(|^\s*print\(")
 SYSTEM_LOG_ALLOW = ("Sources/CatWM/main.swift",)
 INTERNALS = "docs/internals"
@@ -194,6 +197,8 @@ def banned(path, code, uses_defaults=False):
         hits.append("coordinate flip. Use CGRect.flipped or CGPoint.flipped")
     if path.startswith(SOURCES) and path != REAL_INPUT_OWNER and REAL_INPUT.search(code):
         hits.append("real input post. Use RealInput.post or RealInput.warpPointer, which refuse in tests and fake-backed processes")
+    if path.startswith(SOURCES) and path not in DESKTOP_MOVE_ALLOW and DESKTOP_MOVE.search(code):
+        hits.append("window move between Desktops. Use NativeDesktopController.move, so no Desktop removal runs during it")
     if path.startswith(SOURCES) and path not in SYSTEM_LOG_ALLOW and SYSTEM_LOG.search(code):
         hits.append("NSLog or print. Use Log, which Send Feedback reads")
     if path.startswith(SOURCES) and path not in IGNORED_WRITE_ALLOW and IGNORED_WRITE.search(code):

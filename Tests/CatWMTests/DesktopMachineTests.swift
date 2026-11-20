@@ -9,6 +9,8 @@ import Testing
         var nextID = 0
         var inputs = 0
         var answered: Set<Int> = []
+        var nextMove = 0
+        var started: Set<Int> = []
     }
 
     private static let requests = [("1", "a", 1), ("2", "a", 2), ("1", "b", 3)].map {
@@ -18,6 +20,7 @@ import Testing
         .create("3", .show(.init())), .create("3", .window(7)), .create("3", .caller), .remove
     ]
     private static let maxJobs = 3
+    private static let maxMoves = 2
     private static let maxInputs = 5
 
     private static func inputs(_ node: Node) -> [Machine.Event] {
@@ -26,11 +29,13 @@ import Testing
         events += [.scrub(0.5), .endGesture(commit: true), .endGesture(commit: false), .stop, .cancelWindow(7)]
         events += (0..<maxJobs).map { .cancel(job: $0) }
         if node.nextID < maxJobs { events += works.map { .enqueue(.init(id: node.nextID, work: $0)) } }
+        if node.nextMove < maxMoves { events.append(.moveRequested(node.nextMove)) }
         return events
     }
 
     private static func completions(_ node: Node) -> [Machine.Event] {
         var events: [Machine.Event] = node.machine.slide == nil ? [] : [.slideFinished]
+        events += node.machine.moving.sorted().map { .moveEnded($0) }
         if let held = node.machine.held {
             events += ([nil] + requests.map(\.request)).map { .finished(job: held.job.id, $0) }
         }
@@ -42,15 +47,23 @@ import Testing
         let before = Set(node.machine.queue.map(\.id))
         let effects = next.machine.send(event)
         if case .enqueue = event { next.nextID += 1 }
+        if case .moveRequested = event { next.nextMove += 1 }
         if !completions(node).contains(event) { next.inputs += 1 }
         let after = Set(next.machine.queue.map(\.id))
         var answers: [Int] = []
+        var starts: [Int] = []
         for effect in effects {
             switch effect {
             case .grant(let id), .drop(let id): answers.append(id)
+            case .startMove(let id): starts.append(id)
             case .slide, .idle: break
             }
         }
+        #expect(Set(starts).count == starts.count && next.started.isDisjoint(with: starts),
+                "\(event) started a move twice")
+        #expect(Set(starts) == next.machine.moving.subtracting(node.machine.moving),
+                "\(event) started an untracked move")
+        next.started.formUnion(starts)
         #expect(Set(answers).count == answers.count, "\(event) answered a job twice")
         #expect(next.answered.isDisjoint(with: answers), "\(event) answered a job again")
         let entered: Set<Int> = if case .enqueue(let job) = event { [job.id] } else { [] }
@@ -65,7 +78,16 @@ import Testing
     private static func check(_ node: Node) {
         let machine = node.machine
         #expect(!(machine.slide != nil && machine.held != nil), "a slide ran while a Desktop job held the lock")
-        if machine.isIdle { #expect(machine.wanted == nil && machine.queue.isEmpty, "idle with work left") }
+        if machine.isIdle {
+            #expect(machine.wanted == nil, "idle with a switch left")
+            let waiting = machine.queue.allSatisfy { $0.work == .remove }
+            #expect(waiting && (machine.queue.isEmpty || !machine.moving.isEmpty), "idle with a job that could run")
+        }
+        if machine.held?.job.work == .remove {
+            #expect(machine.moving.isEmpty, "a Desktop was removed while a window moved between Desktops")
+        } else {
+            #expect(machine.waitingMoves.isEmpty, "a move waited with no removal running")
+        }
         if machine.isTracking { #expect(machine.wanted == machine.slide?.target, "a gesture tracked a stale target") }
         let shows = (machine.queue + [machine.held].compactMap { $0?.current == true ? $0?.job : nil })
             .filter { if case .create(_, .show) = $0.work { true } else { false } }
@@ -77,8 +99,10 @@ import Testing
 
     private static func settles(_ node: Node) -> Bool {
         var current = node
-        for _ in 0...(maxJobs + 2) {
-            if current.machine.isIdle { return current.answered.count == current.nextID }
+        for _ in 0...(maxJobs + maxMoves + 2) {
+            if current.machine.isIdle, current.machine.moving.isEmpty, current.machine.queue.isEmpty {
+                return current.answered.count == current.nextID && current.started.count == current.nextMove
+            }
             guard let event = completions(current).first else { return false }
             current = step(current, event)
         }
@@ -107,6 +131,15 @@ import Testing
         _ = machine.send(.endGesture(commit: true))
         #expect(!machine.isTracking)
         #expect(machine.progress == 0.7)
+    }
+
+    @Test func aRemovalWaitsForAMoveAndAMoveWaitsForARemoval() {
+        var machine = Machine()
+        #expect(machine.send(.moveRequested(0)) == [.startMove(0)])
+        #expect(machine.send(.enqueue(.init(id: 0, work: .remove))).isEmpty)
+        #expect(machine.send(.moveEnded(0)) == [.grant(0)])
+        #expect(machine.send(.moveRequested(1)).isEmpty)
+        #expect(machine.send(.finished(job: 0, nil)) == [.startMove(1), .idle])
     }
 
     @Test func aGestureInterruptionLeavesAKeyboardSwitchAlone() {

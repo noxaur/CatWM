@@ -23,9 +23,7 @@ extension TemplateRestorer {
     }
 
     private func move(_ id: CGWindowID, to space: UInt64) async {
-        _ = await withCheckedContinuation { continuation in
-            Spaces.move(window: id, to: space) { continuation.resume(returning: $0) }
-        }
+        _ = await manager.nativeDesktop.move(window: id, to: space)
     }
 
     package func isFillable(_ candidate: Found) -> Bool {
@@ -88,7 +86,7 @@ extension TemplateRestorer {
             }
             pulled.insert(window.id)
             Log.info("template: pulling new window \(window.id) from Desktop \(membership) to \(here)")
-            Spaces.move(window: window.id, to: here) { _ in }
+            manager.nativeDesktop.move(window: window.id, to: here) { _ in }
         }
     }
 

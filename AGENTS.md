@@ -57,6 +57,8 @@ When the operator corrects you, fix the mistake and add its rule here. If the ru
 | Log with `Log`, never `print` or a dropped `try?` | `check-style.sh` |
 | No comments, except `// style-ok: <reason>` on a line that breaks a check | `check-style.sh` |
 | Post input only through `RealInput`, so tests never touch the user's input or Desktops | `check-style.sh`, `RealInput` traps in tests |
+| Move windows between Desktops only through `NativeDesktopController.move` | `check-style.sh` |
+| Change `DesktopMachine`, its TLA+ spec and its exhaustive test together | `desktop-spec` CI job, `DesktopMachineTests` |
 | Tests wait on an event or an injected clock, never on a sleep or a polled run loop | `check-style.sh`, partly. `ContinuousClock().sleep` and `RunLoop.run(mode:before:)` still pass |
 | `docs/internals` records why, not steps. `docs/README.md` lists every `docs/user` page | `check-style.sh` |
 | Commit the generated config docs | `check-style.sh` digest. The schema and clients: nothing |

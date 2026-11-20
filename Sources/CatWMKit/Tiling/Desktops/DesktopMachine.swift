@@ -69,12 +69,15 @@ package struct DesktopMachine: Hashable {
         case cancel(job: Int)
         case cancelWindow(CGWindowID)
         case finished(job: Int, Request?)
+        case moveRequested(Int)
+        case moveEnded(Int)
     }
 
     package enum Effect: Hashable {
         case slide(Switch)
         case grant(Int)
         case drop(Int)
+        case startMove(Int)
         case idle
     }
 
@@ -82,6 +85,8 @@ package struct DesktopMachine: Hashable {
     package private(set) var slide: Slide?
     package private(set) var held: Held?
     package private(set) var queue: [Job] = []
+    package private(set) var moving: Set<Int> = []
+    package private(set) var waitingMoves: [Int] = []
 
     package init() {}
 
@@ -118,13 +123,22 @@ package struct DesktopMachine: Hashable {
         switch event {
         case .request, .beginGesture, .scrub, .endGesture, .stop, .slideFinished: effects = slide(event)
         case .enqueue, .cancel, .cancelWindow, .finished: effects = job(event)
+        case .moveRequested(let id):
+            if held?.job.work == .remove { waitingMoves.append(id) } else { moving.insert(id) }
+            if !waitingMoves.contains(id) { effects.append(.startMove(id)) }
+        case .moveEnded(let id): moving.remove(id)
+        }
+        if held?.job.work != .remove, !waitingMoves.isEmpty {
+            effects += waitingMoves.map { .startMove($0) }
+            moving.formUnion(waitingMoves)
+            waitingMoves = []
         }
         if isIdle {
             if let wanted {
                 slide = Slide(target: wanted)
                 effects.append(.slide(wanted))
-            } else if !queue.isEmpty {
-                let next = queue.removeFirst()
+            } else if let index = queue.firstIndex(where: { $0.work != .remove || moving.isEmpty }) {
+                let next = queue.remove(at: index)
                 held = Held(job: next)
                 effects.append(.grant(next.id))
             }

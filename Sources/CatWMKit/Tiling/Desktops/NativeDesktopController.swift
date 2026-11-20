@@ -19,6 +19,8 @@ import QuartzCore
     private var jobs = 0
     private var finishingSlide = false
     private var nextSlide: Switch?
+    private var moves: [Int: () -> Void] = [:]
+    private var nextMove = 0
     private var requestedAt: CFTimeInterval = 0
     private var timing: DesktopTransitionTiming?
     private var warmGuard: DesktopGuardClient?
@@ -286,6 +288,23 @@ extension NativeDesktopController {
 extension NativeDesktopController {
     package func cancelCreation(for window: CGWindowID) { send(.cancelWindow(window)) }
 
+    package func move(window: CGWindowID, to space: UInt64, waitUntilOnScreen: Bool = false,
+                      completion: @escaping @MainActor (Bool) -> Void) {
+        let id = nextMove
+        nextMove += 1
+        moves[id] = { [weak self] in
+            Spaces.move(window: window, to: space, waitUntilOnScreen: waitUntilOnScreen) { moved in
+                self?.send(.moveEnded(id))
+                completion(moved)
+            }
+        }
+        send(.moveRequested(id))
+    }
+
+    package func move(window: CGWindowID, to space: UInt64) async -> Bool {
+        await withCheckedContinuation { done in move(window: window, to: space) { done.resume(returning: $0) } }
+    }
+
     package func reserve(_ work: DesktopMachine.Work) -> Int {
         let id = jobs
         jobs += 1
@@ -330,6 +349,7 @@ extension NativeDesktopController {
                 }
             case .grant(let id): waiters.removeValue(forKey: id)?.resume()
             case .drop(let id): waiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
+            case .startMove(let id): moves.removeValue(forKey: id)?()
             case .idle: onIdle()
             }
         }

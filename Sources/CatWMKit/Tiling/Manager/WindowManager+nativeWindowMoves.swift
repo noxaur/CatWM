@@ -28,8 +28,7 @@ extension WindowManager {
         nativeMoves.begin(window.id)
         if follow, !visibleTarget {
             animator.cancel(window.id)
-            nativeMoves.follow(.init(window: window, workspace: workspace, space: target.space,
-                                                    from: from))
+            nativeMoves.follow(.init(window: window, workspace: workspace, space: target.space, from: from))
             showWorkspace(workspace, focusing: window)
             return
         }
@@ -47,7 +46,8 @@ extension WindowManager {
             guard let self else { return }
             let displayBatch = visibleTarget ? WindowServerUpdates.shared.begin() : nil
             let started = Date()
-            Spaces.move(window: window.id, to: target.space, waitUntilOnScreen: visibleTarget) { [weak self] moved in
+            nativeDesktop.move(window: window.id, to: target.space,
+                               waitUntilOnScreen: visibleTarget) { [weak self] moved in
                 guard let self else { displayBatch?.finish(); return }
                 defer { displayBatch?.finish() }
                 nativeMoves.finish(window.id)
@@ -67,9 +67,7 @@ extension WindowManager {
     @MainActor package func completeFollowMove(_ move: NativeWindowMoves.FollowMove) async throws {
         let id = move.window.id
         nativeMoves.begin(id)
-        let moved = await withCheckedContinuation { done in
-            Spaces.move(window: id, to: move.space) { done.resume(returning: $0) }
-        }
+        let moved = await nativeDesktop.move(window: id, to: move.space)
         nativeMoves.finish(id)
         guard moved || Spaces.of(window: id) == [move.space], move.window.isValidUnlessStalled else {
             throw DesktopTransitionError.check("macOS couldn't move this window")

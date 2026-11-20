@@ -2,80 +2,48 @@ import AppKit
 import QuartzCore
 
 @MainActor package final class NativeDesktopController {
-    package struct Request: Equatable {
-        package let workspace: String
-        package let display: String
-        package let space: UInt64
-    }
+    package typealias Request = DesktopMachine.Request
+    package typealias Switch = DesktopMachine.Switch
     package typealias Settings = MotionSpec
     package var settings = MotionSpec(duration: 0.18, curve: .easeOut, bounce: 0.5)
+    package var motionSpec: (Switch) -> MotionSpec? = { _ in nil }
     package var prepare: (Request) async throws -> Void = { _ in }
-    package var onSettled: (Request, _ changed: Bool) -> Void = { _, _ in }
+    package var onSettled: (Switch, _ changed: Bool) -> Void = { _, _ in }
     package var onMotion: (Request) -> Void = { _ in }
     package var isForward: (_ source: UInt64, _ target: UInt64, _ desktopOrder: Bool) -> Bool = { $2 }
     package var onIdle: () -> Void = {}
     package var onFailure: (String) -> Void = { _ in }
     package var guarded = true
-    package private(set) var requested: Request?
-    package private(set) var isRunning = false
-    private var gesture = false
-    private var gestureEnded = true
-    private var gestureProgress = 0.0
+    package private(set) var machine = DesktopMachine()
+    private var waiters: [Int: CheckedContinuation<Void, Error>] = [:]
+    private var jobs = 0
+    private var finishingSlide = false
+    private var nextSlide: Switch?
     private var requestedAt: CFTimeInterval = 0
     private var timing: DesktopTransitionTiming?
     private var warmGuard: DesktopGuardClient?
 
-    package func request(_ target: Request, since start: CFTimeInterval = CACurrentMediaTime()) {
-        requested = target
+    package var requested: Request? { machine.wanted?.request }
+    package var isRunning: Bool { machine.slide != nil }
+    package var isBusy: Bool { !machine.isIdle }
+    package var isLocked: Bool { machine.held != nil }
+
+    package func request(_ target: Switch, since start: CFTimeInterval = CACurrentMediaTime()) {
         requestedAt = start
-        gestureEnded = true
-        self.start()
+        send(.request(target))
     }
 
-    package func beginGesture(_ target: Request) {
-        guard !isRunning else { return }
-        requested = target
+    package func beginGesture(_ target: Switch) -> Bool {
         requestedAt = CACurrentMediaTime()
-        gesture = true
-        gestureEnded = false
-        gestureProgress = 0
-        start()
+        send(.beginGesture(target))
+        return machine.isTracking
     }
 
-    package func scrub(_ value: Double) { gestureProgress = min(1, max(0, value)) }
+    package func scrub(_ value: Double) { send(.scrub(value)) }
 
-    package func endGesture(commit: Bool) {
-        gestureEnded = true
-        if !commit { requested = nil }
-    }
+    package func endGesture(commit: Bool) { send(.endGesture(commit: commit)) }
 
-    package func stop() {
-        requested = nil
-        gestureEnded = true
-    }
-
-    private func start() {
-        guard !isRunning else { return }
-        isRunning = true
-        Task { @MainActor in
-            defer { self.isRunning = false; self.gesture = false; self.onIdle() }
-            while let target = self.requested {
-                do {
-                    if self.guarded {
-                        try await self.transition(target, since: self.requestedAt)
-                    } else {
-                        try await self.swipeUnguarded(to: target)
-                    }
-                } catch {
-                    if self.requested == target { self.requested = nil }
-                    self.gesture = false
-                    self.onFailure(error.localizedDescription)
-                    continue
-                }
-                if self.requested == target { self.requested = nil }
-            }
-        }
-    }
+    package func stop() { send(.stop) }
 
     private func transition(_ target: Request, since start: CFTimeInterval) async throws {
         let timing = DesktopTransitionTiming(since: start)
@@ -85,7 +53,7 @@ import QuartzCore
         }
         let source = Spaces.current(display: target.display)
         Log.info("native workspaces: \(source) → \(target.space), workspace \(target.workspace)")
-        if source == target.space { onSettled(target, false); return }
+        if source == target.space { settled(target, changed: false); return }
         let busy = "Finish the current macOS Desktop action, then try again"
         var list: Spaces.DisplaySpaces?, sourceState: DesktopBridge.State?, targetState: DesktopBridge.State?
         let ready = await poll(1, every: 10_000_000) {
@@ -127,7 +95,7 @@ import QuartzCore
             try await swipe(to: target)
         }
         Log.info("native workspaces: restored transforms after \(target.workspace)")
-        if Spaces.current(display: target.display) == target.space { onSettled(target, true) }
+        if Spaces.current(display: target.display) == target.space { settled(target, changed: true) }
     }
 
     private func prepareWhileGuarding(_ target: Request, _ state: DesktopGuard.Context,
@@ -165,14 +133,13 @@ import QuartzCore
         guard wants(target) else { return }
         try checkCurrentSource(state)
         self.timing?.checkpoint("show/frames")
-        if gesture {
-            try await motion.follow(until: { self.gestureEnded }, update: {
+        if machine.isTracking {
+            try await motion.follow(until: { !self.machine.isTracking }, update: {
                 try self.check(recovery.process.isRunning, "Desktop recovery process stopped")
-                progress = self.gestureProgress
+                progress = self.machine.progress
                 try self.apply(state, width: width, progress: progress)
                 return progress
             })
-            gesture = false
         }
         while true {
             let landing = wants(target) ? 1.0 : 0.0
@@ -273,10 +240,7 @@ extension NativeDesktopController {
                   "Cannot move the source Desktop")
     }
 
-    private func wants(_ target: Request) -> Bool {
-        guard let requested else { return false }
-        return requested == target || requested.display != target.display
-    }
+    private func wants(_ target: Request) -> Bool { machine.wants(target) }
 
     private func checkCurrentSource(_ state: DesktopGuard.Context) throws {
         try check(Spaces.current(display: state.display) == state.source,
@@ -315,6 +279,89 @@ extension NativeDesktopController {
     @MainActor func swipeUnguarded(to target: Request) async throws {
         let changed = Spaces.current(display: target.display) != target.space
         try await swipe(to: target)
-        if Spaces.current(display: target.display) == target.space { onSettled(target, changed) }
+        if Spaces.current(display: target.display) == target.space { settled(target, changed: changed) }
+    }
+}
+
+extension NativeDesktopController {
+    package func cancelCreation(for window: CGWindowID) { send(.cancelWindow(window)) }
+
+    package func reserve(_ work: DesktopMachine.Work) -> Int {
+        let id = jobs
+        jobs += 1
+        send(.enqueue(.init(id: id, work: work)))
+        return id
+    }
+
+    package func exclusively<Result>(_ work: DesktopMachine.Work, report: (Result) -> Request? = { _ in nil },
+                                     _ body: () async throws -> Result) async throws -> Result {
+        try await exclusively(reserve(work), report: report, body)
+    }
+
+    package func exclusively<Result>(_ id: Int, report: (Result) -> Request? = { _ in nil },
+                                     _ body: () async throws -> Result) async throws -> Result {
+        if machine.held?.job.id != id {
+            guard machine.queue.contains(where: { $0.id == id }) else { throw CancellationError() }
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { waiters[id] = $0 }
+            } onCancel: {
+                Task { @MainActor in self.send(.cancel(job: id)) }
+            }
+        }
+        let result: Result
+        do { result = try await body() } catch {
+            send(.finished(job: id, nil))
+            throw error
+        }
+        let current = machine.held?.current == true
+        send(.finished(job: id, report(result)))
+        guard current else { throw CancellationError() }
+        return result
+    }
+
+    private func send(_ event: DesktopMachine.Event) {
+        for effect in machine.send(event) {
+            switch effect {
+            case .slide(let target):
+                if finishingSlide {
+                    nextSlide = target
+                } else {
+                    Task { @MainActor in await self.slide(from: target) }
+                }
+            case .grant(let id): waiters.removeValue(forKey: id)?.resume()
+            case .drop(let id): waiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
+            case .idle: onIdle()
+            }
+        }
+    }
+
+    private func slide(from first: Switch) async {
+        var next: Switch? = first
+        while let target = next {
+            await run(target)
+            finishingSlide = true
+            send(.slideFinished)
+            finishingSlide = false
+            next = nextSlide
+            nextSlide = nil
+        }
+    }
+
+    private func run(_ target: Switch) async {
+        settings = motionSpec(target) ?? settings
+        do {
+            if guarded {
+                try await transition(target.request, since: requestedAt)
+            } else {
+                try await swipeUnguarded(to: target.request)
+            }
+        } catch {
+            onFailure(error.localizedDescription)
+        }
+    }
+
+    private func settled(_ target: Request, changed: Bool) {
+        let current = machine.slide?.target
+        onSettled(current.flatMap { $0.request == target ? $0 : nil } ?? Switch(request: target), changed)
     }
 }

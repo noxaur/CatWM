@@ -24,22 +24,29 @@ import Testing
         return manager
     }
 
-    @Test func aWorkspaceSwitchedToInAFastBurstSurvivesTheEmptySweep() async {
+    @Test func aWorkspaceSwitchedToDuringTheSweepSurvivesIt() async {
         let removals = Removals()
         let manager = await makeManager(removals)
-        for target in ["2", "3", "1", "2"] { manager.holdSwitchTarget(target) }
+        manager.desktopRemover = { space, screen in
+            removals.spaces.append(space)
+            manager.nativeDesktop.request(.init(request: .init(workspace: "2", display: screen.uuid, space: 2)))
+        }
         manager.releaseEmptyWorkspaces()
-        #expect(await poll(2, every: 10_000_000) { removals.spaces.contains(3) })
-        #expect(!removals.spaces.contains(2))
+        #expect(await poll(2, every: 10_000_000) { !manager.nativeDesktop.isBusy && !removals.spaces.isEmpty })
+        #expect(removals.spaces == [3])
     }
 
-    @Test func aSweepWaitingToRunSkipsAWorkspaceTheUserSwitchedToMeanwhile() async {
+    @Test func aNewerSwitchReplacesAnOlderOneThatStillHasToCreateItsDesktop() async {
         let removals = Removals()
         let manager = await makeManager(removals)
-        manager.releaseEmptyWorkspaces()
-        manager.holdSwitchTarget("3")
-        #expect(await poll(2, every: 10_000_000) { removals.spaces.contains(2) })
-        #expect(!removals.spaces.contains(3))
+        let display = manager.backend.screens().first?.uuid ?? ""
+        manager.nativeDesktop.request(.init(request: .init(workspace: "1", display: display, space: 1)))
+        manager.showNativeWorkspace("9", focusing: nil, focus: false, quiet: true)
+        #expect(manager.nativeDesktop.machine.pendingWorkspaces == ["9"])
+        manager.nativeDesktop.request(.init(request: .init(workspace: "2", display: display, space: 2)))
+        #expect(manager.nativeDesktop.machine.pendingWorkspaces == ["2"])
+        #expect(manager.nativeDesktop.machine.queue.isEmpty)
+        #expect(await poll(2, every: 10_000_000) { !manager.nativeDesktop.isBusy })
     }
 
     @Test func anUntargetedEmptyWorkspaceIsStillRemoved() async {

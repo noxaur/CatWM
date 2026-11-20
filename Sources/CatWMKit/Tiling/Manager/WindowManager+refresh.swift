@@ -17,7 +17,7 @@ extension WindowManager {
     }
 
     package func refresh(instant instantLayout: Bool = false, placing only: Set<CGWindowID>? = nil) {
-        guard isStarted, !nativeDesktop.isRunning, !desktops.nativeCreationBusy else { return }
+        guard isStarted, !nativeDesktop.isBusy else { return }
         let timing = TilingTiming("refresh", windows: windows.count)
         defer { timing.finish(); applyDueWindowRules() }
         if scanner.lastScan == 0 { scheduleRefresh(after: 0) }

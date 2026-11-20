@@ -233,7 +233,7 @@ extension WindowManager {
         nativeGestures.enabled = { [weak self] in
             guard let self else { return false }
             return self.config.virtualWorkspaces && !self.surface.keysPaused && !self.closeAndSort.sortSession
-                && !self.desktops.nativeCreationBusy
+                && !self.nativeDesktop.isLocked
         }
         nativeGestures.receive = { [weak self] in self?.handleNativeSwipe($0) }
         nativeGestures.interrupted = { [weak self] in self?.nativeDesktop.endGesture(commit: false) }

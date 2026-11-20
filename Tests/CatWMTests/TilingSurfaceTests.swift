@@ -123,10 +123,21 @@ private final class RecordingSurface: TilingSurface {
         manager.surface = surface
         manager.monitorOf["2"] = screen.uuid
         manager.desktops.nativeSortNames = ["2"]
-        manager.desktops.nativeCreationBusy = true
+        let release = AsyncStream<Void>.makeStream()
+        var holder: Task<Void, Error>?
+        await withCheckedContinuation { started in
+            holder = Task { @MainActor in
+                try await manager.nativeDesktop.exclusively(.remove) {
+                    started.resume()
+                    for await _ in release.stream {}
+                }
+            }
+        }
         let task = manager.finishSort(closing: [], goTo: nil, focus: false)
         task.cancel()
         await task.value
-        #expect(surface.hud == ["The previous Desktop action did not finish"])
+        release.continuation.finish()
+        try? await holder?.value
+        #expect(surface.hud.count == 1)
     }
 }

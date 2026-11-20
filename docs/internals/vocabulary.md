@@ -6,6 +6,7 @@ Use these words in code, docs, UI text and commit messages. Each word has one me
 - **workspace** means an CatWM workspace, not a macOS Desktop.
 - **Desktop** means a macOS Space. Each normal Desktop is one CatWM workspace.
 - **fullscreen** means CatWM fullscreen: one window fills the screen, and CatWM still manages it.
+- **Desktop job** means creating or removing a Desktop. One runs at a time, and no Desktop slide runs during it. See `desktop-machine.md`.
 - **maximised** means macOS native full screen: the window gets a Desktop of its own and leaves the tiling.
 - **bind** means a key combination that runs a dispatcher. It is a `bind = …` line in the config.
 - **dispatcher** means a named command, such as `movefocus` or `workspace`. `WindowManager.dispatch` runs it.

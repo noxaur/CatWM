@@ -119,44 +119,28 @@ extension WindowManager {
                                      quiet: Bool) {
         let requestedAt = CACurrentMediaTime()
         updateNativeCatalog(backend.screens())
-        desktops.nativeWorkspaceGeneration += 1
-        holdSwitchTarget(workspace)
-        let generation = desktops.nativeWorkspaceGeneration
-        let screen = currentScreen() ?? backend.screens().first
-        guard !desktops.nativeCreationBusy, let entry = desktops.nativeCatalog.entry(workspace) else {
-            guard let screen else { return }
-            nativeDesktop.stop()
-            Task { @MainActor in
-                do {
-                    let entry = try await self.ensureNativeWorkspace(workspace, on: screen, while: {
-                        self.desktops.nativeWorkspaceGeneration == generation
-                    })
-                    if self.desktops.nativeWorkspaceGeneration == generation {
-                        self.configureNativeController(focusing: preferred, focus: takesFocus, quiet: quiet,
-                                                       toward: workspace)
-                        self.nativeDesktop.request(.init(workspace: workspace, display: entry.display,
-                                                         space: entry.space), since: requestedAt)
-                    }
-                } catch is CancellationError { } catch {
-                    Log.info("native workspaces: create \(workspace) failed: \(error.localizedDescription)")
-                    surface.showHUD(error.localizedDescription, on: screen.nsScreen)
-                }
-            }
+        let options = DesktopMachine.Options(focus: preferred?.id, takesFocus: takesFocus, quiet: quiet,
+                                             motion: workspace)
+        if !nativeDesktop.isLocked, let entry = desktops.nativeCatalog.entry(workspace) {
+            nativeDesktop.request(.init(request: .init(workspace: workspace, display: entry.display,
+                                                       space: entry.space), options: options), since: requestedAt)
             return
         }
-        configureNativeController(focusing: preferred, focus: takesFocus, quiet: quiet, toward: workspace)
-        nativeDesktop.request(.init(workspace: workspace, display: entry.display, space: entry.space),
-                              since: requestedAt)
-    }
-
-    package func holdSwitchTarget(_ workspace: String) {
-        desktops.switchTarget = .init(workspace: workspace, until: Date().addingTimeInterval(5))
+        guard let screen = currentScreen() ?? backend.screens().first else { return }
+        let job = nativeDesktop.reserve(.create(workspace, .show(options)))
+        Task { @MainActor in
+            do {
+                _ = try await self.ensureNativeWorkspace(workspace, on: screen, job: job)
+            } catch is CancellationError { } catch {
+                Log.info("native workspaces: create \(workspace) failed: \(error.localizedDescription)")
+                surface.showHUD(error.localizedDescription, on: screen.nsScreen)
+            }
+        }
     }
 
     private func emptyNativeEntries() -> [NativeWorkspaceCatalog.Entry] {
-        let target = desktops.switchTarget.flatMap { $0.until > Date() ? $0.workspace : nil }
         let held = Set(workspaceOf.filter { windows[$0.key] != nil }.values).union(virtualShown.values)
-            .union(model.shownSet).union([target, nativeDesktop.requested?.workspace].compactMap(\.self))
+            .union(model.shownSet).union(nativeDesktop.machine.pendingWorkspaces)
         let occupied = Set(scanner.desktop.allWindows.compactMap { window in
             scanner.desktop.spaces[window.id].flatMap { $0.count == 1 ? $0.first : nil }
         })
@@ -167,9 +151,8 @@ extension WindowManager {
     }
 
     package func releaseEmptyWorkspaces() {
-        guard config.removesEmptyWorkspaces, !closeAndSort.sortSession, !restoringTemplate, !nativeDesktop.isRunning,
-              nativeDesktop.requested == nil, !desktops.nativeCreationBusy, nativeMoves.isEmpty,
-              !scanner.desktop.allWindows.isEmpty else { return }
+        guard config.removesEmptyWorkspaces, !closeAndSort.sortSession, !restoringTemplate, !nativeDesktop.isBusy,
+              nativeMoves.isEmpty, !scanner.desktop.allWindows.isEmpty else { return }
         let empty = emptyNativeEntries()
         if config.workspacesPerDisplay {
             func number(_ entry: NativeWorkspaceCatalog.Entry) -> Int { WorkspaceKey.ordinal(entry.name) }
@@ -187,32 +170,33 @@ extension WindowManager {
             desktops.desktopRemovalFailures[$0.space].map { now.timeIntervalSince($0) > 30 } ?? true
         }
             .sorted { (WorkspaceKey.ordinal($0.name)) > (WorkspaceKey.ordinal($1.name)) }
-        guard !targets.isEmpty, !desktops.desktopRemovalScheduled else { return }
-        desktops.desktopRemovalScheduled = true
+        guard !targets.isEmpty else { return }
         Task { @MainActor in
-            defer { self.desktops.desktopRemovalScheduled = false }
-            guard await poll(5, every: 50_000_000, until: {
-                !self.nativeDesktop.isRunning && self.nativeDesktop.requested == nil && self.nativeMoves.isEmpty
-                    && !self.desktops.nativeCreationBusy
-            }) else { return }
-            desktops.nativeCreationBusy = true
-            defer { self.desktops.nativeCreationBusy = false; self.scheduleRefresh(after: 0) }
-            for entry in targets {
-                guard let screen = backend.screens().first(where: { $0.uuid == entry.display }),
-                      emptyNativeEntries().contains(entry) else { continue }
-                do {
-                    try await self.removeDesktop(entry.space, on: screen, remove: self.desktopRemover)
-                    if self.config.workspacesPerDisplay {
-                        self.closeGap(after: entry)
-                    } else {
-                        self.forgetRemovedWorkspace(entry.name)
-                    }
-                    self.desktops.desktopRemovalFailures[entry.space] = nil
-                    Log.info("native workspaces: removed empty workspace \(entry.name)")
-                } catch {
-                    self.desktops.desktopRemovalFailures[entry.space] = Date()
-                    Log.info("native workspaces: could not remove \(entry.name): \(error.localizedDescription)")
+            do {
+                try await nativeDesktop.exclusively(.remove) { await self.removeEmpty(targets) }
+            } catch {
+                Log.info("native workspaces: empty Desktop sweep skipped: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func removeEmpty(_ targets: [NativeWorkspaceCatalog.Entry]) async {
+        guard nativeMoves.isEmpty else { return }
+        for entry in targets {
+            guard let screen = backend.screens().first(where: { $0.uuid == entry.display }),
+                  emptyNativeEntries().contains(entry) else { continue }
+            do {
+                try await self.removeDesktop(entry.space, on: screen, remove: self.desktopRemover)
+                if self.config.workspacesPerDisplay {
+                    self.closeGap(after: entry)
+                } else {
+                    self.forgetRemovedWorkspace(entry.name)
                 }
+                self.desktops.desktopRemovalFailures[entry.space] = nil
+                Log.info("native workspaces: removed empty workspace \(entry.name)")
+            } catch {
+                self.desktops.desktopRemovalFailures[entry.space] = Date()
+                Log.info("native workspaces: could not remove \(entry.name): \(error.localizedDescription)")
             }
         }
     }
@@ -255,14 +239,14 @@ extension WindowManager {
         previousWorkspace = moved(previousWorkspace).mapValues(shifted)
     }
 
-    package func configureNativeController(
-        focusing preferred: Window?, focus takesFocus: Bool, quiet: Bool, toward workspace: String? = nil
-    ) {
+    package func connectNativeDesktop() {
         nativeDesktop.prepare = { [weak self] in try await self?.prepareNativeLayout($0) }
-        nativeDesktop.settings = MotionSpec(config(for: workspace ?? currentWorkspace))
-        nativeDesktop.onSettled = { [weak self] request, changed in
+        nativeDesktop.motionSpec = { [weak self] target in
+            self.map { MotionSpec($0.config(for: target.options.motion ?? target.request.workspace)) }
+        }
+        nativeDesktop.onSettled = { [weak self] target, changed in
             guard let self else { return }
-            if self.desktops.switchTarget?.workspace == request.workspace { self.desktops.switchTarget = nil }
+            let request = target.request
             if self.isVirtual(request.workspace) {
                 if changed, let old = self.virtualShown[request.display], old != request.workspace,
                    !self.closeAndSort.sortSession {
@@ -277,8 +261,12 @@ extension WindowManager {
                       self.backend.currentSpace(display: request.display) == request.space else { return }
                 self.refresh(placing: [])
                 guard let screen = self.backend.screens().first(where: { $0.uuid == request.display }) else { return }
-                if takesFocus { self.focusShownWorkspace(request.workspace, preferred: preferred, on: screen) }
-                if changed, !quiet, self.config.enablesLayoutHUD, self.config.enablesLayoutHUDOnSpaceChange {
+                if target.options.takesFocus {
+                    let preferred = target.options.focus.flatMap { self.windows[$0] }
+                    self.focusShownWorkspace(request.workspace, preferred: preferred, on: screen)
+                }
+                if changed, !target.options.quiet, self.config.enablesLayoutHUD,
+                   self.config.enablesLayoutHUDOnSpaceChange {
                     self.showWorkspaceHUD(request.workspace, on: screen)
                 }
             }

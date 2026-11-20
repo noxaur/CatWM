@@ -12,8 +12,7 @@ extension SortPanel {
     }
 
     func open() {
-        guard !isOpen, manager.config.virtualWorkspaces, !manager.nativeDesktop.isRunning,
-              !manager.desktops.nativeCreationBusy else { return }
+        guard !isOpen, manager.config.virtualWorkspaces, !manager.nativeDesktop.isBusy else { return }
         let displays = manager.sortDisplays()
         func hasWindows(_ display: SortDisplay) -> Bool { !display.items.isEmpty || !display.maximised.isEmpty }
         guard displays.contains(where: hasWindows) else {

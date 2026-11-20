@@ -146,6 +146,7 @@ import AppKit
             readApplications: { backend.applications() }, scope: scope,
             claims: scope == nil ? ScopeClaims(folder: Instance.paths.instancesFolder) : nil)
         focusRequests.focusReader = FocusReader { backend.focusedWindow(pid: $0) }
+        connectNativeDesktop()
     }
 
     package func scopeRefusal(_ command: String) -> String? {

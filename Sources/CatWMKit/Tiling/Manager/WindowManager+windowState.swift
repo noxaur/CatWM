@@ -120,11 +120,9 @@ extension WindowManager {
                   Spaces.list(display: $0.uuid)?.ids.contains(space) == true
               }),
               backend.currentSpace(display: screen.uuid) != space else { return false }
-        desktops.nativeWorkspaceGeneration += 1
-        configureNativeController(focusing: window, focus: true, quiet: true,
-                                  toward: WorkspaceKey.space(display: screen.uuid, space: space))
-        nativeDesktop.request(.init(workspace: WorkspaceKey.space(display: screen.uuid, space: space),
-                                    display: screen.uuid, space: space))
+        let key = WorkspaceKey.space(display: screen.uuid, space: space)
+        nativeDesktop.request(.init(request: .init(workspace: key, display: screen.uuid, space: space),
+                                    options: .init(focus: window.id, quiet: true)))
         return true
     }
 

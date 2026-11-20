@@ -159,6 +159,7 @@ extension WindowManager {
         floats.floatFrames[id] = nil; floats.floatFullscreen[id] = nil; targets[id] = nil; minSizes[id] = nil
         corrections[id] = nil; drags[id] = nil
         displayOf[id] = nil
+        cancelNativeCreation(id)
         nativeMoves.forget(id)
         closeAndSort.closingNow.remove(id)
         visible.remove(id)

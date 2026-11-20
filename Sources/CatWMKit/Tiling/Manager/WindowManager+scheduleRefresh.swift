@@ -13,7 +13,7 @@ extension WindowManager {
 
     package func scanAndRefresh(then done: (() -> Void)? = nil) {
         refreshWork = nil
-        guard isStarted, !nativeDesktop.isRunning, !desktops.nativeCreationBusy else { done?(); return }
+        guard isStarted, !nativeDesktop.isBusy else { done?(); return }
         scanRequests += 1
         let request = scanRequests
         if let done { scanWaiters.append((request, done)) }
@@ -21,7 +21,7 @@ extension WindowManager {
     }
 
     private func scanAppsAndRefresh(_ request: Int) {
-        guard isStarted, !nativeDesktop.isRunning, !desktops.nativeCreationBusy else { return finishScan(request) }
+        guard isStarted, !nativeDesktop.isBusy else { return finishScan(request) }
         releaseClaimedApps()
         let listed = config.virtualWorkspaces ? scanner.desktop.allWindows : scanner.desktop.windows
         let pidsOnScreen = Set(listed.map(\.pid))

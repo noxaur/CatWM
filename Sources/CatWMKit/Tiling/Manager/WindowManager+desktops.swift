@@ -114,7 +114,7 @@ extension WindowManager {
 
     package func handleNativeSwipe(_ sample: DesktopGestureTap.Sample) {
         if sample.phase == 1 { desktops.nativeGestureSign = nil }
-        if desktops.nativeGestureSign == nil, abs(sample.progress) > 0.001, !nativeDesktop.isRunning {
+        if desktops.nativeGestureSign == nil, abs(sample.progress) > 0.001, !nativeDesktop.isBusy {
             guard let screen = backend.screens().first(where: { $0.frame.contains(mouseLocation()) }) else { return }
             updateNativeCatalog(backend.screens())
             let space = backend.currentSpace(display: screen.uuid)
@@ -122,9 +122,10 @@ extension WindowManager {
             let direction = sample.progress > 0 ? 1 : -1
             guard let name = desktops.nativeCatalog.step(from: source.name, by: direction),
                   let target = desktops.nativeCatalog.entry(name) else { return }
+            let request = DesktopMachine.Request(workspace: name, display: target.display, space: target.space)
+            guard nativeDesktop.beginGesture(.init(request: request, options: .init(motion: currentWorkspace)))
+            else { return }
             desktops.nativeGestureSign = Double(direction)
-            configureNativeController(focusing: nil, focus: true, quiet: false)
-            nativeDesktop.beginGesture(.init(workspace: name, display: target.display, space: target.space))
         }
         guard let sign = desktops.nativeGestureSign else { return }
         let progress = min(1, max(0, sample.progress * sign))

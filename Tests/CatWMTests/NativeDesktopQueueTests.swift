@@ -5,8 +5,8 @@ import Testing
 
 #if DEBUG
 @MainActor @Suite struct NativeDesktopQueueTests {
-    private func request(_ name: String) -> NativeDesktopController.Request {
-        .init(workspace: name, display: "missing-display", space: 1)
+    private func request(_ name: String) -> NativeDesktopController.Switch {
+        .init(request: .init(workspace: name, display: "missing-display", space: 1))
     }
 
     @Test func aFailedSwitchDoesNotDropARequestMadeDuringTheFailure() async {

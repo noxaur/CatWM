@@ -288,6 +288,19 @@ extension NativeDesktopController {
 extension NativeDesktopController {
     package func cancelCreation(for window: CGWindowID) { send(.cancelWindow(window)) }
 
+    package func step(_ goal: DesktopMachine.Goal) -> Int {
+        send(.step(goal))
+        return machine.step?.token ?? 0
+    }
+
+    package func endStep(_ token: Int? = nil) { send(.endStep(token: token)) }
+
+    package func corrected(_ token: Int, until: Date) { send(.corrected(token: token, until: until)) }
+
+    package func grab(_ held: Bool) { send(.grab(held)) }
+
+    package var isGrabbing: Bool { machine.grabbing }
+
     package func move(window: CGWindowID, to space: UInt64, waitUntilOnScreen: Bool = false,
                       completion: @escaping @MainActor (Bool) -> Void) {
         let id = nextMove

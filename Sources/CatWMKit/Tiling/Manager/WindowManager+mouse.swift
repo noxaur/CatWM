@@ -12,7 +12,7 @@ extension WindowManager {
 
     private func focusUnderMouse() {
         guard focusFollowsMouseNow, !closeAndSort.sortSession, Date() > ignoreMouseUntil,
-              !anyButtonDown(), !desktops.movingToSpace else { return }
+              !anyButtonDown(), !nativeDesktop.isGrabbing else { return }
         let point = mouseLocation()
         guard let hit = CGWindowInfo.normalWindow(at: point), let window = windows[hit.id], visible.contains(window.id),
               focusedWindow()?.id != window.id else { return }
@@ -26,12 +26,12 @@ extension WindowManager {
         let joins = tabUI.drag.allowsJoin
         let hovered = joins && drags.count == 1 ? drags.first.flatMap { settledTabHover(for: $0.key, at: point) } : nil
         let previewed = tabUI.drag.finish(drags.first?.key, on: surface).preview
-        if let previewed, let id = drags.first?.key, drags.count == 1, !desktops.movingToSpace {
+        if let previewed, let id = drags.first?.key, drags.count == 1, !nativeDesktop.isGrabbing {
             drags = [:]
             dropIntoStrip(id, group: previewed.group, at: previewed.index)
             return settleParkedTabs()
         }
-        guard !drags.isEmpty, !desktops.movingToSpace else {
+        guard !drags.isEmpty, !nativeDesktop.isGrabbing else {
             drags = [:]
             return settleParkedTabs()
         }
@@ -41,7 +41,7 @@ extension WindowManager {
         readFrames(dragged) { [weak self] in
             guard let self else { return }
             defer { self.settleParkedTabs() }
-            guard !self.primaryButtonDown(), !self.desktops.movingToSpace else { return }
+            guard !self.primaryButtonDown(), !self.nativeDesktop.isGrabbing else { return }
             self.finishMouseDrag(finished, at: point, hovered: hovered, joins: joins)
         }
     }

@@ -1,4 +1,5 @@
 @testable import CatWMKit
+import Foundation
 import Testing
 
 @Suite struct DesktopMachineTests {
@@ -140,6 +141,42 @@ import Testing
         #expect(machine.send(.moveEnded(0)) == [.grant(0)])
         #expect(machine.send(.moveRequested(1)).isEmpty)
         #expect(machine.send(.finished(job: 0, nil)) == [.startMove(1), .idle])
+    }
+
+    @Test func everyStepHasOneOwnerAndOnlyItsTokenChangesIt() {
+        let soon = Date(timeIntervalSinceReferenceDate: 0)
+        let goals = [Machine.Goal(display: "a", target: 2, until: soon, corrections: 2),
+                     Machine.Goal(display: "a", target: 0, until: soon, arrival: 1)]
+        var events = goals.map(Machine.Event.step) + [.endStep(token: nil), .grab(true), .grab(false)]
+        events += (1...3).flatMap { [Machine.Event.endStep(token: $0), .corrected(token: $0, until: soon + 1)] }
+        struct Reached { let machine: Machine, issued: Int, depth: Int }
+        var seen: Set<[Int]> = []
+        var frontier = [Reached(machine: Machine(), issued: 0, depth: 0)]
+        while let reached = frontier.popLast() {
+            let (machine, issued, depth) = (reached.machine, reached.issued, reached.depth)
+            guard depth < 5 else { continue }
+            for event in events {
+                var next = machine
+                #expect(next.send(event).isEmpty)
+                let made = if case .step = event { issued + 1 } else { issued }
+                if let step = next.step {
+                    #expect(step.token == made, "an old step outlived a newer one")
+                    #expect((0...2).contains(step.goal.corrections))
+                }
+                switch event {
+                case .endStep(let token?), .corrected(let token, _):
+                    if token != machine.step?.token {
+                        #expect(next.step == machine.step, "a stale token changed a step")
+                    }
+                default: break
+                }
+                let key = [made, next.step?.token ?? -1, next.step?.goal.corrections ?? -1, next.grabbing ? 1 : 0]
+                if seen.insert(key + [depth]).inserted {
+                    frontier.append(Reached(machine: next, issued: made, depth: depth + 1))
+                }
+            }
+        }
+        #expect(seen.count > 20)
     }
 
     @Test func aGestureInterruptionLeavesAKeyboardSwitchAlone() {

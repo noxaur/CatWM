@@ -21,13 +21,13 @@ extension WindowManager {
     ]
 
     package func grabTest() {
-        guard !desktops.movingToSpace, let window = focusedWindow() else {
+        guard !nativeDesktop.isGrabbing, let window = focusedWindow() else {
             Log.info("grabtest: no focused window")
             return
         }
         let points = grabPoints(for: window, frame: window.frame)
         Log.info("grabtest: \(window.bundleID ?? "pid \(window.pid)") frame \(window.frame) candidates \(points)")
-        desktops.movingToSpace = true
+        nativeDesktop.grab(true)
         let restore = mouseLocation()
         func next(_ rest: ArraySlice<CGPoint>) {
             guard let point = rest.first else { finishMove(restore: restore); return }
@@ -102,18 +102,19 @@ extension WindowManager {
                 return
             }
             holdUntilArrived(space: number, release: held, restore: restore,
-                             settle: 0.45 + 0.15 * Double(steps - 1), attemptsLeft: 2)
+                             settle: 0.45 + 0.15 * Double(steps - 1), step: nativeDesktop.machine.step?.token)
         }
     }
 
     package func holdUntilArrived(space number: Int, release: CGPoint, restore: CGPoint, settle: Double,
-                                  attemptsLeft: Int) {
+                                  step token: Int?) {
         DispatchQueue.main.asyncAfter( // style-ok: no event marks the last queued Desktop step
             deadline: .now() + settle
         ) { [weak self] in
             guard let self else { return }
             let point = mouseLocation()
-            if attemptsLeft > 0, let screen = backend.screens().first(where: { $0.frame.contains(point) }),
+            if let token, let step = nativeDesktop.machine.step, step.token == token, step.goal.corrections > 0,
+               let screen = backend.screens().first(where: { $0.frame.contains(point) }),
                let info = backend.spaceList(display: screen.uuid), let cur = info.current,
                info.desktops.indices.contains(number - 1),
                cur != info.desktops[number - 1],
@@ -123,8 +124,9 @@ extension WindowManager {
                 for _ in 0..<abs(delta) {
                     postKey(combo)
                 }
-                holdUntilArrived(space: number, release: release, restore: restore,
-                                 settle: 0.45 + 0.15 * Double(abs(delta) - 1), attemptsLeft: attemptsLeft - 1)
+                let settle = 0.45 + 0.15 * Double(abs(delta) - 1)
+                nativeDesktop.corrected(token, until: Date().addingTimeInterval(settle))
+                holdUntilArrived(space: number, release: release, restore: restore, settle: settle, step: token)
                 return
             }
             postMouse(.leftMouseUp, release)
@@ -135,7 +137,7 @@ extension WindowManager {
     package func finishMove(restore: CGPoint) {
         warpPointer(to: restore)
         drags = [:]
-        desktops.movingToSpace = false
+        nativeDesktop.grab(false)
         scheduleRefresh(after: 0.2)
     }
 

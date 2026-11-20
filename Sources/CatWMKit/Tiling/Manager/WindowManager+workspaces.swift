@@ -71,7 +71,7 @@ extension WindowManager {
         let timing = TilingTiming("reconcile", windows: present.count)
         defer { timing.finish() }
         if config.virtualWorkspaces { return syncNativeWorkspaces(screens: screens, present: present) }
-        let held = desktops.movingToSpace || primaryButtonDown()
+        let held = nativeDesktop.isGrabbing || primaryButtonDown()
         let observation = WorkspaceObservation(
             displays: screens.map {
                 .init(id: $0.uuid, frame: $0.frame, space: backend.currentSpace(display: $0.uuid),

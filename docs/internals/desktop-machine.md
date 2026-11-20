@@ -19,6 +19,12 @@ A slide comes before queued jobs, because the user is watching it. A request for
 
 Each new switch replaces the previous one, whether it is wanted, queued or already creating its Desktop. A replaced creation still finishes, because SkyLight can't stop halfway. It just doesn't switch afterwards, and the sweep removes the Desktop if it stays empty. Callers reserve their job before they await anything, so jobs run in the order the user asked for them, even when the job runs from a later task. The machine names every pending switch target, so the sweep keeps those workspaces. That replaced the 5 s switch-target hold.
 
+## macOS Spaces mode
+
+Without CatWM workspaces, CatWM moves between Desktops by posting the system's Desktop shortcuts. Three features do that. The workspace keys step toward a Desktop and then correct a landing that falls short. The switcher waits for its Desktop to arrive before it focuses. A window move carries the window in a synthetic drag. Each feature kept its own record and timers, so a jump by direct shortcut left an earlier step's correction armed, and that correction stepped back to the old target.
+
+The machine now holds one **step**: its display, target, deadline, the corrections it has left and, for the switcher, the Desktop it waits for. Each new step or direct jump replaces the current one, and a timer acts only while its token is current. **grabbing** marks the synthetic drag, which holds back AX moves and the mouse handlers. This part shares no state with the native part, because the two modes never run together. So the TLA+ model leaves it out, and `DesktopMachineTests` checks it in its own search.
+
 ## Verification
 
 `Tools/Spec/DesktopMachine.tla` models the reducer with abstract requests and jobs. TLC checks every reachable state against these invariants:

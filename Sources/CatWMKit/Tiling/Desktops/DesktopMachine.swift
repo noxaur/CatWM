@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 package struct DesktopMachine: Hashable {
     package struct Request: Hashable {
@@ -58,6 +59,19 @@ package struct DesktopMachine: Hashable {
         package var current = true
     }
 
+    package struct Goal: Hashable {
+        package let display: String
+        package let target: Int
+        package var until: Date
+        package var corrections = 0
+        package var arrival: UInt64?
+    }
+
+    package struct Step: Hashable {
+        package var goal: Goal
+        package let token: Int
+    }
+
     package enum Event: Hashable {
         case request(Switch)
         case beginGesture(Switch, direction: Double)
@@ -71,6 +85,10 @@ package struct DesktopMachine: Hashable {
         case finished(job: Int, Request?)
         case moveRequested(Int)
         case moveEnded(Int)
+        case step(Goal)
+        case endStep(token: Int?)
+        case corrected(token: Int, until: Date)
+        case grab(Bool)
     }
 
     package enum Effect: Hashable {
@@ -87,6 +105,9 @@ package struct DesktopMachine: Hashable {
     package private(set) var queue: [Job] = []
     package private(set) var moving: Set<Int> = []
     package private(set) var waitingMoves: [Int] = []
+    package private(set) var step: Step?
+    package private(set) var grabbing = false
+    private var steps = 0
 
     package init() {}
 
@@ -127,6 +148,7 @@ package struct DesktopMachine: Hashable {
             if held?.job.work == .remove { waitingMoves.append(id) } else { moving.insert(id) }
             if !waitingMoves.contains(id) { effects.append(.startMove(id)) }
         case .moveEnded(let id): moving.remove(id)
+        case .step, .endStep, .corrected, .grab: spaces(event)
         }
         if held?.job.work != .remove, !waitingMoves.isEmpty {
             effects += waitingMoves.map { .startMove($0) }
@@ -209,6 +231,22 @@ package struct DesktopMachine: Hashable {
         default: break
         }
         return effects
+    }
+
+    private mutating func spaces(_ event: Event) {
+        switch event {
+        case .step(let goal):
+            steps += 1
+            step = Step(goal: goal, token: steps)
+        case .endStep(let token):
+            if token == nil || step?.token == token { step = nil }
+        case .corrected(let token, let until):
+            guard step?.token == token, let left = step?.goal.corrections, left > 0 else { break }
+            step?.goal.corrections = left - 1
+            step?.goal.until = until
+        case .grab(let held): grabbing = held
+        default: break
+        }
     }
 
     private mutating func releaseGesture() {

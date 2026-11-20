@@ -71,6 +71,7 @@ extension WindowManager {
     }
 
     func switchTo(_ item: SwitcherItem) {
+        nativeDesktop.endStep()
         desktops.spaceArrival = nil
         if let space = Spaces.of(window: item.id).first, let workspace = workspace(on: space),
            let display = desktops.nativeCatalog.entry(workspace)?.display,

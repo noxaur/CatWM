@@ -59,6 +59,7 @@ package final class FakeBackend: WindowBackend, Sendable {
         var inputLog: [Input] = []
         var pointer = CGPoint.zero
         var desktopCount = 3
+        var directShortcuts = false
         var desktop = 1
         var desktopOf: [CGWindowID: Int] = [:]
         var desktopSwitches: [Int] = []
